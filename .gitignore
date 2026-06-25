@@ -1,0 +1,56 @@
+# ==========================================
+# Ambientes Virtuais e Python (Essencial)
+# ==========================================
+.venv/
+venv/
+ENV/
+env/
+*.pyc
+*.pyo
+*.pyd
+__pycache__/
+*.cfg
+
+# ==========================================
+# Banco de Dados Local (Não enviar para o Git)
+# ==========================================
+# Mantém o banco de dados de teste/desenvolvimento apenas na sua máquina
+db.sqlite3
+db.sqlite3-journal
+
+# ==========================================
+# Uploads e Arquivos de Mídia (Django Media)
+# ==========================================
+# Evita que fotos, laudos em PDF e mídias de teste criadas localmente subam para o repositório
+/media/
+/media_root/
+/static_root/
+
+# ==========================================
+# Variáveis de Ambiente e Segredos
+# ==========================================
+# Arquivos que guardam a SECRET_KEY do Django ou senhas de banco de dados
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# ==========================================
+# Editores de Código e IDEs
+# ==========================================
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.swp
+
+# ==========================================
+# Arquivos de Sistema (Windows / Mac / Linux)
+# ==========================================
+Thumbs.db
+Desktop.ini
+.DS_Store
+*.log
