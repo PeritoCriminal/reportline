@@ -42,18 +42,17 @@ Antes de começar, certifique-se de ter o **Python** e o **PostgreSQL** instalad
    ```bash
    git clone [https://github.com/PeritoCriminal/reportline.git](https://github.com/PeritoCriminal/reportline.git)
    cd reportline
-Criar e ativar o ambiente virtual (venv):
-
-No Windows (PowerShell):
-
-PowerShell
-python -m venv .venv
-.\.venv\Scripts\Activate.ps1
-Instalar as dependências:
-
-Bash
-pip install -r requirements.txt
-Configurar as Variáveis de Ambiente:
+   
+2. **Criar e ativar o ambiente virtual (venv):**
+   ```PowerShell
+   python -m venv .venv
+   .\.venv\Scripts\Activate.ps1
+   
+3. **Instalar as dependências:**
+   ```Bash
+   pip install -r requirements.txt
+   
+4. **Configurar as Variáveis de Ambiente:**
 Crie um arquivo .env na raiz do projeto e adicione as suas credenciais locais do PostgreSQL:
 
 Snippet de código
@@ -62,15 +61,17 @@ DB_USER=postgres
 DB_PASSWORD=sua_senha_aqui
 DB_HOST=localhost
 DB_PORT=5432
-Rodar as Migrações do Banco de Dados:
 
-Bash
-python manage.py migrate
-Iniciar o Servidor de Desenvolvimento:
+5. **Rodar as Migrações do Banco de Dados:**
 
-Bash
-python manage.py runserver
-Acesse http://127.0.0.1:8000/ no seu navegador.
+   ```Bash
+   python manage.py migrate```
+
+6. **Iniciar o Servidor de Desenvolvimento:**
+   ```Bash
+   python manage.py runserver
+   
+7. **Acesse http://127.0.0.1:8000/ no seu navegador.**
 
 📝 Licença
 Este projeto é aberto e voltado para fins educacionais e de portfólio. Sinta-se à vontade para estudar, clonar e contribuir!
