@@ -111,9 +111,9 @@ AUTH_PASSWORD_VALIDATORS = [
 # Internationalization
 # https://docs.djangoproject.com/en/6.0/topics/i18n/
 
-LANGUAGE_CODE = 'en-us'
+LANGUAGE_CODE = 'pt-br'
 
-TIME_ZONE = 'UTC'
+TIME_ZONE = 'America/Sao_Paulo'
 
 USE_I18N = True
 
@@ -126,3 +126,14 @@ USE_TZ = True
 STATIC_URL = 'static/'
 
 AUTH_USER_MODEL = 'accounts.CustomUser'
+
+MEDIA_URL = '/media/'
+MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+
+STATIC_URL = '/urls/'
+STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
+
+STATICFILES_DIRS = [
+    # pasta static global se for criada
+    # os.path.join(BASE_DIR, 'static')
+]
