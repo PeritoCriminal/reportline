@@ -1,4 +1,11 @@
+"""
+Model de usuário personalizado do app accounts.
+
+Define CustomUser com chave primária UUID para o ecossistema ReportLine.
+"""
+
 import uuid
+
 from django.contrib.auth.models import AbstractUser
 from django.db import models
 

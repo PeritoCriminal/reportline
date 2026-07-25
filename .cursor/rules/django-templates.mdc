@@ -1,0 +1,27 @@
+---
+description: Padrões de templates Django — comentários e textos em português
+globs: **/templates/**/*.html
+alwaysApply: false
+---
+
+# Django — Templates
+
+## Comentários (estilo Django)
+
+- **Nunca** usar `<!-- ... -->` para comentários de template Django.
+- **Nunca** usar `/* ... */`.
+- Usar `{# comentário #}` para comentários curtos.
+- Usar `{% comment %} ... {% endcomment %}` para blocos maiores.
+
+```django
+{# Menu principal — revisar após implementar permissões #}
+
+{% comment %}
+Bloco reservado para filtros avançados de laudos.
+Será ativado na fase 2 do módulo de relatórios.
+{% endcomment %}
+```
+
+## Textos visíveis
+
+- Rótulos, botões, placeholders, `aria-label` e mensagens estáticas: **português**.

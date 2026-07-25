@@ -1,0 +1,34 @@
+---
+description: Testes unitários obrigatórios para regras e comportamentos novos
+globs: **/test*.py,**/tests.py,**/tests/**/*.py
+alwaysApply: true
+---
+
+# Testes — Regras de Negócio
+
+## Quando testar
+
+- Ao implementar ou inferir uma **nova regra importante** (validação, permissão, fluxo de auth, constraint de model, regra de domínio), **criar teste unitário específico** para essa regra.
+- Um teste por comportamento crítico; nome descritivo em inglês, docstring do teste em português.
+
+## Onde colocar
+
+- `app/tests/test_<dominio>.py` — modularizado, espelhando a estrutura de `views/`, `models/`, `services/`.
+- Exemplo: regra de login → `accounts/tests/test_auth_views.py`.
+
+## Padrão
+
+```python
+class CustomUserModelTests(TestCase):
+    """Testes do model CustomUser e suas regras de identificação."""
+
+    def test_primary_key_is_uuid(self):
+        """Garante que a chave primária do usuário seja UUID, não inteiro sequencial."""
+        user = CustomUser.objects.create_user(username="perito1", password="senha-segura")
+        self.assertIsInstance(user.pk, uuid.UUID)
+```
+
+## Escopo mínimo do teste
+
+- Caso feliz + pelo menos um caso de falha ou borda relevante à regra.
+- Não mergear regra de negócio crítica sem teste correspondente.

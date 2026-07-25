@@ -1,0 +1,58 @@
+---
+description: Commits sempre em português, detalhados e descritivos
+alwaysApply: true
+---
+
+# Git — Mensagens de Commit
+
+## Idioma e detalhamento
+
+- **Sempre em português.**
+- Mensagens **detalhadas**: explicar o *porquê* e o impacto, não apenas listar arquivos alterados.
+- Evitar commits genéricos (`fix`, `update`, `ajustes`, `WIP`).
+
+## Formato recomendado
+
+```
+<tipo>(<escopo>): <resumo imperativo em português>
+
+Corpo opcional com contexto, motivação e efeitos colaterais.
+Bullets para mudanças relevantes quando houver mais de um ponto.
+```
+
+### Tipos comuns
+
+| Tipo | Uso |
+|---|---|
+| `feat` | Nova funcionalidade |
+| `fix` | Correção de bug |
+| `refactor` | Refatoração sem mudar comportamento |
+| `test` | Adição ou correção de testes |
+| `docs` | Documentação |
+| `chore` | Tarefas de manutenção (deps, config) |
+
+## Exemplos
+
+```
+feat(accounts): implementar login com CBV e rota dedicada
+
+Substitui a function-based view placeholder por LoginView,
+centraliza rotas em accounts/urls.py e adiciona testes que
+garantem resposta 200 e mensagem em português na tela provisória.
+```
+
+```
+fix(auth): impedir login de usuário inativo no CustomUser
+
+Valida is_active antes de autenticar e retorna mensagem clara
+em português para o usuário final.
+```
+
+## O que evitar
+
+```
+# ❌ RUIM
+fix bug
+update views
+ajustes gerais
+```

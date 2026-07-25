@@ -1,0 +1,51 @@
+---
+description: Padrões Django — CBV, models, comentários Python e docstrings
+globs: **/*.py
+alwaysApply: false
+---
+
+# Django — Backend
+
+## Views: sempre CBV
+
+- Criar views como **Class-Based Views** (`View`, `TemplateView`, `ListView`, `CreateView`, `UpdateView`, `DeleteView`, `LoginView`, etc.).
+- Organizar em `app/views/<dominio>_views.py`.
+- Function-Based Views só se houver justificativa técnica documentada na docstring.
+
+```python
+# ✅ BOM
+from django.views.generic import TemplateView
+
+class LoginView(TemplateView):
+    """Renderiza a tela de autenticação do ReportLine."""
+    template_name = "accounts/login.html"
+
+# ❌ RUIM
+def login_view(request):
+    return render(request, "accounts/login.html")
+```
+
+## Models: metadados obrigatórios
+
+- Sempre definir `class Meta` quando criar ou alterar model.
+- Incluir, conforme aplicável: `verbose_name`, `verbose_name_plural`, `ordering`, `indexes`, `constraints`, `db_table`.
+- `__str__` descritivo em português quando exibido na UI.
+
+```python
+class Meta:
+    verbose_name = "Laudo"
+    verbose_name_plural = "Laudos"
+    ordering = ["-created_at"]
+```
+
+## Comentários Python (estilo Django)
+
+- Usar `#` para comentários inline ou de bloco.
+- **Nunca** usar comentários estilo C/JS (`/* ... */` ou `//` em Python).
+- Lógica não óbvia: preferir docstring; comentário `#` apenas para decisões pontuais.
+
+```python
+# Valida permissão antes de persistir o laudo.
+if not user.has_perm("reports.add_report"):
+    ...
+```

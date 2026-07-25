@@ -1,0 +1,52 @@
+---
+description: Cláusulas pétreas do ReportLine — nomenclatura, idioma e modularização
+alwaysApply: true
+---
+
+# ReportLine — Regras Fundamentais
+
+## Nomenclatura (inglês no código)
+
+- **Arquivos e pastas:** sempre em inglês (`custom_user.py`, `auth_views.py`, `user_admin.py`).
+- **Código:** variáveis, funções, classes, constantes, módulos e URLs name em inglês.
+- **Exceção:** textos voltados ao usuário final (ver seção UI abaixo).
+
+```python
+# ✅ BOM
+class CustomUser(AbstractUser):
+    registration_number = models.CharField(max_length=50)
+
+# ❌ RUIM
+class UsuarioPersonalizado(AbstractUser):
+    numero_registro = models.CharField(max_length=50)
+```
+
+## Documentação (português)
+
+- Todo arquivo novo deve ter docstring de módulo em português no topo.
+- Classes, métodos e funções públicas: docstrings detalhadas em português.
+- Explicar propósito, comportamento e exceções quando relevante.
+
+## Interface do usuário (português)
+
+- Mensagens (`messages`), rótulos de formulário, placeholders, `verbose_name`, `help_text`, textos de template e erros de validação: **sempre em português**.
+
+```python
+# ✅ BOM
+verbose_name = "Usuário"
+raise ValidationError("Senha inválida.")
+
+# ❌ RUIM
+verbose_name = "User"
+raise ValidationError("Invalid password.")
+```
+
+## Modularização obrigatória
+
+- Não concentrar múltiplas responsabilidades em um único arquivo.
+- Seguir a estrutura do projeto:
+  - `models/` — um model por arquivo + `__init__.py` reexportando
+  - `views/` — views agrupadas por domínio (`auth_views.py`, `report_views.py`)
+  - `admin/` — registradores separados por model
+  - `forms/`, `services/`, `serializers/` — criar pacote quando a feature crescer
+- Evitar `views.py`, `models.py` ou `admin.py` monolíticos na raiz do app.
