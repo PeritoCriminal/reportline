@@ -3,6 +3,10 @@ Views de autenticação do app accounts.
 
 Concentra CBVs relacionadas a login, logout e fluxos de sessão
 do ecossistema ReportLine.
+
+TODO(institucional): substituir autenticação local username/senha pelo Login
+gov.br (OIDC) quando o ReportLine for implantado em ambiente institucional.
+Ver docs/decisions/0003-govbr-authentication.md.
 """
 
 from django.http import HttpResponse

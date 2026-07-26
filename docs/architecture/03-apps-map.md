@@ -33,6 +33,7 @@ flowchart TB
 | **Views** | `LoginView` (placeholder CBV) |
 | **Depende de** | `django.contrib.auth` |
 | **Consumido por** | `profiles` (futuro) |
+| **Alvo institucional** | Login **gov.br** (OIDC) — ver [ADR-0003](../decisions/0003-govbr-authentication.md) |
 
 ```
 accounts/
@@ -113,3 +114,4 @@ flowchart LR
 
 - [Modelo de dados (ERD)](./02-data-model.md)
 - [ADR-0002: Estrutura de laudo modular](../decisions/0002-report-node-structure.md)
+- [ADR-0003: Autenticação gov.br (institucional)](../decisions/0003-govbr-authentication.md)

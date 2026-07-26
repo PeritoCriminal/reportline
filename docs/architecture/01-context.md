@@ -62,7 +62,7 @@ flowchart LR
 
 | Container | Status | Observação |
 |---|---|---|
-| `accounts` | ✅ Implementado | `CustomUser` com UUID, login placeholder |
+| `accounts` | ✅ Implementado | `CustomUser` com UUID, login placeholder; **alvo institucional: gov.br** (ver ADR-0003) |
 | `profiles` | 🟡 Planejado | Perfil 1:1 com usuário |
 | `reports` | 🟡 Planejado | Laudo composto por árvore de nós |
 | `blocks` | 🟡 Planejado | Conteúdo reutilizável por nó |
@@ -73,3 +73,4 @@ flowchart LR
 - [Mapa de apps](./03-apps-map.md)
 - [ADR-0001: CustomUser com UUID](../decisions/0001-custom-user-uuid.md)
 - [ADR-0002: Estrutura de laudo modular](../decisions/0002-report-node-structure.md)
+- [ADR-0003: Autenticação gov.br (institucional)](../decisions/0003-govbr-authentication.md)
