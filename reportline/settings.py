@@ -45,6 +45,7 @@ INSTALLED_APPS = [
     'common',
     'accounts',
     'institution_ic_sp',
+    'profiles',
 ]
 
 MIDDLEWARE = [

@@ -17,11 +17,15 @@ domínio forense, sem copiar nomes ou implementação literalmente.
 ## Relacionamentos previstos
 
 ```
-CustomUser  1 —— 1  Profile
-Profile     1 —— N  Report
-Report      1 —— N  NodeReport  (árvore hierárquica via parent_id)
-NodeReport  1 —— 1  Block
+CustomUser           1 —— 1  ForensicExaminerSP   (implementado — ADR-0007)
+ForensicTeam         1 —— N  ForensicExaminerSP   (implementado — ADR-0007)
+ForensicExaminerSP   1 —— N  ForensicReport       (a desenvolver)
+ForensicReport       1 —— N  NodeReport           (árvore hierárquica via parent_id)
+NodeReport           1 —— 1  Block
 ```
+
+> **Atualização (2026-07-26):** o model genérico `Profile` foi substituído por
+> `ForensicExaminerSP` no app `profiles`. Ver [ADR-0007](./0007-forensic-examiner-sp.md).
 
 ## Opções consideradas
 
@@ -49,18 +53,18 @@ Adotar a **opção 2**, organizada em três apps de domínio:
 
 | App | Model(s) | Papel |
 |---|---|---|
-| `profiles` | `Profile` | Extensão 1:1 do usuário com dados profissionais |
-| `reports` | `Report`, `NodeReport` | Laudo e árvore hierárquica de seções |
+| `profiles` | `ForensicExaminerSP` ✅ | Extensão 1:1 do usuário; lotação e nome no laudo |
+| `reports` | `ForensicReport`, `NodeReport` | Laudo e árvore hierárquica de seções |
 | `blocks` | `Block` | Conteúdo tipado e reutilizável |
 
 ### Nomes provisórios 🔵
 
-| Nome atual | Alternativas em consideração |
-|---|---|
-| `Profile` | `ProfessionalProfile`, `ExpertProfile` |
-| `Report` | `ForensicReport`, `ExpertReport` |
-| `NodeReport` | `ReportNode`, `Section`, `ReportSection` |
-| `Block` | `ContentBlock`, `ReportBlock` |
+| Nome atual | Alternativas em consideração | Status |
+|---|---|---|
+| ~~`Profile`~~ | `ForensicExaminerSP` ✅ | Implementado ([ADR-0007](./0007-forensic-examiner-sp.md)) |
+| `Report` | `ForensicReport`, `ExpertReport` | 🟡 proposto |
+| `NodeReport` | `ReportNode`, `Section`, `ReportSection` | 🟡 proposto |
+| `Block` | `ContentBlock`, `ReportBlock` | 🟡 proposto |
 
 > Os nomes **não estão fechados**. Atualizar este ADR antes de criar migrations.
 
@@ -82,7 +86,7 @@ Adotar a **opção 2**, organizada em três apps de domínio:
 
 ## Questões em aberto
 
-- [ ] Definir nomes finais dos models e apps
+- [ ] Definir nomes finais de `ForensicReport`, `NodeReport` e `Block`
 - [ ] `Block` é imutável após publicação do laudo ou versionado?
 - [ ] `NodeReport` suporta referência a bloco compartilhado entre laudos?
 - [ ] Quais `block_type` mínimos para o MVP?
@@ -93,4 +97,5 @@ Adotar a **opção 2**, organizada em três apps de domínio:
 - [Modelo de dados — estado alvo](../architecture/02-data-model.md)
 - [Mapa de apps](../architecture/03-apps-map.md)
 - [ADR-0005: Credenciais de APIs externas](./0005-external-api-credentials.md)
-- Projeto Pith (referência local, conceito de árvore + blocos)
+- [ADR-0007: ForensicExaminerSP](./0007-forensic-examiner-sp.md)
+- [App profiles](../architecture/05-profiles.md)

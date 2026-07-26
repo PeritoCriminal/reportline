@@ -55,7 +55,7 @@ flowchart LR
     subgraph django ["Aplicação Django"]
         accounts["accounts ✅<br/>Autenticação"]
         institution_ic_sp["institution_ic_sp ✅ 🔵<br/>IC-SP provisório"]
-        profiles["profiles 🟡<br/>Perfil do perito"]
+        profiles["profiles ✅<br/>Perito criminal (SP)"]
         reports["reports 🟡<br/>Laudos e nós"]
         blocks["blocks 🟡<br/>Blocos de conteúdo"]
     end
@@ -91,7 +91,7 @@ credenciais **pessoais** via `.env` (fora do Git). Em ambiente
 |---|---|---|
 | `accounts` | ✅ Implementado | `CustomUser` com UUID, login placeholder; **alvo institucional: gov.br** (ver ADR-0003) |
 | `institution_ic_sp` | ✅ Implementado 🔵 | Núcleos e equipes IC-SP; **substituível** em produção (ver ADR-0006) |
-| `profiles` | 🟡 Planejado | Perfil 1:1 com usuário |
+| `profiles` | ✅ Implementado | `ForensicExaminerSP` 1:1 com user, lotação em `ForensicTeam` (ver ADR-0007) |
 | `reports` | 🟡 Planejado | Laudo composto por árvore de nós |
 | `blocks` | 🟡 Planejado | Conteúdo reutilizável por nó |
 
@@ -105,3 +105,5 @@ credenciais **pessoais** via `.env` (fora do Git). Em ambiente
 - [ADR-0004: PostgreSQL como SGBD padrão](../decisions/0004-postgresql-sgbd.md)
 - [ADR-0005: Credenciais de APIs externas](../decisions/0005-external-api-credentials.md)
 - [ADR-0006: App provisório IC-SP](../decisions/0006-provisional-institution-ic-sp.md)
+- [ADR-0007: ForensicExaminerSP](../decisions/0007-forensic-examiner-sp.md)
+- [App profiles](./05-profiles.md)

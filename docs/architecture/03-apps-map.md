@@ -10,10 +10,10 @@ flowchart TB
     subgraph implemented ["Implementado ✅"]
         accounts["accounts<br/>Autenticação e CustomUser"]
         institution_ic_sp["institution_ic_sp<br/>Núcleos e equipes IC-SP 🔵"]
+        profiles["profiles<br/>Perito criminal (SP)"]
     end
 
     subgraph planned ["Planejado 🟡"]
-        profiles["profiles<br/>Perfil profissional do perito"]
         reports["reports<br/>Laudos e árvore de nós"]
         blocks["blocks<br/>Blocos de conteúdo reutilizáveis"]
     end
@@ -34,7 +34,7 @@ flowchart TB
 | **Models** | `CustomUser` |
 | **Views** | `LoginView` (placeholder CBV) |
 | **Depende de** | `django.contrib.auth` |
-| **Consumido por** | `profiles` (futuro) |
+| **Consumido por** | `profiles` |
 | **Alvo institucional** | Login **gov.br** (OIDC) — ver [ADR-0003](../decisions/0003-govbr-authentication.md) |
 
 ```
@@ -60,7 +60,7 @@ accounts/
 | **Responsabilidade** | Cadastro provisório de núcleos e equipes periciais do IC-SP |
 | **Models** | `Institution`, `ForensicNucleus`, `ForensicTeam` |
 | **Depende de** | `common` (`BaseModel`) |
-| **Consumido por** | `profiles` (futuro — lotação do perito) |
+| **Consumido por** | `profiles` (lotação do perito) |
 | **Substituição** | Integração institucional equivalente — ver [ADR-0006](../decisions/0006-provisional-institution-ic-sp.md) |
 
 ```
@@ -88,14 +88,33 @@ Documentação completa: [04-institution-ic-sp.md](./04-institution-ic-sp.md).
 
 ---
 
-### `profiles` 🟡
+### `profiles` ✅
 
 | Item | Valor |
 |---|---|
-| **Responsabilidade** | Dados profissionais do perito (registro, cargo, etc.) |
-| **Models** | `Profile` (1:1 com `CustomUser`) |
-| **Depende de** | `accounts`, `institution_ic_sp` (futuro — lotação) |
-| **Consumido por** | `reports` |
+| **Responsabilidade** | Perfil profissional do perito criminal de SP |
+| **Models** | `ForensicExaminerSP` (1:1 com `CustomUser`, N:1 com `ForensicTeam`) |
+| **Depende de** | `accounts`, `institution_ic_sp`, `common` |
+| **Consumido por** | `reports` (futuro — autor do laudo) |
+| **Decisão** | [ADR-0007](../decisions/0007-forensic-examiner-sp.md) |
+
+```
+profiles/
+  models/
+    forensic_examiner_sp.py
+  admin/
+    forensic_examiner_sp_admin.py
+  forms/
+  services/
+  tests/
+    test_forensic_examiner_sp.py
+  templates/profiles/
+  static/profiles/
+  urls.py
+  views/
+```
+
+Documentação completa: [05-profiles.md](./05-profiles.md).
 
 ---
 
@@ -104,7 +123,7 @@ Documentação completa: [04-institution-ic-sp.md](./04-institution-ic-sp.md).
 | Item | Valor |
 |---|---|
 | **Responsabilidade** | Laudos (`Report`) e composição hierárquica (`NodeReport`) |
-| **Models** | `Report`, `NodeReport` |
+| **Models** | `ForensicReport`, `NodeReport` |
 | **Depende de** | `profiles`, `blocks` |
 | **Consumido por** | — (app de domínio principal) |
 | **Integrações futuras** | APIs externas (IA, voz) via variáveis de ambiente — ver [ADR-0005](../decisions/0005-external-api-credentials.md) |
@@ -145,7 +164,7 @@ flowchart LR
 |---|---|---|
 | `accounts` | ✅ registrado | implementado |
 | `institution_ic_sp` | ✅ registrado | implementado (provisório) |
-| `profiles` | 🟡 pendente | — |
+| `profiles` | ✅ registrado | implementado |
 | `reports` | 🟡 pendente | — |
 | `blocks` | 🟡 pendente | — |
 
@@ -170,4 +189,6 @@ Visão consolidada em [01-context.md](./01-context.md).
 - [ADR-0004: PostgreSQL como SGBD padrão](../decisions/0004-postgresql-sgbd.md)
 - [ADR-0005: Credenciais de APIs externas](../decisions/0005-external-api-credentials.md)
 - [App institution_ic_sp](./04-institution-ic-sp.md)
+- [App profiles](./05-profiles.md)
 - [ADR-0006: App provisório IC-SP](../decisions/0006-provisional-institution-ic-sp.md)
+- [ADR-0007: ForensicExaminerSP](../decisions/0007-forensic-examiner-sp.md)

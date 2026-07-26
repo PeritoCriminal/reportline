@@ -12,6 +12,7 @@ evolução junto com o projeto.
 | [02-data-model.md](./02-data-model.md) | Modelo de dados (ERD) — atual e alvo |
 | [03-apps-map.md](./03-apps-map.md) | Mapa de apps Django e dependências |
 | [04-institution-ic-sp.md](./04-institution-ic-sp.md) | App provisório — núcleos e equipes IC-SP |
+| [05-profiles.md](./05-profiles.md) | App profiles — perito criminal (SP) |
 | [../decisions/](../decisions/) | Registros de decisão arquitetural (ADRs) |
 
 ### ADRs transversais (institucional e infraestrutura)
@@ -22,6 +23,7 @@ evolução junto com o projeto.
 | [0004](../decisions/0004-postgresql-sgbd.md) | PostgreSQL padrão; SGBD institucional a critério do órgão |
 | [0005](../decisions/0005-external-api-credentials.md) | Credenciais pessoais (dev) vs institucionais (prod) |
 | [0006](../decisions/0006-provisional-institution-ic-sp.md) | App provisório de dados institucionais do IC-SP |
+| [0007](../decisions/0007-forensic-examiner-sp.md) | Perfil do perito criminal (SP) — `ForensicExaminerSP` |
 
 Detalhes em [01-context.md](./01-context.md) — seções **Persistência** e **Integrações externas**.
 

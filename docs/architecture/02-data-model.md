@@ -12,7 +12,8 @@ Relacionamentos entre entidades do domínio ReportLine.
 
 ## Estado atual ✅
 
-Autenticação e cadastro institucional provisório do IC-SP estão implementados.
+Autenticação, cadastro institucional provisório do IC-SP e perfil do perito
+criminal (SP) estão implementados.
 
 ```mermaid
 erDiagram
@@ -67,14 +68,26 @@ erDiagram
         datetime updated_at
     }
 
+    ForensicExaminerSP {
+        uuid id PK
+        uuid user_id FK "UK — 1:1"
+        uuid forensic_team_id FK
+        string display_name
+        datetime created_at
+        datetime updated_at
+    }
+
     Institution ||--o{ ForensicNucleus : "possui (1:N)"
     ForensicNucleus ||--o{ ForensicTeam : "supervisiona (1:N)"
+    CustomUser ||--|| ForensicExaminerSP : "possui (1:1)"
+    ForensicTeam ||--o{ ForensicExaminerSP : "lotacao (1:N)"
 ```
 
 | App | Models | Decisão |
 |---|---|---|
 | `accounts` | `CustomUser` | [ADR-0001](../decisions/0001-custom-user-uuid.md) |
 | `institution_ic_sp` | `Institution`, `ForensicNucleus`, `ForensicTeam` | [ADR-0006](../decisions/0006-provisional-institution-ic-sp.md) |
+| `profiles` | `ForensicExaminerSP` | [ADR-0007](../decisions/0007-forensic-examiner-sp.md) |
 
 Em ambiente **institucional**, a autenticação dos peritos migrará para Login
 **gov.br** (OIDC), com possível extensão do model para CPF/`sub` OIDC — ver
@@ -91,6 +104,14 @@ Cadastro **provisório** espelhando o organograma da SPTC. Detalhes em
 | `ForensicNucleus` | 29 | Núcleos especializados, regionais e de apoio |
 | `ForensicTeam` | 59 | 17 capital/GSP + 40 interior + 2 apoio logístico |
 
+### Perfil do perito (SP)
+
+Detalhes em [05-profiles.md](./05-profiles.md).
+
+| Entidade | Descrição |
+|---|---|
+| `ForensicExaminerSP` | Perfil 1:1 com `CustomUser`; lotação N:1 em `ForensicTeam`; `display_name` para laudos |
+
 ---
 
 ## Estado alvo 🟡
@@ -101,9 +122,10 @@ do ReportLine.
 
 ```mermaid
 erDiagram
-    CustomUser ||--|| Profile : "has (1:1)"
-    Profile ||--o{ Report : "owns (1:N)"
-    Report ||--o{ NodeReport : "contains (1:N)"
+    CustomUser ||--|| ForensicExaminerSP : "has (1:1)"
+    ForensicTeam ||--o{ ForensicExaminerSP : "lotacao (1:N)"
+    ForensicExaminerSP ||--o{ ForensicReport : "owns (1:N)"
+    ForensicReport ||--o{ NodeReport : "contains (1:N)"
     NodeReport ||--|| Block : "renders (1:1)"
 
     CustomUser {
@@ -111,18 +133,18 @@ erDiagram
         string username UK
     }
 
-    Profile {
+    ForensicExaminerSP {
         uuid id PK
-        uuid user_id FK "UK — relação 1:1"
-        string professional_registration "🔵 provisório"
-        string job_title "🔵 provisório"
+        uuid user_id FK "UK — 1:1"
+        uuid forensic_team_id FK
+        string display_name
         datetime created_at
         datetime updated_at
     }
 
-    Report {
+    ForensicReport {
         uuid id PK
-        uuid profile_id FK
+        uuid forensic_examiner_id FK
         string title
         string status "🔵 draft | published"
         datetime created_at
@@ -152,21 +174,23 @@ erDiagram
 
 | Relação | Tipo | Descrição |
 |---|---|---|
-| `CustomUser` → `Profile` | 1:1 | Cada usuário tem exatamente um perfil profissional |
-| `Profile` → `Report` | 1:N | Um perito possui vários laudos |
-| `Report` → `NodeReport` | 1:N | Um laudo é composto por vários nós |
+| `CustomUser` → `ForensicExaminerSP` | 1:1 | Cada usuário tem exatamente um perfil pericial SP |
+| `ForensicTeam` → `ForensicExaminerSP` | 1:N | Vários peritos por equipe; cada perito em uma equipe |
+| `ForensicExaminerSP` → `ForensicReport` | 1:N | Um perito possui vários laudos |
+| `ForensicReport` → `NodeReport` | 1:N | Um laudo é composto por vários nós |
 | `NodeReport` → `Block` | 1:1 | Cada nó referencia um bloco de conteúdo |
 | `NodeReport` → `NodeReport` | 1:N | Hierarquia (pai → filhos) para seções aninhadas |
 
 ### Observações de modelagem
 
-1. **`NodeReport` como árvore:** além do FK para `Report`, prevê `parent_id`
+1. **`NodeReport` como árvore:** além do FK para `ForensicReport`, prevê `parent_id`
    (auto-referência) para seções e subseções — padrão similar ao Pith.
 2. **`Block` desacoplado:** permite reutilizar tipos de conteúdo e evoluir
    o payload (`JSONField`) sem reestruturar a árvore.
 3. **UUID em todas as PKs:** alinhado à decisão do `CustomUser` (ADR-0001).
-4. **Nomes provisórios:** `Profile`, `Report`, `NodeReport`, `Block` podem
-   ser renomeados — ver [ADR-0002](../decisions/0002-report-node-structure.md).
+4. **`Profile` substituído por `ForensicExaminerSP`** — ver [ADR-0007](../decisions/0007-forensic-examiner-sp.md).
+5. **Nomes provisórios restantes:** `ForensicReport`, `NodeReport`, `Block` —
+   ver [ADR-0002](../decisions/0002-report-node-structure.md).
 
 ---
 
@@ -178,8 +202,8 @@ erDiagram
 | `Institution` | `institution_ic_sp` | ✅ 🔵 provisório |
 | `ForensicNucleus` | `institution_ic_sp` | ✅ 🔵 provisório |
 | `ForensicTeam` | `institution_ic_sp` | ✅ 🔵 provisório |
-| `Profile` | `profiles` | 🟡 |
-| `Report` | `reports` | 🟡 |
+| `ForensicExaminerSP` | `profiles` | ✅ |
+| `ForensicReport` | `reports` | 🟡 🔵 provisório |
 | `NodeReport` | `reports` | 🟡 |
 | `Block` | `blocks` | 🟡 |
 
@@ -188,7 +212,7 @@ erDiagram
 ## Próximos passos de documentação
 
 - [x] Atualizar seção **Estado atual** ao implementar `institution_ic_sp`
-- [ ] Atualizar seção **Estado atual** ao implementar `Profile`
+- [x] Atualizar seção **Estado atual** ao implementar `ForensicExaminerSP`
 - [ ] Documentar fluxo de criação de laudo em `04-flows/create-report.md`
 - [ ] Complementar com ERD gerado automaticamente quando models existirem
 
@@ -202,4 +226,6 @@ erDiagram
 - [ADR-0004: PostgreSQL como SGBD padrão](../decisions/0004-postgresql-sgbd.md)
 - [ADR-0005: Credenciais de APIs externas](../decisions/0005-external-api-credentials.md)
 - [ADR-0006: App provisório IC-SP](../decisions/0006-provisional-institution-ic-sp.md)
+- [ADR-0007: ForensicExaminerSP](../decisions/0007-forensic-examiner-sp.md)
 - [App institution_ic_sp](./04-institution-ic-sp.md)
+- [App profiles](./05-profiles.md)

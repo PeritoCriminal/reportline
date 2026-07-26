@@ -234,21 +234,24 @@ python manage.py load_ic_sp_data --clear
 
 ---
 
-## Uso previsto por outros apps
+## Uso por outros apps
 
 ```mermaid
 flowchart LR
     institution_ic_sp["institution_ic_sp ✅"]
-    profiles["profiles 🟡"]
+    profiles["profiles ✅"]
     reports["reports 🟡"]
 
-    institution_ic_sp -->|"FK ForensicNucleus / ForensicTeam"| profiles
+    institution_ic_sp -->|"FK ForensicTeam"| profiles
     profiles --> reports
 ```
 
-Exemplos futuros:
+Implementado:
 
-- `Profile.forensic_team` — lotação do perito
+- `ForensicExaminerSP.forensic_team` — lotação do perito ([05-profiles.md](./05-profiles.md))
+
+Previsto:
+
 - Filtro de laudos por núcleo ou equipe
 - Relatórios administrativos por unidade
 
@@ -285,5 +288,7 @@ nos apps consumidores.
 ## Referências
 
 - [ADR-0006: App provisório IC-SP](../decisions/0006-provisional-institution-ic-sp.md)
+- [ADR-0007: ForensicExaminerSP](../decisions/0007-forensic-examiner-sp.md)
+- [App profiles](./05-profiles.md)
 - [Modelo de dados — seção IC-SP](./02-data-model.md#dados-institucionais-ic-sp-)
 - [Mapa de apps](./03-apps-map.md)
