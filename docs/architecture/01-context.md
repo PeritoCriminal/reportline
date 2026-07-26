@@ -65,6 +65,14 @@ documentação. Em ambiente **institucional**, a instituição adotante pode
 utilizar **outro SGBD a seu critério**, desde que compatível com Django ORM
 (ver [ADR-0004](../decisions/0004-postgresql-sgbd.md)).
 
+## Integrações externas (APIs)
+
+Funcionalidades futuras podem consumir **APIs externas** (IA, comando por voz
+Google, entre outras). Na fase de **desenvolvimento**, o autor utiliza
+credenciais **pessoais** via `.env` (fora do Git). Em ambiente
+**institucional**, todas as chaves devem ser **institucionais**, geridas pelo
+órgão adotante (ver [ADR-0005](../decisions/0005-external-api-credentials.md)).
+
 ## Estado atual vs. alvo
 
 | Container | Status | Observação |
@@ -82,3 +90,4 @@ utilizar **outro SGBD a seu critério**, desde que compatível com Django ORM
 - [ADR-0002: Estrutura de laudo modular](../decisions/0002-report-node-structure.md)
 - [ADR-0003: Autenticação gov.br (institucional)](../decisions/0003-govbr-authentication.md)
 - [ADR-0004: PostgreSQL como SGBD padrão](../decisions/0004-postgresql-sgbd.md)
+- [ADR-0005: Credenciais de APIs externas](../decisions/0005-external-api-credentials.md)
