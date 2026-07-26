@@ -4,6 +4,9 @@ Relacionamentos entre entidades do domínio ReportLine.
 
 > **Nota:** nomes marcados com 🔵 são provisórios. Consulte os ADRs antes de
 > implementar.
+>
+> **SGBD:** PostgreSQL é o padrão do projeto; em ambiente institucional, outro
+> SGBD pode ser adotado a critério da instituição ([ADR-0004](../decisions/0004-postgresql-sgbd.md)).
 
 ---
 

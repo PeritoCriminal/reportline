@@ -58,6 +58,13 @@ flowchart LR
     blocks --> postgres
 ```
 
+## Persistência (SGBD)
+
+O ReportLine adota **PostgreSQL** como SGBD padrão em desenvolvimento e
+documentação. Em ambiente **institucional**, a instituição adotante pode
+utilizar **outro SGBD a seu critério**, desde que compatível com Django ORM
+(ver [ADR-0004](../decisions/0004-postgresql-sgbd.md)).
+
 ## Estado atual vs. alvo
 
 | Container | Status | Observação |
@@ -74,3 +81,4 @@ flowchart LR
 - [ADR-0001: CustomUser com UUID](../decisions/0001-custom-user-uuid.md)
 - [ADR-0002: Estrutura de laudo modular](../decisions/0002-report-node-structure.md)
 - [ADR-0003: Autenticação gov.br (institucional)](../decisions/0003-govbr-authentication.md)
+- [ADR-0004: PostgreSQL como SGBD padrão](../decisions/0004-postgresql-sgbd.md)

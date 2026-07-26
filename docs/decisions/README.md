@@ -17,6 +17,7 @@ Registro de decisões arquiteturais do ReportLine. Cada ADR documenta o
 | [0001](./0001-custom-user-uuid.md) | CustomUser com chave primária UUID | ✅ Aceito |
 | [0002](./0002-report-node-structure.md) | Estrutura modular de laudo (Report → NodeReport → Block) | 🟡 Proposto |
 | [0003](./0003-govbr-authentication.md) | Autenticação via gov.br em ambiente institucional | 🟡 Proposto |
+| [0004](./0004-postgresql-sgbd.md) | PostgreSQL como SGBD padrão do projeto | ✅ Aceito |
 
 ## Template para novos ADRs
 
