@@ -12,7 +12,7 @@ Relacionamentos entre entidades do domínio ReportLine.
 
 ## Estado atual ✅
 
-Somente autenticação está implementada.
+Autenticação e cadastro institucional provisório do IC-SP estão implementados.
 
 ```mermaid
 erDiagram
@@ -29,15 +29,67 @@ erDiagram
         datetime date_joined
         datetime last_login
     }
+
+    Institution {
+        uuid id PK
+        string name
+        string acronym UK
+        string parent_organization
+        string legal_reference
+        string headquarters_city
+        boolean is_provisional
+        datetime created_at
+        datetime updated_at
+    }
+
+    ForensicNucleus {
+        uuid id PK
+        uuid institution_id FK
+        string code UK
+        string name
+        string nucleus_type
+        string organizational_center
+        string headquarters_city
+        int sort_order
+        datetime created_at
+        datetime updated_at
+    }
+
+    ForensicTeam {
+        uuid id PK
+        uuid nucleus_id FK
+        string code UK
+        string name
+        string headquarters_city
+        boolean is_embedded_unit
+        int sort_order
+        datetime created_at
+        datetime updated_at
+    }
+
+    Institution ||--o{ ForensicNucleus : "possui (1:N)"
+    ForensicNucleus ||--o{ ForensicTeam : "supervisiona (1:N)"
 ```
 
-**App:** `accounts`  
-**Model:** `accounts.CustomUser`  
-**Decisão:** [ADR-0001](../decisions/0001-custom-user-uuid.md)
+| App | Models | Decisão |
+|---|---|---|
+| `accounts` | `CustomUser` | [ADR-0001](../decisions/0001-custom-user-uuid.md) |
+| `institution_ic_sp` | `Institution`, `ForensicNucleus`, `ForensicTeam` | [ADR-0006](../decisions/0006-provisional-institution-ic-sp.md) |
 
 Em ambiente **institucional**, a autenticação dos peritos migrará para Login
 **gov.br** (OIDC), com possível extensão do model para CPF/`sub` OIDC — ver
 [ADR-0003](../decisions/0003-govbr-authentication.md).
+
+### Dados institucionais (IC-SP) 🔵
+
+Cadastro **provisório** espelhando o organograma da SPTC. Detalhes em
+[04-institution-ic-sp.md](./04-institution-ic-sp.md).
+
+| Entidade | Registros seed | Descrição |
+|---|---|---|
+| `Institution` | 1 | IC-SP (`is_provisional=True`) |
+| `ForensicNucleus` | 29 | Núcleos especializados, regionais e de apoio |
+| `ForensicTeam` | 59 | 17 capital/GSP + 40 interior + 2 apoio logístico |
 
 ---
 
@@ -123,6 +175,9 @@ erDiagram
 | Entidade | App Django | Status |
 |---|---|---|
 | `CustomUser` | `accounts` | ✅ |
+| `Institution` | `institution_ic_sp` | ✅ 🔵 provisório |
+| `ForensicNucleus` | `institution_ic_sp` | ✅ 🔵 provisório |
+| `ForensicTeam` | `institution_ic_sp` | ✅ 🔵 provisório |
 | `Profile` | `profiles` | 🟡 |
 | `Report` | `reports` | 🟡 |
 | `NodeReport` | `reports` | 🟡 |
@@ -132,6 +187,7 @@ erDiagram
 
 ## Próximos passos de documentação
 
+- [x] Atualizar seção **Estado atual** ao implementar `institution_ic_sp`
 - [ ] Atualizar seção **Estado atual** ao implementar `Profile`
 - [ ] Documentar fluxo de criação de laudo em `04-flows/create-report.md`
 - [ ] Complementar com ERD gerado automaticamente quando models existirem
@@ -145,3 +201,5 @@ erDiagram
 - [ADR-0003: Autenticação gov.br (institucional)](../decisions/0003-govbr-authentication.md)
 - [ADR-0004: PostgreSQL como SGBD padrão](../decisions/0004-postgresql-sgbd.md)
 - [ADR-0005: Credenciais de APIs externas](../decisions/0005-external-api-credentials.md)
+- [ADR-0006: App provisório IC-SP](../decisions/0006-provisional-institution-ic-sp.md)
+- [App institution_ic_sp](./04-institution-ic-sp.md)
