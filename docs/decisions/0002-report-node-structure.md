@@ -86,9 +86,11 @@ Adotar a **opção 2**, organizada em três apps de domínio:
 - [ ] `Block` é imutável após publicação do laudo ou versionado?
 - [ ] `NodeReport` suporta referência a bloco compartilhado entre laudos?
 - [ ] Quais `block_type` mínimos para o MVP?
+- [ ] Assistência por IA/voz na edição de blocos exige revisão de LGPD e credenciais institucionais ([ADR-0005](./0005-external-api-credentials.md))?
 
 ## Referências
 
 - [Modelo de dados — estado alvo](../architecture/02-data-model.md)
 - [Mapa de apps](../architecture/03-apps-map.md)
+- [ADR-0005: Credenciais de APIs externas](./0005-external-api-credentials.md)
 - Projeto Pith (referência local, conceito de árvore + blocos)

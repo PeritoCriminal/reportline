@@ -35,6 +35,10 @@ erDiagram
 **Model:** `accounts.CustomUser`  
 **Decisão:** [ADR-0001](../decisions/0001-custom-user-uuid.md)
 
+Em ambiente **institucional**, a autenticação dos peritos migrará para Login
+**gov.br** (OIDC), com possível extensão do model para CPF/`sub` OIDC — ver
+[ADR-0003](../decisions/0003-govbr-authentication.md).
+
 ---
 
 ## Estado alvo 🟡
@@ -131,3 +135,13 @@ erDiagram
 - [ ] Atualizar seção **Estado atual** ao implementar `Profile`
 - [ ] Documentar fluxo de criação de laudo em `04-flows/create-report.md`
 - [ ] Complementar com ERD gerado automaticamente quando models existirem
+
+## Referências
+
+- [Contexto do sistema](./01-context.md)
+- [Mapa de apps](./03-apps-map.md)
+- [ADR-0001: CustomUser com UUID](../decisions/0001-custom-user-uuid.md)
+- [ADR-0002: Estrutura de laudo modular](../decisions/0002-report-node-structure.md)
+- [ADR-0003: Autenticação gov.br (institucional)](../decisions/0003-govbr-authentication.md)
+- [ADR-0004: PostgreSQL como SGBD padrão](../decisions/0004-postgresql-sgbd.md)
+- [ADR-0005: Credenciais de APIs externas](../decisions/0005-external-api-credentials.md)

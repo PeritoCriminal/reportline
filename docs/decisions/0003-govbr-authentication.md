@@ -96,3 +96,4 @@ não acumular dívida de desenho.
 - [Contexto do sistema — accounts](../architecture/01-context.md)
 - [Mapa de apps — accounts](../architecture/03-apps-map.md)
 - [ADR-0001: CustomUser com UUID](./0001-custom-user-uuid.md)
+- [ADR-0005: Credenciais de APIs externas](./0005-external-api-credentials.md)

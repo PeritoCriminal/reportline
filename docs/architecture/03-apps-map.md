@@ -70,6 +70,7 @@ accounts/
 | **Models** | `Report`, `NodeReport` |
 | **Depende de** | `profiles`, `blocks` |
 | **Consumido por** | — (app de domínio principal) |
+| **Integrações futuras** | APIs externas (IA, voz) via variáveis de ambiente — ver [ADR-0005](../decisions/0005-external-api-credentials.md) |
 
 ---
 
@@ -110,8 +111,22 @@ flowchart LR
 | `reports` | 🟡 pendente | — |
 | `blocks` | 🟡 pendente | — |
 
+## Infraestrutura e integrações transversais
+
+Decisões que atravessam apps (não pertencem a um único bounded context):
+
+| Tema | Desenvolvimento | Institucional | ADR |
+|---|---|---|---|
+| **SGBD** | PostgreSQL | Outro SGBD a critério do órgão | [0004](../decisions/0004-postgresql-sgbd.md) |
+| **Autenticação** | Django local (placeholder) | Login gov.br (OIDC) | [0003](../decisions/0003-govbr-authentication.md) |
+| **APIs externas** | Credenciais pessoais (`.env`) | Credenciais institucionais | [0005](../decisions/0005-external-api-credentials.md) |
+
+Visão consolidada em [01-context.md](./01-context.md).
+
 ## Referências
 
 - [Modelo de dados (ERD)](./02-data-model.md)
 - [ADR-0002: Estrutura de laudo modular](../decisions/0002-report-node-structure.md)
 - [ADR-0003: Autenticação gov.br (institucional)](../decisions/0003-govbr-authentication.md)
+- [ADR-0004: PostgreSQL como SGBD padrão](../decisions/0004-postgresql-sgbd.md)
+- [ADR-0005: Credenciais de APIs externas](../decisions/0005-external-api-credentials.md)

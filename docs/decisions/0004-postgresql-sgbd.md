@@ -54,6 +54,8 @@ configuração (`DATABASES`) e validação de compatibilidade na implantação.
   PostgreSQL (ou equivalente configurado em CI).
 - Implantação institucional exige checklist de compatibilidade do SGBD escolhido
   — fora do escopo da fase atual.
+- Credenciais de banco em produção seguem a mesma lógica de segredos
+  institucionais das demais integrações ([ADR-0005](./0005-external-api-credentials.md)).
 - Não há compromisso de suportar oficialmente todos os backends Django; apenas
   registrar que a escolha final em produção institucional é da instituição.
 

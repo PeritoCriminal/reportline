@@ -13,6 +13,16 @@ evolução junto com o projeto.
 | [03-apps-map.md](./03-apps-map.md) | Mapa de apps Django e dependências |
 | [../decisions/](../decisions/) | Registros de decisão arquitetural (ADRs) |
 
+### ADRs transversais (institucional e infraestrutura)
+
+| ADR | Tema |
+|---|---|
+| [0003](../decisions/0003-govbr-authentication.md) | Autenticação gov.br em produção institucional |
+| [0004](../decisions/0004-postgresql-sgbd.md) | PostgreSQL padrão; SGBD institucional a critério do órgão |
+| [0005](../decisions/0005-external-api-credentials.md) | Credenciais pessoais (dev) vs institucionais (prod) |
+
+Detalhes em [01-context.md](./01-context.md) — seções **Persistência** e **Integrações externas**.
+
 ## Legenda de status
 
 | Marcador | Significado |
@@ -32,7 +42,8 @@ evolução junto com o projeto.
 ## Fluxo de manutenção
 
 1. Nova ideia ou dúvida de nomenclatura → criar ou atualizar ADR.
-2. Model implementado → atualizar seção **Estado atual** em `02-data-model.md`.
-3. Novo app criado → atualizar `03-apps-map.md`.
-4. Quando houver models suficientes → complementar com ERD gerado via
+2. Decisão transversal (auth, SGBD, APIs, compliance) → ADR + seção em `01-context.md`.
+3. Model implementado → atualizar seção **Estado atual** em `02-data-model.md`.
+4. Novo app criado → atualizar `03-apps-map.md`.
+5. Quando houver models suficientes → complementar com ERD gerado via
    `django-extensions graph_models` (opcional, futuro).

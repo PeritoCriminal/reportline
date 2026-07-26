@@ -37,9 +37,11 @@ default=uuid.uuid4, editable=False)` no app `accounts`.
 - Todas as FKs para usuário usarão UUID.
 - Sessões Django armazenam o UUID como string — suportado nativamente.
 - Demais entidades do domínio seguirão o mesmo padrão de PK (ADR-0002).
+- Em produção institucional, identidade via gov.br (OIDC) — ver [ADR-0003](./0003-govbr-authentication.md).
 - Implementado em `accounts/models/custom_user.py` e migração `0001_initial`.
 
 ## Referências
 
 - [Modelo de dados — estado atual](../architecture/02-data-model.md)
 - [Mapa de apps — accounts](../architecture/03-apps-map.md)
+- [ADR-0003: Autenticação gov.br (institucional)](./0003-govbr-authentication.md)

@@ -29,12 +29,22 @@ flowchart TB
         web --> core
     end
 
-    db[("PostgreSQL")]
+    db[("PostgreSQL<br/>padrão dev")]
+    govbr["Login gov.br 🟡"]
+    apis["APIs externas 🟡<br/>(IA, voz…)"]
 
     perito -->|"Cria e edita laudos"| web
     admin -->|"Administra usuários"| web
     core -->|"Persistência"| db
+    perito -.->|"Auth institucional"| govbr
+    govbr -.-> core
+    core -.->|"Integrações futuras"| apis
 ```
+
+> **Nota:** PostgreSQL é o SGBD padrão em desenvolvimento ([ADR-0004](../decisions/0004-postgresql-sgbd.md)).
+> Login gov.br e APIs externas são alvos institucionais/futuros
+> ([ADR-0003](../decisions/0003-govbr-authentication.md),
+> [ADR-0005](../decisions/0005-external-api-credentials.md)).
 
 ## Containers (C4 — Nível 2)
 
