@@ -19,6 +19,7 @@ Registro de decisões arquiteturais do ReportLine. Cada ADR documenta o
 | [0003](./0003-govbr-authentication.md) | Autenticação via gov.br em ambiente institucional | 🟡 Proposto |
 | [0004](./0004-postgresql-sgbd.md) | PostgreSQL como SGBD padrão do projeto | ✅ Aceito |
 | [0005](./0005-external-api-credentials.md) | Credenciais de APIs externas (pessoais vs institucionais) | ✅ Aceito |
+| [0006](./0006-provisional-institution-ic-sp.md) | App provisório de dados institucionais do IC-SP | ✅ Aceito |
 
 ## Template para novos ADRs
 
