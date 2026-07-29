@@ -22,6 +22,7 @@ from django.views.generic import TemplateView
 
 urlpatterns = [
     path('admin/', admin.site.urls),
+    path('accounts/social/', include('allauth.urls')),
     path('accounts/', include('accounts.urls')),
     path('institution-ic-sp/', include('institution_ic_sp.urls')),
     path('profiles/', include('profiles.urls')),

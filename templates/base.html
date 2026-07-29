@@ -53,7 +53,7 @@
                                 <li><a class="dropdown-item" href="#">Perfil</a></li>
                                 <li><hr class="dropdown-divider"></li>
                                 <li>
-                                    <form method="post" action="#">
+                                    <form method="post" action="{% url 'accounts:logout' %}">
                                         {% csrf_token %}
                                         <button type="submit" class="dropdown-item text-danger btn btn-link w-100 text-start text-decoration-none">Sair</button>
                                     </form>

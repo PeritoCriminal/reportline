@@ -1,7 +1,8 @@
-# ADR-0003: Autenticação via gov.br em ambiente institucional
+# ADR-0003: Estratégia de autenticação em fases (local → Google → gov.br)
 
-**Status:** 🟡 Proposto  
-**Data:** 2026-07-26
+**Status:** 🟡 Proposto (fases 0 e 1 implementadas)  
+**Data:** 2026-07-26  
+**Atualizado:** 2026-07-29
 
 ## Contexto
 
@@ -10,84 +11,170 @@ em uso **institucional** (órgãos públicos, instituições oficiais de períci
 integração com processos governamentais), exigem identidade digital confiável e
 alinhada às políticas do governo federal.
 
-Hoje o app `accounts` usa autenticação Django nativa com `CustomUser` e uma
-`LoginView` provisória, adequada à fase de desenvolvimento e aprendizado do
-projeto.
+O app `accounts` usa `CustomUser` (UUID) como identidade central. Todos os fluxos
+pós-login (`ForensicExaminerSP`, laudos, permissões) devem depender apenas de
+`CustomUser`, nunca de um provedor OAuth específico.
 
-## Recomendação
+## Estratégia em fases
 
-Quando o ReportLine for implantado em **ambiente institucional**, a autenticação
-de usuários finais (peritos/examinadores) **deve** ser feita pelo **Login
-gov.br** (Login Único / identidade digital federal), e não por credenciais
-locais username/senha.
+| Fase | Ambiente | Provedor | Objetivo |
+|---|---|---|---|
+| **0 — imediata** | Desenvolvimento local | Django username/senha | Destravar login, sessão e telas sem credenciais externas |
+| **1 — dev/pessoal** | Dev local e deploy em servidor pessoal | Google OAuth (OIDC) | Login social sem gestão de senhas para peritos em ambiente não institucional |
+| **2 — institucional** | Órgão público / IC oficial | Login gov.br (OIDC) | Identidade digital federal; substitui Google no fluxo principal |
 
-Isso garante:
+A troca entre fases deve ocorrer por **configuração de ambiente** (`AUTH_PROVIDER`)
+e backends OIDC distintos, reutilizando um **serviço único de provisionamento**
+de `CustomUser` após callback OAuth bem-sucedido.
 
-- Identidade verificada pelo ecossistema gov.br (incluindo níveis de confiança
-  da conta gov.br, quando aplicável).
-- Conformidade com práticas usuais em sistemas públicos brasileiros.
-- Redução de gestão de senhas locais para usuários finais.
+```
+[Google OAuth]  ──┐
+                  ├──► provisionar/atualizar CustomUser + sessão Django
+[gov.br OIDC]   ──┘
+                              │
+                              ▼
+                    ForensicExaminerSP, laudos, permissões…
+```
 
-A autenticação local via Django Admin pode permanecer restrita a **operadores
-internos** (superusuários/staff), se necessário para suporte — fora do fluxo
-principal do perito.
+## Recomendação por ambiente
 
-## Opções consideradas
+### Fase 0: login local Django ✅
 
-### 1. Manter autenticação Django username/senha em produção institucional
+- **Prós:** zero dependências externas, funciona com `createsuperuser` e Admin.
+- **Contras:** gestão manual de senhas; inadequado como fluxo principal em produção.
+- **Escopo:** fallback para staff; permanece disponível sob link discreto quando Google está ativo.
 
-- **Prós:** implementação simples, já parcialmente presente no projeto.
-- **Contras:** gestão de senhas, recuperação de acesso e nível de confiança da
-  identidade ficam a cargo do ReportLine; desalinhado com expectativa institucional.
+### Fase 1: Google OAuth (dev e servidor pessoal) ✅
+
+- **Prós:** login rápido, credenciais via Google Cloud Console (sem credenciamento
+  gov.br), adequado a deploy pessoal e demonstrações.
+- **Contras:** identidade não institucional; exige política de migração ao adotar gov.br.
+- **Implementação:** `django-allauth` + `CustomSocialAccountAdapter` que delega ao
+  serviço `accounts/services/oauth_user_service.py`.
+
+### Fase 2: Login gov.br (institucional)
+
+- **Prós:** padrão federal, identidade centralizada (CPF/conta gov.br), conformidade
+  com expectativa de sistemas públicos brasileiros.
+- **Contras:** credenciamento junto ao Login Único, redirect URIs por ambiente,
+  mapeamento de claims e testes em homologação gov.br.
+- **Implementação prevista:** backend OIDC (`mozilla-django-oidc` ou equivalente)
+  reutilizando o mesmo serviço de provisionamento da fase 1.
+
+Em todas as fases, a autenticação local via Django Admin permanece restrita a
+**operadores internos** (superusuários/staff), fora do fluxo principal do perito.
+
+## Opções consideradas (fase institucional)
+
+### 1. Manter username/senha ou Google em produção institucional
+
+- **Contras:** desalinhado com políticas gov.br; Google não atende identidade oficial.
 
 ### 2. Login gov.br (OpenID Connect / OAuth 2.0) ✅ recomendado para institucional
 
-- **Prós:** padrão federal, identidade centralizada, integração com CPF/conta
-  gov.br, alinhamento com e-CPF/e-Notariado quando exigido pelo órgão.
-- **Contras:** credenciamento junto ao Login Único, configuração de redirect URIs,
-  ambientes de homologação/produção e mapeamento de claims para `CustomUser`.
+- Ver fase 2 acima.
 
 ### 3. Provedor OIDC genérico (Keycloak, Azure AD, etc.)
 
 - **Prós:** flexível para ambientes privados ou híbridos.
-- **Contras:** não atende diretamente a recomendação gov.br para uso público
-  institucional no Brasil.
+- **Contras:** não substitui gov.br para uso público institucional no Brasil.
 
 ## Decisão
 
-- **Fase atual (desenvolvimento):** manter autenticação Django local e
-  `LoginView` placeholder até existir fluxo de login completo.
-- **Fase institucional (alvo):** adotar **Login gov.br** como mecanismo principal
-  de autenticação dos peritos/examinadores, integrando via OIDC ao `CustomUser`
-  existente (vinculação por CPF ou identificador estável retornado pelo provedor).
+- **Fase 0 (implementada):** login local Django (`LoginView` / `LogoutView`) com
+  template em português; `LOGIN_URL` e redirecionamentos configurados.
+- **Fase 1 (implementada):** Google OAuth via `django-allauth` como provedor
+  principal do perito em dev e deploy pessoal; variáveis `AUTH_PROVIDER=google`,
+  `GOOGLE_CLIENT_ID` e `GOOGLE_CLIENT_SECRET` no `.env`.
+- **Fase 2 (alvo institucional):** Login gov.br substitui Google; contas existentes
+  migradas por e-mail verificado ou CPF conforme política a definir.
 
-Nenhuma integração gov.br deve ser implementada antes do credenciamento formal
-do sistema junto ao Login Único; a decisão registra o **alvo arquitetural** para
-não acumular dívida de desenho.
+Nenhuma integração gov.br antes do credenciamento formal no Login Único.
 
 ## Consequências
 
-- Será necessário pacote ou backend OIDC compatível com Django (ex.: integração
-  manual com `mozilla-django-oidc` ou solução equivalente avaliada na época).
-- `CustomUser` provavelmente precisará de campo para CPF ou `sub` OIDC e flag de
-  origem da conta (local vs gov.br).
-- Fluxos de primeiro acesso (provisionamento de `Profile`) devem ocorrer após
-  callback OIDC bem-sucedido.
-- Testes de integração dependerão de ambiente de homologação gov.br.
+- Serviço de provisionamento OAuth em `accounts/services/oauth_user_service.py`,
+  compartilhado com gov.br na fase 2.
+- `CustomUser` possui `auth_provider` e `external_subject` para rastrear origem OAuth.
+- Fluxos de primeiro acesso (`ForensicExaminerSP`) ocorrem após login bem-sucedido,
+  independentemente do provedor.
+- Rotas django-allauth ficam em `reportline/urls.py` (`/accounts/social/`), **fora**
+  do namespace `accounts:`, pois o allauth resolve callbacks sem prefixo de app.
+- Testes de integração gov.br dependerão de ambiente de homologação gov.br.
 
-## TODO (implementação futura — ambiente institucional)
+## Implementação atual (fases 0 e 1)
 
-- [ ] Solicitar credenciamento do ReportLine no [Login Único gov.br](https://www.gov.br/governodigital/pt-br/identidade/conta-gov-br/conta-gov-br).
-- [ ] Configurar client OIDC (client_id, client_secret, redirect URIs) por ambiente
-  (homologação e produção).
-- [ ] Implementar backend/view de callback OIDC no app `accounts`, substituindo a
-  autenticação username/senha do fluxo principal do perito.
-- [ ] Mapear claims gov.br (CPF, nome, e-mail verificado) para `CustomUser` e
-  criar/atualizar usuário no primeiro login.
-- [ ] Definir política para contas staff/admin (local vs gov.br) e documentar no
-  ADR ou ADR filho.
-- [ ] Adicionar testes que mockem o provedor OIDC (caso feliz + falha de callback
-  + usuário inativo).
+### Variáveis de ambiente (`.env`)
+
+| Variável | Fase | Descrição |
+|---|---|---|
+| `AUTH_PROVIDER` | 0 / 1 | `local` (só username/senha) ou `google` (botão Google + staff oculto) |
+| `GOOGLE_CLIENT_ID` | 1 | Client ID OAuth (*Web application*) do Google Cloud Console |
+| `GOOGLE_CLIENT_SECRET` | 1 | Client secret do OAuth Client |
+
+Redirect URI cadastrado no Google Cloud Console:
+
+`http://127.0.0.1:8000/accounts/social/google/login/callback/`
+
+> **Nota:** credenciais OAuth (login) são distintas de service account JSON usada
+> em APIs Cloud (STT/voz) — ver [ADR-0005](./0005-external-api-credentials.md).
+
+### Rotas
+
+| Rota | Descrição |
+|---|---|
+| `/accounts/login/` | Tela de login (`accounts:login`) |
+| `/accounts/logout/` | Encerramento de sessão (`accounts:logout`) |
+| `/accounts/social/google/login/` | Início do fluxo Google (`google_login`) |
+| `/accounts/social/google/login/callback/` | Callback OAuth (`google_callback`) |
+
+### Interface de login
+
+- **Perito (fase 1):** botão principal **Entrar com Google**.
+- **Staff/admin:** link discreto **Entrar com administrador** → formulário local
+  em collapse Bootstrap (oculto por padrão; expande automaticamente se houver erro).
+- Templates allauth sobrescritos em `accounts/templates/socialaccount/` com
+  layout do projeto (`base.html`).
+- `SOCIALACCOUNT_LOGIN_ON_GET = True` — clique no botão Google redireciona
+  direto ao provedor, sem tela intermediária de confirmação.
+
+### Arquivos principais
+
+```
+accounts/
+  models/custom_user.py          # auth_provider, external_subject
+  services/oauth_user_service.py # provision_oauth_user()
+  adapters/custom_social_account_adapter.py
+  views/auth_views.py            # LoginView, LogoutView
+  templates/accounts/login.html
+  templates/socialaccount/       # overrides allauth
+reportline/urls.py               # include allauth em accounts/social/
+```
+
+## TODO
+
+### Fase 0 ✅
+
+- [x] Implementar `LoginView` e `LogoutView` com auth Django nativa.
+- [x] Template de login em português e rotas em `accounts/urls.py`.
+- [x] Configurar `LOGIN_URL`, `LOGIN_REDIRECT_URL` e `LOGOUT_REDIRECT_URL`.
+
+### Fase 1 — dev / deploy pessoal ✅
+
+- [x] Adicionar `django-allauth` e provider Google.
+- [x] Criar serviço de provisionamento de `CustomUser` a partir de claims OAuth.
+- [x] Adicionar `auth_provider` e identificador externo em `CustomUser`.
+- [x] Botão "Entrar com Google" na tela de login; `AUTH_PROVIDER=google` no `.env`.
+- [x] Testes com mock do callback OAuth (sucesso, falha, usuário inativo).
+
+### Fase 2 — ambiente institucional
+
+- [ ] Solicitar credenciamento no [Login Único gov.br](https://www.gov.br/governodigital/pt-br/identidade/conta-gov-br/conta-gov-br).
+- [ ] Configurar client OIDC (client_id, client_secret, redirect URIs) por ambiente.
+- [ ] Implementar backend gov.br reutilizando serviço de provisionamento.
+- [ ] Mapear claims gov.br (CPF, nome, e-mail) para `CustomUser`.
+- [ ] Definir política de migração contas Google → gov.br e contas staff/admin.
+- [ ] Testes com mock do provedor gov.br.
 
 ## Referências
 

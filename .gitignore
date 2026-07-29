@@ -36,6 +36,10 @@ db.sqlite3-journal
 .env.test.local
 .env.production.local
 
+# Chaves JSON, certificados e outros segredos locais (fora do .env)
+var/secrets/*
+!var/secrets/.gitkeep
+
 # ==========================================
 # Editores de Código e IDEs
 # ==========================================

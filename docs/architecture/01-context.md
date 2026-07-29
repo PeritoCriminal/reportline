@@ -30,21 +30,24 @@ flowchart TB
     end
 
     db[("PostgreSQL<br/>padrão dev")]
-    govbr["Login gov.br 🟡"]
+    google["Login Google ✅<br/>(dev/pessoal)"]
+    govbr["Login gov.br 🟡<br/>(institucional)"]
     apis["APIs externas 🟡<br/>(IA, voz…)"]
 
     perito -->|"Cria e edita laudos"| web
     admin -->|"Administra usuários"| web
     core -->|"Persistência"| db
+    perito -.->|"Auth dev/pessoal"| google
+    google -.-> core
     perito -.->|"Auth institucional"| govbr
     govbr -.-> core
     core -.->|"Integrações futuras"| apis
 ```
 
 > **Nota:** PostgreSQL é o SGBD padrão em desenvolvimento ([ADR-0004](../decisions/0004-postgresql-sgbd.md)).
-> Login gov.br e APIs externas são alvos institucionais/futuros
-> ([ADR-0003](../decisions/0003-govbr-authentication.md),
-> [ADR-0005](../decisions/0005-external-api-credentials.md)).
+> Login Google (fase 1) está implementado para dev e deploy pessoal; gov.br é alvo
+> institucional; APIs externas seguem [ADR-0005](../decisions/0005-external-api-credentials.md)
+> ([ADR-0003](../decisions/0003-govbr-authentication.md)).
 
 ## Containers (C4 — Nível 2)
 
@@ -89,7 +92,7 @@ credenciais **pessoais** via `.env` (fora do Git). Em ambiente
 
 | Container | Status | Observação |
 |---|---|---|
-| `accounts` | ✅ Implementado | `CustomUser` com UUID, login placeholder; **alvo institucional: gov.br** (ver ADR-0003) |
+| `accounts` | ✅ Implementado | `CustomUser` (UUID, OAuth), login Google (fase 1) + local staff; alvo institucional: gov.br ([ADR-0003](../decisions/0003-govbr-authentication.md)) |
 | `institution_ic_sp` | ✅ Implementado 🔵 | Núcleos e equipes IC-SP; **substituível** em produção (ver ADR-0006) |
 | `profiles` | ✅ Implementado | `ForensicExaminerSP` 1:1 com user, lotação em `ForensicTeam` (ver ADR-0007) |
 | `reports` | 🟡 Planejado | Laudo composto por árvore de nós |
@@ -101,7 +104,7 @@ credenciais **pessoais** via `.env` (fora do Git). Em ambiente
 - [Mapa de apps](./03-apps-map.md)
 - [ADR-0001: CustomUser com UUID](../decisions/0001-custom-user-uuid.md)
 - [ADR-0002: Estrutura de laudo modular](../decisions/0002-report-node-structure.md)
-- [ADR-0003: Autenticação gov.br (institucional)](../decisions/0003-govbr-authentication.md)
+- [ADR-0003: Autenticação em fases (local → Google → gov.br)](../decisions/0003-govbr-authentication.md)
 - [ADR-0004: PostgreSQL como SGBD padrão](../decisions/0004-postgresql-sgbd.md)
 - [ADR-0005: Credenciais de APIs externas](../decisions/0005-external-api-credentials.md)
 - [ADR-0006: App provisório IC-SP](../decisions/0006-provisional-institution-ic-sp.md)

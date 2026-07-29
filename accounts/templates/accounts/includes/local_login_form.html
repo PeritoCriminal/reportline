@@ -1,0 +1,49 @@
+<form method="post" novalidate>
+    {% csrf_token %}
+
+    <div class="mb-3">
+        <label for="{{ form.username.id_for_label }}" class="form-label">Usuário</label>
+        <div class="input-group">
+            <span class="input-group-text" aria-hidden="true">
+                <i class="bi bi-person"></i>
+            </span>
+            <input
+                type="text"
+                name="{{ form.username.name }}"
+                id="{{ form.username.id_for_label }}"
+                class="form-control{% if form.username.errors %} is-invalid{% endif %}"
+                value="{{ form.username.value|default:'' }}"
+                placeholder="Seu usuário"
+                {% if not google_login_enabled %}autofocus{% elif form.errors %}autofocus{% endif %}
+                autocomplete="username"
+                required
+            >
+            {% for error in form.username.errors %}
+                <div class="invalid-feedback">{{ error }}</div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <div class="mb-4">
+        <label for="{{ form.password.id_for_label }}" class="form-label">Senha</label>
+        <div class="input-group">
+            <span class="input-group-text" aria-hidden="true">
+                <i class="bi bi-lock"></i>
+            </span>
+            <input
+                type="password"
+                name="{{ form.password.name }}"
+                id="{{ form.password.id_for_label }}"
+                class="form-control{% if form.password.errors %} is-invalid{% endif %}"
+                placeholder="Sua senha"
+                autocomplete="current-password"
+                required
+            >
+            {% for error in form.password.errors %}
+                <div class="invalid-feedback">{{ error }}</div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <button type="submit" class="btn btn-primary w-100">Entrar</button>
+</form>

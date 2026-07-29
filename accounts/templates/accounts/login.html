@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+
+{% block title %}Entrar - ReportLine{% endblock %}
+
+{% block extra_css %}
+{% include "accounts/includes/login_page_styles.html" %}
+{% endblock %}
+
+{% block content %}
+<div class="login-page">
+    <div class="login-card">
+        <div class="text-center mb-4">
+            <span class="login-brand mb-3" aria-hidden="true">
+                <i class="bi bi-file-earmark-text"></i>
+            </span>
+            <h1 class="h4 mb-1">Entrar no ReportLine</h1>
+            <p class="text-muted small mb-0">
+                {% if google_login_enabled %}
+                    Use sua conta Google — você será redirecionado para autenticar com segurança.
+                {% else %}
+                    Informe suas credenciais para continuar.
+                {% endif %}
+            </p>
+        </div>
+
+        <div class="card border-secondary-subtle shadow-sm">
+            <div class="card-body p-4">
+                {% if form.non_field_errors %}
+                    <div class="alert alert-danger py-2" role="alert">
+                        {% for error in form.non_field_errors %}
+                            {{ error }}
+                        {% endfor %}
+                    </div>
+                {% endif %}
+
+                {% if google_login_misconfigured %}
+                    <div class="alert alert-warning py-2 small" role="alert">
+                        Login Google ativado, mas faltam
+                        <code>GOOGLE_CLIENT_ID</code> e <code>GOOGLE_CLIENT_SECRET</code> no arquivo
+                        <code>.env</code>.
+                    </div>
+                {% endif %}
+
+                {% if google_login_enabled %}
+                    <a
+                        href="{% url 'google_login' %}"
+                        class="btn btn-outline-secondary btn-google w-100"
+                    >
+                        <i class="bi bi-google" aria-hidden="true"></i>
+                        Entrar com Google
+                    </a>
+
+                    <div class="text-center mt-3">
+                        <button
+                            class="btn btn-link btn-sm text-muted text-decoration-none p-0"
+                            type="button"
+                            data-bs-toggle="collapse"
+                            data-bs-target="#adminLoginPanel"
+                            aria-expanded="{% if form.errors %}true{% else %}false{% endif %}"
+                            aria-controls="adminLoginPanel"
+                        >
+                            Entrar com administrador
+                        </button>
+                    </div>
+
+                    <div
+                        id="adminLoginPanel"
+                        class="collapse{% if form.errors %} show{% endif %}{% if not form.errors %} mt-1{% endif %}"
+                    >
+                        <div class="login-divider my-3">acesso administrativo</div>
+                        {% include "accounts/includes/local_login_form.html" %}
+                    </div>
+                {% else %}
+                    {% include "accounts/includes/local_login_form.html" %}
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

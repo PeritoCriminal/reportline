@@ -19,7 +19,7 @@ evolução junto com o projeto.
 
 | ADR | Tema |
 |---|---|
-| [0003](../decisions/0003-govbr-authentication.md) | Autenticação gov.br em produção institucional |
+| [0003](../decisions/0003-govbr-authentication.md) | Autenticação em fases (Google dev → gov.br institucional) |
 | [0004](../decisions/0004-postgresql-sgbd.md) | PostgreSQL padrão; SGBD institucional a critério do órgão |
 | [0005](../decisions/0005-external-api-credentials.md) | Credenciais pessoais (dev) vs institucionais (prod) |
 | [0006](../decisions/0006-provisional-institution-ic-sp.md) | App provisório de dados institucionais do IC-SP |

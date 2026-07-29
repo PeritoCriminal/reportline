@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+
+{% block title %}Entrar com Google - ReportLine{% endblock %}
+
+{% block extra_css %}
+{% include "accounts/includes/login_page_styles.html" %}
+{% endblock %}
+
+{% block content %}
+<div class="login-page">
+    <div class="login-card">
+        <div class="text-center mb-4">
+            <span class="login-brand mb-3" aria-hidden="true">
+                <i class="bi bi-google"></i>
+            </span>
+            {% if process == "connect" %}
+                <h1 class="h4 mb-1">Conectar {{ provider.name }}</h1>
+                <p class="text-muted small mb-0">
+                    Você está prestes a vincular uma conta {{ provider.name }} ao seu perfil.
+                </p>
+            {% else %}
+                <h1 class="h4 mb-1">Entrar com Google</h1>
+                <p class="text-muted small mb-0">
+                    Confirme para continuar com a autenticação segura via Google.
+                </p>
+            {% endif %}
+        </div>
+
+        <div class="card border-secondary-subtle shadow-sm">
+            <div class="card-body p-4">
+                <form method="post" novalidate>
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-primary w-100">
+                        Continuar
+                    </button>
+                </form>
+
+                <div class="text-center mt-3">
+                    <a href="{% url 'accounts:login' %}" class="text-muted small text-decoration-none">
+                        Voltar para o login
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

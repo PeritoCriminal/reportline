@@ -30,12 +30,14 @@ flowchart TB
 
 | Item | Valor |
 |---|---|
-| **Responsabilidade** | Autenticação, sessão, `CustomUser` |
-| **Models** | `CustomUser` |
-| **Views** | `LoginView` (placeholder CBV) |
-| **Depende de** | `django.contrib.auth` |
+| **Responsabilidade** | Autenticação, sessão, `CustomUser`, OAuth Google (dev/pessoal) |
+| **Models** | `CustomUser` (`auth_provider`, `external_subject`) |
+| **Views** | `LoginView`, `LogoutView` (CBV Django auth) |
+| **Serviços** | `oauth_user_service.provision_oauth_user()` |
+| **Integrações** | `django-allauth` (Google); alvo fase 2: gov.br OIDC |
+| **Depende de** | `django.contrib.auth`, `django-allauth` |
 | **Consumido por** | `profiles` |
-| **Alvo institucional** | Login **gov.br** (OIDC) — ver [ADR-0003](../decisions/0003-govbr-authentication.md) |
+| **Decisão** | [ADR-0003](../decisions/0003-govbr-authentication.md) |
 
 ```
 accounts/
@@ -43,13 +45,25 @@ accounts/
     custom_user.py
   views/
     auth_views.py
+  services/
+    oauth_user_service.py
+  adapters/
+    custom_social_account_adapter.py
   admin/
     user_admin.py
+  templates/
+    accounts/login.html
+    accounts/includes/
+    socialaccount/              # overrides allauth
   tests/
     test_custom_user.py
     test_auth_views.py
-  urls.py
+    test_oauth_user_service.py
+    test_social_account_adapter.py
+  urls.py                       # login, logout
 ```
+
+Rotas OAuth (em `reportline/urls.py`): `/accounts/social/` → django-allauth.
 
 ---
 
@@ -175,8 +189,8 @@ Decisões que atravessam apps (não pertencem a um único bounded context):
 | Tema | Desenvolvimento | Institucional | ADR |
 |---|---|---|---|
 | **SGBD** | PostgreSQL | Outro SGBD a critério do órgão | [0004](../decisions/0004-postgresql-sgbd.md) |
-| **Autenticação** | Django local (placeholder) | Login gov.br (OIDC) | [0003](../decisions/0003-govbr-authentication.md) |
-| **APIs externas** | Credenciais pessoais (`.env`) | Credenciais institucionais | [0005](../decisions/0005-external-api-credentials.md) |
+| **Autenticação** | Google OAuth + local staff (dev/pessoal); gov.br (institucional) | [0003](../decisions/0003-govbr-authentication.md) |
+| **APIs externas** | Credenciais pessoais (`.env` + `var/secrets/`) | Credenciais institucionais | [0005](../decisions/0005-external-api-credentials.md) |
 | **Cadastro IC-SP** | App local `institution_ic_sp` | Cadastro oficial SPTC | [0006](../decisions/0006-provisional-institution-ic-sp.md) |
 
 Visão consolidada em [01-context.md](./01-context.md).

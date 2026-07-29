@@ -40,15 +40,28 @@ pessoais **não** devem ser reutilizadas em produção institucional.
 ## Decisão
 
 - **Desenvolvimento (atual):** credenciais **pessoais** do desenvolvedor, lidas
-  exclusivamente via **variáveis de ambiente** (arquivo `.env` local, fora do Git).
-  Exemplos previstos: chaves de IA, Google (voz/APIs), demais integrações
-  particulares usadas nos testes de funcionalidade.
+  exclusivamente via **variáveis de ambiente** (arquivo `.env` local, fora do Git)
+  e arquivos JSON em **`var/secrets/`** (também ignorados pelo Git).
+  Exemplos previstos: chaves de IA, Google Cloud (voz/STT via service account),
+  OAuth Client ID/secret para login Google (somente no `.env`).
 - **Ambiente institucional (alvo):** todas as chaves, tokens e credenciais de
   APIs externas devem ser **institucionais** — contratadas, emitidas ou
   gerenciadas pelo órgão adotante (secret manager, cofre ou política equivalente
   da instituição).
 - **Nunca** commitar segredos no repositório; o código referencia apenas nomes de
   variáveis de ambiente (ex.: `OPENAI_API_KEY`, `GOOGLE_APPLICATION_CREDENTIALS`).
+
+### Organização local de segredos
+
+| Tipo | Onde guardar | Exemplo de variável |
+|---|---|---|
+| Pares chave=valor (OAuth login, DB, SECRET_KEY) | `.env` | `GOOGLE_CLIENT_ID`, `AUTH_PROVIDER` |
+| Arquivos JSON (service account Google Cloud) | `var/secrets/` | `GOOGLE_APPLICATION_CREDENTIALS=var/secrets/reportline-stt-key.json` |
+
+A pasta `var/secrets/` é versionada apenas com `.gitkeep`; conteúdo real fica
+local. **Login Google (OAuth)** usa client ID/secret no `.env`; **APIs Cloud**
+(STT, voz) usam JSON de service account — credenciais distintas (ver
+[ADR-0003](./0003-govbr-authentication.md)).
 
 A mesma lógica aplica-se a credenciais OIDC do gov.br (ver ADR-0003): pessoais
 não substituem client institucional em produção.

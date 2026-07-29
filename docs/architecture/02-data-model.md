@@ -24,6 +24,8 @@ erDiagram
         string email
         string first_name
         string last_name
+        string auth_provider "local|google|govbr"
+        string external_subject "OAuth sub (nullable)"
         boolean is_staff
         boolean is_active
         boolean is_superuser
