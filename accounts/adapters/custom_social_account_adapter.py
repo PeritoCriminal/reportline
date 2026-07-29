@@ -7,7 +7,6 @@ permitindo reutilização na integração gov.br (fase 2).
 
 from allauth.core.exceptions import ImmediateHttpResponse
 from allauth.socialaccount.adapter import DefaultSocialAccountAdapter
-from django.contrib import messages
 from django.shortcuts import redirect
 
 from accounts.services.oauth_user_service import (
@@ -16,6 +15,7 @@ from accounts.services.oauth_user_service import (
     normalize_provider,
     provision_oauth_user,
 )
+from common.user_messages import notify_error
 
 
 class CustomSocialAccountAdapter(DefaultSocialAccountAdapter):
@@ -30,7 +30,7 @@ class CustomSocialAccountAdapter(DefaultSocialAccountAdapter):
         """
         if sociallogin.is_existing:
             if not sociallogin.user.is_active:
-                messages.error(request, "Esta conta está desativada.")
+                notify_error(request, "Esta conta está desativada.")
                 raise ImmediateHttpResponse(redirect("accounts:login"))
             return
 
@@ -47,7 +47,7 @@ class CustomSocialAccountAdapter(DefaultSocialAccountAdapter):
             return
 
         if not user.is_active:
-            messages.error(request, "Esta conta está desativada.")
+            notify_error(request, "Esta conta está desativada.")
             raise ImmediateHttpResponse(redirect("accounts:login"))
 
         sociallogin.connect(request, user)
@@ -58,7 +58,7 @@ class CustomSocialAccountAdapter(DefaultSocialAccountAdapter):
         try:
             user = provision_oauth_user(claims)
         except InactiveOAuthUserError:
-            messages.error(request, "Esta conta está desativada.")
+            notify_error(request, "Esta conta está desativada.")
             raise ImmediateHttpResponse(redirect("accounts:login")) from None
 
         sociallogin.user = user

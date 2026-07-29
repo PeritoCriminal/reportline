@@ -1,0 +1,11 @@
+{# Botão de ação com confirmação via modal global. Deve estar dentro de um form POST com csrf_token. #}
+<button type="button"
+        class="btn btn-{{ variant|default:'danger' }}{% if extra_class %} {{ extra_class }}{% endif %}"
+        data-confirm-action
+        data-confirm-title="{{ title }}"
+        data-confirm-message="{{ message }}"
+        {% if detail %}data-confirm-detail="{{ detail }}"{% endif %}
+        data-confirm-label="{{ confirm_label|default:'Confirmar' }}"
+        {% if variant %}data-confirm-variant="{{ variant }}"{% endif %}>
+    {% if icon %}<i class="bi {{ icon }} me-1" aria-hidden="true"></i>{% endif %}{{ label }}
+</button>

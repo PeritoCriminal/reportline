@@ -7,6 +7,7 @@ from unittest.mock import patch
 
 from allauth.core.exceptions import ImmediateHttpResponse
 from django.contrib.auth import get_user_model
+from django.contrib.messages import get_messages
 from django.contrib.messages.storage.fallback import FallbackStorage
 from django.contrib.sessions.middleware import SessionMiddleware
 from django.test import RequestFactory, TestCase
@@ -84,6 +85,11 @@ class CustomSocialAccountAdapterTests(TestCase):
         with self.assertRaises(ImmediateHttpResponse):
             self.adapter.save_user(self.request, sociallogin)
 
+        stored = list(get_messages(self.request))
+        self.assertEqual(len(stored), 1)
+        self.assertEqual(str(stored[0]), "Esta conta está desativada.")
+        self.assertIn("error", stored[0].tags)
+
     def test_pre_social_login_connects_existing_user_by_email(self):
         """Garante vinculação automática quando o e-mail já existe localmente."""
         existing = User.objects.create_user(
@@ -110,3 +116,24 @@ class CustomSocialAccountAdapterTests(TestCase):
 
         with self.assertRaises(ImmediateHttpResponse):
             self.adapter.pre_social_login(self.request, sociallogin)
+
+        stored = list(get_messages(self.request))
+        self.assertEqual(len(stored), 1)
+        self.assertEqual(str(stored[0]), "Esta conta está desativada.")
+
+    def test_pre_social_login_blocks_inactive_existing_user_by_email(self):
+        """Garante bloqueio e mensagem quando e-mail local existente está inativo."""
+        User.objects.create_user(
+            username="inativo_local",
+            email="perito@example.com",
+            password="senha-segura",
+            is_active=False,
+        )
+        sociallogin = self._build_sociallogin()
+
+        with self.assertRaises(ImmediateHttpResponse):
+            self.adapter.pre_social_login(self.request, sociallogin)
+
+        stored = list(get_messages(self.request))
+        self.assertEqual(len(stored), 1)
+        self.assertEqual(str(stored[0]), "Esta conta está desativada.")

@@ -1,0 +1,58 @@
+---
+description: Padrão de mensagens ao usuário — flash, validação e confirmações
+alwaysApply: true
+---
+
+# Mensagens ao Usuário
+
+## Flash messages (sucesso, erro, alerta, info)
+
+- **Sempre** usar `common.user_messages`: `notify_success`, `notify_error`, `notify_warning`, `notify_info`.
+- **Nunca** importar `django.contrib.messages` diretamente em views, adapters ou services de domínio.
+- Textos em **português**, claros e voltados ao usuário final.
+- Renderização global via `templates/includes/user_toasts.html` (toasts Bootstrap temporários).
+
+```python
+# ✅ BOM
+from common.user_messages import notify_success
+
+notify_success(request, "Laudo salvo com sucesso.")
+
+# ❌ RUIM
+from django.contrib import messages
+messages.success(request, "Saved.")
+```
+
+## Validação de formulário
+
+- Erros de campo e `non_field_errors`: **inline** no template (`invalid-feedback`, `alert-danger` no form).
+- **Não** usar toast para erro de validação no mesmo request.
+
+## Confirmações e decisões
+
+- Ações destrutivas ou irreversíveis: **modal** Bootstrap reutilizável (`templates/includes/confirm_modal.html`), nunca toast.
+- Modal global incluído em `base.html`; triggers via `data-confirm-action` em botões dentro de forms POST.
+- Preferir o partial `includes/confirm_action_button.html` para botões de exclusão/ação crítica.
+
+```django
+<form method="post" action="{% url 'reports:delete' pk=report.pk %}">
+    {% csrf_token %}
+    {% include "includes/confirm_action_button.html" with
+        title="Excluir laudo"
+        message="Esta ação não pode ser desfeita."
+        detail=report.title
+        label="Excluir"
+        confirm_label="Excluir laudo"
+        icon="bi-trash"
+    %}
+</form>
+```
+
+- Form externo ao botão: usar `data-confirm-form="#id-do-form"` no trigger.
+- Após confirmação bem-sucedida, feedback via `notify_success` / `notify_error` (toast).
+
+## Proibido
+
+- `alert()` JavaScript para feedback ao usuário.
+- Markup ad hoc de alerta/toast fora do partial global.
+- Bibliotecas extras de toast sem aprovação (Bootstrap 5 já cobre o caso).

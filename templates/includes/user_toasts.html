@@ -1,0 +1,84 @@
+{# Toasts globais de feedback ao usuário — ver common/user_messages.py #}
+{% if messages %}
+<div class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 1080;" aria-live="polite" aria-atomic="true">
+    {% for message in messages %}
+        {% if "error" in message.tags %}
+            {% with toast_class="text-bg-danger" icon_class="bi-exclamation-triangle-fill" %}
+                <div class="toast align-items-center {{ toast_class }} border-0 mb-2"
+                     role="alert"
+                     aria-live="assertive"
+                     aria-atomic="true"
+                     data-bs-delay="5000"
+                     data-bs-autohide="true">
+                    <div class="d-flex">
+                        <div class="toast-body">
+                            <i class="bi {{ icon_class }} me-2" aria-hidden="true"></i>{{ message }}
+                        </div>
+                        <button type="button"
+                                class="btn-close btn-close-white me-2 m-auto"
+                                data-bs-dismiss="toast"
+                                aria-label="Fechar"></button>
+                    </div>
+                </div>
+            {% endwith %}
+        {% elif "warning" in message.tags %}
+            {% with toast_class="text-bg-warning" icon_class="bi-exclamation-circle-fill" %}
+                <div class="toast align-items-center {{ toast_class }} border-0 mb-2"
+                     role="alert"
+                     aria-live="assertive"
+                     aria-atomic="true"
+                     data-bs-delay="5000"
+                     data-bs-autohide="true">
+                    <div class="d-flex">
+                        <div class="toast-body text-dark">
+                            <i class="bi {{ icon_class }} me-2" aria-hidden="true"></i>{{ message }}
+                        </div>
+                        <button type="button"
+                                class="btn-close me-2 m-auto"
+                                data-bs-dismiss="toast"
+                                aria-label="Fechar"></button>
+                    </div>
+                </div>
+            {% endwith %}
+        {% elif "info" in message.tags %}
+            {% with toast_class="text-bg-info" icon_class="bi-info-circle-fill" %}
+                <div class="toast align-items-center {{ toast_class }} border-0 mb-2"
+                     role="alert"
+                     aria-live="assertive"
+                     aria-atomic="true"
+                     data-bs-delay="5000"
+                     data-bs-autohide="true">
+                    <div class="d-flex">
+                        <div class="toast-body">
+                            <i class="bi {{ icon_class }} me-2" aria-hidden="true"></i>{{ message }}
+                        </div>
+                        <button type="button"
+                                class="btn-close btn-close-white me-2 m-auto"
+                                data-bs-dismiss="toast"
+                                aria-label="Fechar"></button>
+                    </div>
+                </div>
+            {% endwith %}
+        {% else %}
+            {% with toast_class="text-bg-success" icon_class="bi-check-circle-fill" %}
+                <div class="toast align-items-center {{ toast_class }} border-0 mb-2"
+                     role="alert"
+                     aria-live="assertive"
+                     aria-atomic="true"
+                     data-bs-delay="5000"
+                     data-bs-autohide="true">
+                    <div class="d-flex">
+                        <div class="toast-body">
+                            <i class="bi {{ icon_class }} me-2" aria-hidden="true"></i>{{ message }}
+                        </div>
+                        <button type="button"
+                                class="btn-close btn-close-white me-2 m-auto"
+                                data-bs-dismiss="toast"
+                                aria-label="Fechar"></button>
+                    </div>
+                </div>
+            {% endwith %}
+        {% endif %}
+    {% endfor %}
+</div>
+{% endif %}

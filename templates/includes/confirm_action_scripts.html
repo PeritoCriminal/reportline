@@ -1,0 +1,69 @@
+{# Inicialização do modal global de confirmação — carregar após Bootstrap #}
+<script>
+    (function () {
+        const modalElement = document.getElementById("confirmActionModal");
+        if (!modalElement) {
+            return;
+        }
+
+        const modal = bootstrap.Modal.getOrCreateInstance(modalElement);
+        const titleElement = modalElement.querySelector("[data-confirm-modal-title]");
+        const messageElement = modalElement.querySelector("[data-confirm-modal-message]");
+        const detailElement = modalElement.querySelector("[data-confirm-modal-detail]");
+        const confirmButton = modalElement.querySelector("[data-confirm-modal-submit]");
+
+        let pendingForm = null;
+
+        document.addEventListener("click", function (event) {
+            const trigger = event.target.closest("[data-confirm-action]");
+            if (!trigger) {
+                return;
+            }
+
+            event.preventDefault();
+
+            const formSelector = trigger.dataset.confirmForm;
+            const form = trigger.closest("form") || (formSelector ? document.querySelector(formSelector) : null);
+            if (!form) {
+                return;
+            }
+
+            pendingForm = form;
+            titleElement.textContent = trigger.dataset.confirmTitle || "Confirmar ação";
+            messageElement.textContent = trigger.dataset.confirmMessage || "Tem certeza que deseja continuar?";
+
+            if (trigger.dataset.confirmDetail) {
+                detailElement.textContent = trigger.dataset.confirmDetail;
+                detailElement.classList.remove("d-none");
+            } else {
+                detailElement.textContent = "";
+                detailElement.classList.add("d-none");
+            }
+
+            confirmButton.textContent = trigger.dataset.confirmLabel || "Confirmar";
+            confirmButton.className = "btn btn-" + (trigger.dataset.confirmVariant || "danger");
+
+            modal.show();
+        });
+
+        confirmButton.addEventListener("click", function () {
+            if (!pendingForm) {
+                modal.hide();
+                return;
+            }
+
+            if (typeof pendingForm.requestSubmit === "function") {
+                pendingForm.requestSubmit();
+            } else {
+                pendingForm.submit();
+            }
+
+            pendingForm = null;
+            modal.hide();
+        });
+
+        modalElement.addEventListener("hidden.bs.modal", function () {
+            pendingForm = null;
+        });
+    })();
+</script>

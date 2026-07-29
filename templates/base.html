@@ -70,16 +70,8 @@
         </div>
     </nav>
 
-    <div class="container mt-3">
-        {% if messages %}
-            {% for message in messages %}
-                <div class="alert alert-{% if message.tags == 'error' %}danger{% else %}{{ message.tags }}{% endif %} alert-dismissible fade show" role="alert">
-                    {{ message }}
-                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                </div>
-            {% endfor %}
-        {% endif %}
-    </div>
+    {% include "includes/user_toasts.html" %}
+    {% include "includes/confirm_modal.html" %}
 
     <main class="container py-4">
         {% block content %}
@@ -94,6 +86,10 @@
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <script>
+        document.querySelectorAll('.toast-container .toast').forEach(function (element) {
+            bootstrap.Toast.getOrCreateInstance(element).show();
+        });
+
         const htmlElement = document.documentElement;
         const themeToggler = document.getElementById('themeToggler');
         const iconLight = document.getElementById('themeIconLight');
@@ -122,6 +118,7 @@
             updateIcons(newTheme);
         });
     </script>
+    {% include "includes/confirm_action_scripts.html" %}
     {% block extra_js %}{% endblock %}
 </body>
 </html>
