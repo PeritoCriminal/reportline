@@ -1,11 +1,19 @@
 """
 Rotas HTTP do app profiles.
 
-Namespace reservado para futuras telas de perfil do perito criminal (SP).
+Telas de perfil profissional do servidor pericial (SP).
 """
 
 from django.urls import path
 
+from profiles.views.forensic_examiner_sp_views import ForensicExaminerSPProfileView
+
 app_name = "profiles"
 
-urlpatterns = []
+urlpatterns = [
+    path(
+        "forensic-examiner-sp/",
+        ForensicExaminerSPProfileView.as_view(),
+        name="forensic_examiner_sp",
+    ),
+]

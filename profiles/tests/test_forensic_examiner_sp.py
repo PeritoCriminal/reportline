@@ -8,11 +8,12 @@ proteção contra exclusão de equipe com peritos lotados.
 import uuid
 
 from django.contrib.auth import get_user_model
+from django.core.exceptions import ValidationError
 from django.db.models import ProtectedError
 from django.test import TestCase
 
-from institution_ic_sp.models import ForensicTeam
-from profiles.models import ForensicExaminerSP
+from institution_ic_sp.models import ForensicNucleus, ForensicTeam
+from profiles.models import ForensicExaminerSP, ForensicJobTitle
 
 User = get_user_model()
 
@@ -25,6 +26,7 @@ class ForensicExaminerSPModelTests(TestCase):
         """Prepara usuários e equipe pericial para os cenários de teste."""
         cls.team_centro = ForensicTeam.objects.get(code="EPC-SPC")
         cls.team_norte = ForensicTeam.objects.get(code="EPC-SPN")
+        cls.nucleus_americana = ForensicNucleus.objects.get(code="NPC-AME")
         cls.user_one = User.objects.create_user(
             username="perito1",
             password="senha-segura",
@@ -92,3 +94,94 @@ class ForensicExaminerSPModelTests(TestCase):
 
         self.assertEqual(meta.verbose_name, "Perito criminal (SP)")
         self.assertEqual(meta.verbose_name_plural, "Peritos criminais (SP)")
+
+    def test_has_full_institution_access_only_for_perito_criminal(self):
+        """Garante que apenas peritos criminais tenham acesso amplo às páginas institucionais."""
+        perito = ForensicExaminerSP.objects.create(
+            user=self.user_one,
+            display_name="Dr. Perito Um",
+            job_title=ForensicJobTitle.PERITO_CRIMINAL,
+            forensic_team=self.team_centro,
+        )
+        fotografo = ForensicExaminerSP.objects.create(
+            user=self.user_two,
+            display_name="Fotógrafo Dois",
+            job_title=ForensicJobTitle.FOTOGRAFO_TECNICO,
+            forensic_team=self.team_centro,
+        )
+
+        self.assertTrue(perito.has_full_institution_access)
+        self.assertFalse(fotografo.has_full_institution_access)
+
+    def test_is_profile_complete_requires_display_name_and_job_title(self):
+        """Garante que o perfil só seja considerado completo com nome e cargo informados."""
+        incomplete = ForensicExaminerSP.objects.create(
+            user=self.user_one,
+            forensic_team=self.team_centro,
+        )
+        complete = ForensicExaminerSP(
+            user=self.user_two,
+            display_name="Dra. Perita Dois",
+            job_title=ForensicJobTitle.DESENHISTA_TECNICO,
+            forensic_team=self.team_norte,
+        )
+
+        self.assertFalse(incomplete.is_profile_complete)
+        complete.save()
+        self.assertTrue(complete.is_profile_complete)
+
+    def test_nucleus_direct_assignment_without_team(self):
+        """Garante lotação direta no núcleo sem equipe pericial vinculada."""
+        examiner = ForensicExaminerSP.objects.create(
+            user=self.user_one,
+            display_name="Dr. Perito Americana",
+            forensic_nucleus=self.nucleus_americana,
+        )
+
+        self.assertTrue(examiner.is_nucleus_direct_assignment)
+        self.assertIsNone(examiner.forensic_team)
+        self.assertEqual(examiner.assigned_nucleus, self.nucleus_americana)
+
+    def test_assigned_nucleus_is_inferred_from_team(self):
+        """Garante que o núcleo seja inferido pela equipe quando houver lotação em EPC."""
+        examiner = ForensicExaminerSP.objects.create(
+            user=self.user_one,
+            display_name="Dr. Perito Centro",
+            forensic_team=self.team_centro,
+        )
+
+        self.assertFalse(examiner.is_nucleus_direct_assignment)
+        self.assertEqual(examiner.assigned_nucleus, self.team_centro.nucleus)
+
+    def test_cannot_assign_both_team_and_nucleus(self):
+        """Impede lotação simultânea em equipe e núcleo pericial."""
+        examiner = ForensicExaminerSP(
+            user=self.user_one,
+            display_name="Dr. Perito Um",
+            forensic_team=self.team_centro,
+            forensic_nucleus=self.nucleus_americana,
+        )
+
+        with self.assertRaises(ValidationError):
+            examiner.save()
+
+    def test_must_assign_team_or_nucleus(self):
+        """Exige lotação em equipe ou núcleo pericial."""
+        examiner = ForensicExaminerSP(
+            user=self.user_one,
+            display_name="Dr. Perito Um",
+        )
+
+        with self.assertRaises(ValidationError):
+            examiner.save()
+
+    def test_cannot_delete_nucleus_with_direct_examiners(self):
+        """Bloqueia exclusão de núcleo com servidores lotados diretamente nele."""
+        ForensicExaminerSP.objects.create(
+            user=self.user_one,
+            display_name="Dr. Perito Americana",
+            forensic_nucleus=self.nucleus_americana,
+        )
+
+        with self.assertRaises(ProtectedError):
+            self.nucleus_americana.delete()
