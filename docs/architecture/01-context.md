@@ -59,8 +59,7 @@ flowchart LR
         accounts["accounts ✅<br/>Autenticação"]
         institution_ic_sp["institution_ic_sp ✅ 🔵<br/>IC-SP provisório"]
         profiles["profiles ✅<br/>Perito criminal (SP)"]
-        reports["reports 🟡<br/>Laudos e nós"]
-        blocks["blocks 🟡<br/>Blocos de conteúdo"]
+        reports["reports ✅<br/>Relatórios modulares"]
     end
 
     postgres[("PostgreSQL")]
@@ -70,7 +69,6 @@ flowchart LR
     institution_ic_sp --> postgres
     profiles --> postgres
     reports --> postgres
-    blocks --> postgres
 ```
 
 ## Persistência (SGBD)
@@ -110,8 +108,7 @@ credenciais **pessoais** via `.env` (fora do Git). Em ambiente
 | `accounts` | ✅ Implementado | `CustomUser` (UUID, OAuth), login Google (fase 1) + local staff; alvo institucional: gov.br ([ADR-0003](../decisions/0003-govbr-authentication.md)) |
 | `institution_ic_sp` | ✅ Implementado 🔵 | Núcleos e equipes IC-SP; **substituível** em produção (ver ADR-0006) |
 | `profiles` | ✅ Implementado | `ForensicExaminerSP` 1:1 com user, lotação em `ForensicTeam` (ver ADR-0007) |
-| `reports` | 🟡 Planejado | Laudo composto por árvore de nós |
-| `blocks` | 🟡 Planejado | Conteúdo reutilizável por nó |
+| `reports` | ✅ Implementado | `Report`, `ReportNode`, `ReportBlock`; editor e PDF pendentes ([07-reports.md](./07-reports.md)) |
 
 ## Referências
 
@@ -125,3 +122,4 @@ credenciais **pessoais** via `.env` (fora do Git). Em ambiente
 - [ADR-0006: App provisório IC-SP](../decisions/0006-provisional-institution-ic-sp.md)
 - [ADR-0007: ForensicExaminerSP](../decisions/0007-forensic-examiner-sp.md)
 - [App profiles](./05-profiles.md)
+- [App reports](./07-reports.md)

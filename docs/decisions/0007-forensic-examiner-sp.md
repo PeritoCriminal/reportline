@@ -40,7 +40,7 @@ de São Paulo.
   - `CustomUser` **1:1** `ForensicExaminerSP`
   - `ForensicTeam` **1:N** `ForensicExaminerSP` (cada perito em uma equipe;
     cada equipe com vários peritos)
-  - `ForensicExaminerSP` **1:N** `ForensicReport` (a desenvolver no app `reports`)
+  - `ForensicExaminerSP` **1:N** laudos (via `CustomUser` → `Report`; ver atualização abaixo)
 - Campo **`display_name`**: nome exibido na assinatura do laudo.
 - Lotação com `on_delete=PROTECT` em `ForensicTeam` — impede apagar equipe
   com peritos lotados.
@@ -50,8 +50,12 @@ de São Paulo.
 
 - O ADR-0002 permanece válido para laudos modulares; **`Profile` foi substituído
   por `ForensicExaminerSP`** no app `profiles`.
-- `ForensicReport` (futuro) referenciará `ForensicExaminerSP` como autor.
-- Núcleo do perito é inferido via `forensic_examiner.forensic_team.nucleus`.
+- **Atualização (2026-07-30):** `Report.author` referencia `CustomUser` (não
+  `ForensicExaminerSP` diretamente), com snapshot textual na exclusão da conta.
+  Metadados periciais (`display_name`, lotação) enriquecem laudos na renderização.
+  Ver [ADR-0002](./0002-report-node-structure.md) e [07-reports.md](../architecture/07-reports.md).
+- Núcleo do perito é inferido via `forensic_examiner.forensic_team.nucleus` ou
+  lotação direta em `ForensicNucleus`.
 - Campos como registro funcional, classe ou matrícula ficam fora do escopo
   inicial — podem ser adicionados depois.
 

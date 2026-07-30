@@ -14,6 +14,7 @@ evolução junto com o projeto.
 | [04-institution-ic-sp.md](./04-institution-ic-sp.md) | App provisório — núcleos e equipes IC-SP |
 | [05-profiles.md](./05-profiles.md) | App profiles — perito criminal (SP) |
 | [06-user-messaging.md](./06-user-messaging.md) | Mensagens ao usuário — toasts, validação inline e modal |
+| [07-reports.md](./07-reports.md) | App reports — relatórios modulares |
 | [../decisions/](../decisions/) | Registros de decisão arquitetural (ADRs) |
 
 ### ADRs transversais (institucional e infraestrutura)

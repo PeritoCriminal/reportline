@@ -49,8 +49,8 @@ local mantida pelo projeto.
 
 ## Consequências
 
-- Apps futuros (`profiles`, `reports`) podem referenciar `ForensicNucleus` e
-  `ForensicTeam` por UUID estável.
+- Apps `profiles` e `reports` referenciam `ForensicNucleus` e `ForensicTeam`
+  (direta ou indiretamente) por UUID estável.
 - Alterações no organograma oficial exigem atualização de
   `institution_ic_sp/data/ic_sp_seed.py` e nova migration ou `--clear` no comando.
 - Logos institucionais (`sp_logo`, `sptc_logo`) ficam em `MEDIA_ROOT` e **não**

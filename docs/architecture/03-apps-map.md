@@ -12,19 +12,15 @@ flowchart TB
         accounts["accounts<br/>Autenticação e CustomUser"]
         institution_ic_sp["institution_ic_sp<br/>Núcleos e equipes IC-SP 🔵"]
         profiles["profiles<br/>Perito criminal (SP)"]
-    end
-
-    subgraph planned ["Planejado 🟡"]
-        reports["reports<br/>Laudos e árvore de nós"]
-        blocks["blocks<br/>Blocos de conteúdo reutilizáveis"]
+        reports["reports<br/>Relatórios modulares"]
     end
 
     common --> institution_ic_sp
-    common --> profiles
+    common --> reports
     accounts --> profiles
+    accounts --> reports
     institution_ic_sp --> profiles
-    profiles --> reports
-    reports --> blocks
+    profiles -.->|"metadados periciais na renderização"| reports
 ```
 
 ## Detalhamento por app
@@ -37,7 +33,7 @@ flowchart TB
 | **Models** | `BaseModel` (UUID, `created_at`, `updated_at`) |
 | **Utilitários** | `user_messages.notify_*` (flash messages padronizados) |
 | **Depende de** | — |
-| **Consumido por** | `institution_ic_sp`, `profiles`, layout global (`base.html`) |
+| **Consumido por** | `institution_ic_sp`, `profiles`, `reports`, layout global (`base.html`) |
 | **Documentação** | [06-user-messaging.md](./06-user-messaging.md) (mensagens) |
 
 ```
@@ -62,7 +58,7 @@ common/
 | **Serviços** | `oauth_user_service.provision_oauth_user()` |
 | **Integrações** | `django-allauth` (Google); alvo fase 2: gov.br OIDC |
 | **Depende de** | `django.contrib.auth`, `django-allauth` |
-| **Consumido por** | `profiles` |
+| **Consumido por** | `profiles`, `reports` (autor do relatório) |
 | **Decisão** | [ADR-0003](../decisions/0003-govbr-authentication.md) |
 
 ```
@@ -135,7 +131,7 @@ Documentação completa: [04-institution-ic-sp.md](./04-institution-ic-sp.md).
 | **Responsabilidade** | Perfil profissional do perito criminal de SP |
 | **Models** | `ForensicExaminerSP` (1:1 com `CustomUser`, N:1 com `ForensicTeam`) |
 | **Depende de** | `accounts`, `institution_ic_sp`, `common` |
-| **Consumido por** | `reports` (futuro — autor do laudo) |
+| **Relação com `reports`** | Metadados periciais (lotação, `display_name`) enriquecem laudos na renderização; autor do relatório é `CustomUser` |
 | **Decisão** | [ADR-0007](../decisions/0007-forensic-examiner-sp.md) |
 
 ```
@@ -158,26 +154,41 @@ Documentação completa: [05-profiles.md](./05-profiles.md).
 
 ---
 
-### `reports` 🟡
+### `reports` ✅
 
 | Item | Valor |
 |---|---|
-| **Responsabilidade** | Laudos (`Report`) e composição hierárquica (`NodeReport`) |
-| **Models** | `ForensicReport`, `NodeReport` |
-| **Depende de** | `profiles`, `blocks` |
-| **Consumido por** | — (app de domínio principal) |
+| **Responsabilidade** | Relatórios modulares (`Report`), árvore de nós (`ReportNode`) e blocos genéricos (`ReportBlock`) |
+| **Models** | `Report`, `ReportNode`, `ReportBlock` |
+| **Depende de** | `accounts`, `common` |
 | **Integrações futuras** | APIs externas (IA, voz) via variáveis de ambiente — ver [ADR-0005](../decisions/0005-external-api-credentials.md) |
+| **Decisão** | [ADR-0002](../decisions/0002-report-node-structure.md) |
 
----
+```
+reports/
+  models/
+    report.py
+    report_node.py
+    report_block.py
+  admin/
+    report_admin.py
+    report_block_admin.py
+    report_node_admin.py
+  services/
+    author_snapshot.py
+  signals.py
+  tests/
+    test_report_models.py
+    test_report_block.py
+  migrations/
+    0001_initial.py
+  templates/reports/
+  static/reports/
+  urls.py                       # rotas a implementar
+  views/
+```
 
-### `blocks` 🟡
-
-| Item | Valor |
-|---|---|
-| **Responsabilidade** | Tipos de conteúdo reutilizáveis (texto, tabela, imagem…) |
-| **Models** | `Block` |
-| **Depende de** | — (app base, sem FK externa) |
-| **Consumido por** | `reports` |
+Documentação completa: [07-reports.md](./07-reports.md).
 
 ---
 
@@ -193,8 +204,8 @@ flowchart LR
     end
 ```
 
-1. **Dependência unidirecional:** `accounts` → `profiles` → `reports` → consome `blocks`; `institution_ic_sp` alimenta `profiles`.
-2. **`blocks` é independente:** não conhece `reports`; quem referencia é `NodeReport`.
+1. **Dependência unidirecional:** `accounts` → `profiles`; `accounts` → `reports`; `institution_ic_sp` alimenta `profiles`.
+2. **`ReportBlock` vive em `reports`:** blocos genéricos não formam app separado na fase atual.
 3. **Testes espelham a estrutura:** `app/tests/test_<dominio>.py`.
 4. **URLs por app:** cada app expõe seu `urls.py` incluído no `reportline/urls.py`.
 
@@ -206,8 +217,7 @@ flowchart LR
 | `accounts` | ✅ registrado | implementado |
 | `institution_ic_sp` | ✅ registrado | implementado (provisório) |
 | `profiles` | ✅ registrado | implementado |
-| `reports` | 🟡 pendente | — |
-| `blocks` | 🟡 pendente | — |
+| `reports` | ✅ registrado | implementado (models; UI pendente) |
 
 ## Infraestrutura e integrações transversais
 
@@ -226,6 +236,7 @@ Visão consolidada em [01-context.md](./01-context.md).
 ## Referências
 
 - [Modelo de dados (ERD)](./02-data-model.md)
+- [App reports](./07-reports.md)
 - [ADR-0002: Estrutura de laudo modular](../decisions/0002-report-node-structure.md)
 - [ADR-0003: Autenticação gov.br (institucional)](../decisions/0003-govbr-authentication.md)
 - [ADR-0004: PostgreSQL como SGBD padrão](../decisions/0004-postgresql-sgbd.md)

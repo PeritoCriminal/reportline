@@ -51,6 +51,7 @@ INSTALLED_APPS = [
     'accounts',
     'institution_ic_sp',
     'profiles',
+    'reports',
 ]
 
 MIDDLEWARE = [

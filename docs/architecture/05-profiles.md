@@ -14,7 +14,7 @@ vínculo com login, nome de exibição em laudos e lotação em equipe pericial.
 | **Problema** | Autenticação (`CustomUser`) não carrega lotação nem nome pericial para laudos |
 | **Solução** | Model `ForensicExaminerSP` 1:1 com usuário, FK para `ForensicTeam` |
 | **Fora do escopo** | Autenticação, cadastro institucional, conteúdo de laudos |
-| **Consumidor futuro** | `reports.ForensicReport` (autor do laudo) |
+| **Consumidor** | `reports.Report` referencia `CustomUser` como autor; metadados periciais (`display_name`, lotação) enriquecem laudos na renderização |
 
 ---
 
@@ -66,7 +66,7 @@ Perfil profissional do perito criminal de SP. Herda `BaseModel` (UUID + timestam
 erDiagram
     CustomUser ||--|| ForensicExaminerSP : "possui (1:1)"
     ForensicTeam ||--o{ ForensicExaminerSP : "lotacao (1:N)"
-    ForensicExaminerSP ||--o{ ForensicReport : "autor (1:N)"
+    CustomUser ||--o{ Report : "author (1:N)"
 
     CustomUser {
         uuid id PK
@@ -88,10 +88,10 @@ erDiagram
         string name
     }
 
-    ForensicReport {
+    Report {
         uuid id PK
-        uuid forensic_examiner_id FK
-        string title "a desenvolver"
+        uuid author_id FK "nullable"
+        string title
     }
 ```
 
@@ -101,7 +101,7 @@ erDiagram
 |---|---|---|
 | `CustomUser` → `ForensicExaminerSP` | 1:1 | Cada usuário tem no máximo um perfil pericial SP |
 | `ForensicTeam` → `ForensicExaminerSP` | 1:N | Vários peritos na mesma equipe; cada perito em uma equipe |
-| `ForensicExaminerSP` → `ForensicReport` | 1:N | Um perito produz vários laudos (futuro) |
+| `CustomUser` → `Report` | 1:N | Autor do relatório (app `reports`; ver [07-reports.md](./07-reports.md)) |
 
 ### Núcleo pericial
 
@@ -142,11 +142,12 @@ flowchart LR
     accounts["accounts<br/>CustomUser"]
     institution["institution_ic_sp<br/>ForensicTeam"]
     profiles["profiles<br/>ForensicExaminerSP"]
-    reports["reports 🟡<br/>ForensicReport"]
+    reports["reports ✅<br/>Report"]
 
     accounts -->|"1:1"| profiles
     institution -->|"N:1"| profiles
-    profiles -->|"1:N"| reports
+    accounts -->|"1:N author"| reports
+    profiles -.->|"metadados na renderização"| reports
 ```
 
 ---
@@ -168,7 +169,7 @@ Equipes embutidas (DHPP, DEIC, DETRAN) também estão disponíveis no seed.
 - [ ] CBV de edição de perfil pelo próprio perito
 - [ ] Signal ou serviço pós-registro para criar perfil automaticamente
 - [ ] Campos opcionais: registro funcional, classe, matrícula
-- [ ] FK `ForensicExaminerSP` em `ForensicReport` (app `reports`)
+- [ ] Enriquecimento de laudos com lotação e `display_name` na renderização ([07-reports.md](./07-reports.md))
 - [ ] Extensão gov.br: CPF/`sub` OIDC em `CustomUser` ([ADR-0003](../decisions/0003-govbr-authentication.md))
 
 ---

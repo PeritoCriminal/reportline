@@ -1,7 +1,8 @@
-# ADR-0002: Estrutura modular de laudo (Report → NodeReport → Block)
+# ADR-0002: Estrutura modular de relatório (Report → ReportNode → ReportBlock)
 
-**Status:** 🟡 Proposto  
-**Data:** 2026-07-24
+**Status:** ✅ Aceito  
+**Data:** 2026-07-24  
+**Implementado:** 2026-07-30 (models e migração inicial)
 
 ## Contexto
 
@@ -14,18 +15,26 @@ Existe experiência prévia no projeto **Pith** (mesma máquina de desenvolvimen
 com estrutura similar de nós + blocos. O ReportLine adaptará o conceito ao
 domínio forense, sem copiar nomes ou implementação literalmente.
 
-## Relacionamentos previstos
+## Relacionamentos implementados
 
 ```
-CustomUser           1 —— 1  ForensicExaminerSP   (implementado — ADR-0007)
-ForensicTeam         1 —— N  ForensicExaminerSP   (implementado — ADR-0007)
-ForensicExaminerSP   1 —— N  ForensicReport       (a desenvolver)
-ForensicReport       1 —— N  NodeReport           (árvore hierárquica via parent_id)
-NodeReport           1 —— 1  Block
+CustomUser           1 —— N  Report              (author FK, SET_NULL + snapshot)
+Report               1 —— N  ReportNode          (árvore hierárquica via parent)
+ReportNode           1 —— 1  ReportBlock
 ```
 
-> **Atualização (2026-07-26):** o model genérico `Profile` foi substituído por
-> `ForensicExaminerSP` no app `profiles`. Ver [ADR-0007](./0007-forensic-examiner-sp.md).
+Relacionamentos adjacentes já existentes:
+
+```
+CustomUser           1 —— 1  ForensicExaminerSP   (ADR-0007)
+ForensicTeam         1 —— N  ForensicExaminerSP   (ADR-0007)
+```
+
+> **Autor do relatório:** o FK aponta para `CustomUser`, não para
+> `ForensicExaminerSP`, para escalar a outros tipos de servidor. Metadados
+> periciais (lotação, `display_name`) podem ser resolvidos na renderização
+> a partir do perfil ativo do usuário. Ao excluir a conta, o relatório
+> permanece com snapshot textual (`author_username`, `author_display_name`).
 
 ## Opções consideradas
 
@@ -35,10 +44,10 @@ NodeReport           1 —— 1  Block
 - **Contras:** sem modularidade, difícil reutilizar blocos, validação frágil,
   não escala para templates jurídicos complexos.
 
-### 2. Laudo como árvore de nós com blocos desacoplados ✅ (proposta)
+### 2. Laudo como árvore de nós com blocos desacoplados ✅ (adotado)
 
-- **Prós:** modular, extensível, reutilização de `Block`, validação por tipo,
-  alinhado ao Pith e ao domínio pericial (seções aninhadas).
+- **Prós:** modular, extensível, validação por tipo, alinhado ao Pith e ao
+  domínio pericial (seções aninhadas).
 - **Contras:** maior complexidade inicial; exige cuidado com ordenação e
   integridade da árvore.
 
@@ -47,55 +56,74 @@ NodeReport           1 —— 1  Block
 - **Prós:** validação estruturada.
 - **Contras:** rigidez; cada novo tipo de laudo exige novo schema completo.
 
-## Decisão (proposta)
+### 4. Apps separados `reports` + `blocks`
 
-Adotar a **opção 2**, organizada em três apps de domínio:
+- **Prós:** blocos reutilizáveis entre laudos sem duplicar conteúdo.
+- **Contras:** superfície de manutenção maior no início.
+
+## Decisão
+
+Adotar a **opção 2**, concentrada em **um app `reports`** (opção 4 descartada
+na fase inicial — blocos genéricos ficam no mesmo bounded context):
 
 | App | Model(s) | Papel |
 |---|---|---|
 | `profiles` | `ForensicExaminerSP` ✅ | Extensão 1:1 do usuário; lotação e nome no laudo |
-| `reports` | `ForensicReport`, `NodeReport` | Laudo e árvore hierárquica de seções |
-| `blocks` | `Block` | Conteúdo tipado e reutilizável |
+| `reports` | `Report`, `ReportNode`, `ReportBlock` ✅ | Relatório, árvore e blocos genéricos de conteúdo |
 
-### Nomes provisórios 🔵
+### Nomes adotados ✅
 
-| Nome atual | Alternativas em consideração | Status |
-|---|---|---|
-| ~~`Profile`~~ | `ForensicExaminerSP` ✅ | Implementado ([ADR-0007](./0007-forensic-examiner-sp.md)) |
-| `Report` | `ForensicReport`, `ExpertReport` | 🟡 proposto |
-| `NodeReport` | `ReportNode`, `Section`, `ReportSection` | 🟡 proposto |
-| `Block` | `ContentBlock`, `ReportBlock` | 🟡 proposto |
+| Nome anterior (provisório) | Nome implementado |
+|---|---|
+| `ForensicReport`, `ExpertReport` | `Report` |
+| `NodeReport`, `Section` | `ReportNode` |
+| `Block`, `ContentBlock` | `ReportBlock` |
 
-> Os nomes **não estão fechados**. Atualizar este ADR antes de criar migrations.
+### Tipos genéricos de bloco (MVP)
+
+| `block_type` | Uso |
+|---|---|
+| `heading` | Títulos (`title_level` 0–9 + texto em `content`) |
+| `paragraph` | Parágrafos |
+| `link` | Hiperlinks |
+| `ordered_list` | Lista numerada |
+| `unordered_list` | Lista com marcadores |
+| `table` | Tabelas |
+| `image` | Imagens |
+
+Laudos periciais específicos **mapearão papéis semânticos** (ex.: número do
+laudo) sobre esses blocos genéricos — camada futura, fora do escopo desta ADR.
 
 ## Consequências
 
 ### Positivas
 
-- Estrutura preparada para crescimento (novos tipos de `Block`, templates).
-- Separação clara de responsabilidades entre apps.
+- Estrutura preparada para crescimento (novos `block_type`, templates periciais).
+- App único simplifica dependências e testes iniciais.
 - Compatível com CBVs por domínio e testes unitários por regra.
+- Relatórios sobrevivem à exclusão do autor (auditoria institucional).
 
 ### Negativas / trade-offs
 
-- `NodeReport` com auto-referência exige lógica de árvore (ordenação, exclusão
-  em cascata, movimentação de nós).
-- `Block.content` como JSON exige validação por `block_type` na camada de
+- `ReportNode` com auto-referência exige lógica de árvore (ordenação, exclusão
+  em cascata, movimentação de nós) — a implementar nas views/serviços.
+- `ReportBlock.content` como JSON exige validação por `block_type` na camada de
   serviço ou form.
-- Três apps novos aumentam superfície de manutenção inicial.
+- Blocos não são compartilhados entre relatórios (1:1 com nó); reutilização
+  exigiria extrair app `blocks` ou templates no futuro.
 
 ## Questões em aberto
 
-- [ ] Definir nomes finais de `ForensicReport`, `NodeReport` e `Block`
-- [ ] `Block` é imutável após publicação do laudo ou versionado?
-- [ ] `NodeReport` suporta referência a bloco compartilhado entre laudos?
-- [ ] Quais `block_type` mínimos para o MVP?
-- [ ] Assistência por IA/voz na edição de blocos exige revisão de LGPD e credenciais institucionais ([ADR-0005](./0005-external-api-credentials.md))?
+- [x] Definir nomes finais de models (`Report`, `ReportNode`, `ReportBlock`)
+- [x] Quais `block_type` mínimos para o MVP genérico
+- [ ] `ReportBlock` é imutável após publicação do relatório ou versionado?
+- [ ] Camada de laudo pericial específico (mapeamento semântico → blocos genéricos)
+- [ ] Assistência por IA/voz na edição de blocos exige revisão de LGPD e credenciais institucionais ([ADR-0005](./0005-external-api-credentials.md))
 
 ## Referências
 
-- [Modelo de dados — estado alvo](../architecture/02-data-model.md)
+- [Modelo de dados](../architecture/02-data-model.md)
+- [App reports](../architecture/07-reports.md)
 - [Mapa de apps](../architecture/03-apps-map.md)
 - [ADR-0005: Credenciais de APIs externas](./0005-external-api-credentials.md)
 - [ADR-0007: ForensicExaminerSP](./0007-forensic-examiner-sp.md)
-- [App profiles](../architecture/05-profiles.md)
