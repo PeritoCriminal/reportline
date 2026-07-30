@@ -13,6 +13,7 @@ evolução junto com o projeto.
 | [03-apps-map.md](./03-apps-map.md) | Mapa de apps Django e dependências |
 | [04-institution-ic-sp.md](./04-institution-ic-sp.md) | App provisório — núcleos e equipes IC-SP |
 | [05-profiles.md](./05-profiles.md) | App profiles — perito criminal (SP) |
+| [06-user-messaging.md](./06-user-messaging.md) | Mensagens ao usuário — toasts, validação inline e modal |
 | [../decisions/](../decisions/) | Registros de decisão arquitetural (ADRs) |
 
 ### ADRs transversais (institucional e infraestrutura)

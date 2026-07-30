@@ -8,6 +8,7 @@ Organização modular prevista para o ReportLine. Cada app representa um
 ```mermaid
 flowchart TB
     subgraph implemented ["Implementado ✅"]
+        common["common<br/>BaseModel e utilitários"]
         accounts["accounts<br/>Autenticação e CustomUser"]
         institution_ic_sp["institution_ic_sp<br/>Núcleos e equipes IC-SP 🔵"]
         profiles["profiles<br/>Perito criminal (SP)"]
@@ -18,6 +19,8 @@ flowchart TB
         blocks["blocks<br/>Blocos de conteúdo reutilizáveis"]
     end
 
+    common --> institution_ic_sp
+    common --> profiles
     accounts --> profiles
     institution_ic_sp --> profiles
     profiles --> reports
@@ -25,6 +28,29 @@ flowchart TB
 ```
 
 ## Detalhamento por app
+
+### `common` ✅
+
+| Item | Valor |
+|---|---|
+| **Responsabilidade** | Bases e utilitários compartilhados entre apps |
+| **Models** | `BaseModel` (UUID, `created_at`, `updated_at`) |
+| **Utilitários** | `user_messages.notify_*` (flash messages padronizados) |
+| **Depende de** | — |
+| **Consumido por** | `institution_ic_sp`, `profiles`, layout global (`base.html`) |
+| **Documentação** | [06-user-messaging.md](./06-user-messaging.md) (mensagens) |
+
+```
+common/
+  models/
+    base_model.py
+  user_messages.py
+  tests/
+    test_base_model.py
+    test_user_messages.py
+```
+
+---
 
 ### `accounts` ✅
 
@@ -176,6 +202,7 @@ flowchart LR
 
 | App | `INSTALLED_APPS` | Status |
 |---|---|---|
+| `common` | ✅ registrado | implementado |
 | `accounts` | ✅ registrado | implementado |
 | `institution_ic_sp` | ✅ registrado | implementado (provisório) |
 | `profiles` | ✅ registrado | implementado |
@@ -186,12 +213,13 @@ flowchart LR
 
 Decisões que atravessam apps (não pertencem a um único bounded context):
 
-| Tema | Desenvolvimento | Institucional | ADR |
+| Tema | Desenvolvimento | Institucional | Referência |
 |---|---|---|---|
 | **SGBD** | PostgreSQL | Outro SGBD a critério do órgão | [0004](../decisions/0004-postgresql-sgbd.md) |
 | **Autenticação** | Google OAuth + local staff (dev/pessoal); gov.br (institucional) | [0003](../decisions/0003-govbr-authentication.md) |
 | **APIs externas** | Credenciais pessoais (`.env` + `var/secrets/`) | Credenciais institucionais | [0005](../decisions/0005-external-api-credentials.md) |
 | **Cadastro IC-SP** | App local `institution_ic_sp` | Cadastro oficial SPTC | [0006](../decisions/0006-provisional-institution-ic-sp.md) |
+| **Mensagens ao usuário** | Toasts + modal Bootstrap via `common.user_messages` | — | [06-user-messaging.md](./06-user-messaging.md) |
 
 Visão consolidada em [01-context.md](./01-context.md).
 
@@ -204,5 +232,6 @@ Visão consolidada em [01-context.md](./01-context.md).
 - [ADR-0005: Credenciais de APIs externas](../decisions/0005-external-api-credentials.md)
 - [App institution_ic_sp](./04-institution-ic-sp.md)
 - [App profiles](./05-profiles.md)
+- [Mensagens ao usuário](./06-user-messaging.md)
 - [ADR-0006: App provisório IC-SP](../decisions/0006-provisional-institution-ic-sp.md)
 - [ADR-0007: ForensicExaminerSP](../decisions/0007-forensic-examiner-sp.md)
