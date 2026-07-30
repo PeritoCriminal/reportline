@@ -38,6 +38,22 @@ class ForensicTeam(BaseModel):
         max_length=100,
         verbose_name="Município-sede",
     )
+    phone = models.CharField(
+        max_length=30,
+        blank=True,
+        verbose_name="Telefone",
+        help_text="Telefone institucional de contato da equipe.",
+    )
+    institutional_email = models.EmailField(
+        blank=True,
+        verbose_name="E-mail institucional",
+        help_text="Endereço de e-mail oficial da equipe pericial.",
+    )
+    address = models.TextField(
+        blank=True,
+        verbose_name="Endereço",
+        help_text="Endereço físico ou referência de localização da sede.",
+    )
     is_embedded_unit = models.BooleanField(
         default=False,
         verbose_name="Unidade embutida",

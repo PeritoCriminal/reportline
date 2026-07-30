@@ -11,7 +11,7 @@ def load_ic_sp_data(apps, schema_editor):
     """Executa seed institucional após criação das tabelas."""
     from institution_ic_sp.data.ic_sp_seed import load_ic_sp_institution_data
 
-    load_ic_sp_institution_data()
+    load_ic_sp_institution_data(apps=apps)
 
 
 def unload_ic_sp_data(apps, schema_editor):

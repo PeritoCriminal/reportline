@@ -13,3 +13,35 @@ class InstitutionAdmin(admin.ModelAdmin):
     list_filter = ("is_provisional",)
     search_fields = ("name", "acronym", "parent_organization")
     readonly_fields = ("id", "created_at", "updated_at")
+    fieldsets = (
+        (
+            None,
+            {
+                "fields": (
+                    "name",
+                    "acronym",
+                    "parent_organization",
+                    "legal_reference",
+                    "headquarters_city",
+                    "is_provisional",
+                ),
+            },
+        ),
+        (
+            "Logos do cabeçalho",
+            {
+                "fields": ("sp_logo", "sptc_logo"),
+                "description": (
+                    "Imagens pequenas (PNG recomendado) usadas na montagem "
+                    "do cabeçalho do laudo."
+                ),
+            },
+        ),
+        (
+            "Auditoria",
+            {
+                "fields": ("id", "created_at", "updated_at"),
+                "classes": ("collapse",),
+            },
+        ),
+    )

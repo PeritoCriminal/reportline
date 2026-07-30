@@ -53,6 +53,10 @@ local mantida pelo projeto.
   `ForensicTeam` por UUID estável.
 - Alterações no organograma oficial exigem atualização de
   `institution_ic_sp/data/ic_sp_seed.py` e nova migration ou `--clear` no comando.
+- Logos institucionais (`sp_logo`, `sptc_logo`) ficam em `MEDIA_ROOT` e **não**
+  são versionados no Git; em deploy/hospedagem, o operador deve garantir pasta
+  persistente, backup e upload inicial (ver
+  [04-institution-ic-sp.md](../architecture/04-institution-ic-sp.md#logos-e-mídia-no-deploy)).
 - O app **não** implementa sincronização automática com sistemas externos.
 - Documentação detalhada em
   [04-institution-ic-sp.md](../architecture/04-institution-ic-sp.md).

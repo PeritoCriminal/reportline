@@ -30,7 +30,8 @@ institution_ic_sp/
 │   └── load_ic_sp_data.py    # Repovoamento manual
 ├── migrations/
 │   ├── 0001_initial.py
-│   └── 0002_load_ic_sp_seed_data.py
+│   ├── 0002_load_ic_sp_seed_data.py
+│   └── 0003_institution_sp_logo_institution_sptc_logo.py
 ├── models/
 │   ├── institution.py
 │   ├── forensic_nucleus.py
@@ -59,8 +60,14 @@ Representa o IC-SP como órgão pericial de referência.
 | `legal_reference` | CharField | Ato normativo (Decreto 42.847/1998) |
 | `headquarters_city` | CharField | Município-sede |
 | `is_provisional` | BooleanField | Indica cadastro substituível |
+| `sp_logo` | ImageField | Logo do Governo de SP (cabeçalho do laudo) |
+| `sptc_logo` | ImageField | Logo da SPTC (cabeçalho do laudo) |
 
 Herdado de `BaseModel`: `id` (UUID), `created_at`, `updated_at`.
+
+Os campos de logo são **opcionais** (`blank=True`). O banco guarda apenas o
+**caminho relativo** do arquivo; os bytes ficam em `MEDIA_ROOT` (ver seção
+[Logos e mídia no deploy](#logos-e-mídia-no-deploy)).
 
 ### `ForensicNucleus`
 
@@ -219,6 +226,92 @@ python manage.py load_ic_sp_data --clear
 2. Rodar `load_ic_sp_data --clear` em dev ou criar nova data migration.
 3. Atualizar testes em `tests/test_institution_models.py` se contagens mudarem.
 4. Sincronizar esta documentação.
+
+---
+
+## Logos e mídia no deploy
+
+Os logos institucionais (`sp_logo`, `sptc_logo`) usam `ImageField` do Django.
+O projeto persiste uploads em **`MEDIA_ROOT`** (padrão: `media/` na raiz do
+repositório), servidos em desenvolvimento via `MEDIA_URL` (`/media/`).
+
+### O que sobe no Git vs. o que fica no servidor
+
+| Item | Versionado no Git? | Onde vive |
+|---|---|---|
+| Código, migrations, seed de núcleos/equipes | ✅ Sim | Repositório |
+| Pasta `media/` (uploads) | ❌ Não | Disco do servidor (`.gitignore`) |
+| Registro `Institution` no banco | ✅ Sim (via migrate + seed) | PostgreSQL |
+| Caminho dos logos no banco | ✅ Sim (colunas `sp_logo`, `sptc_logo`) | PostgreSQL |
+| Arquivo PNG dos logos | ❌ Não | `media/institution_ic_sp/logos/` no servidor |
+
+**Importante:** fazer `git pull` ou deploy do código **não copia** as imagens.
+Após publicar uma versão nova, o operador do servidor precisa garantir que os
+arquivos de mídia existam e permaneçam acessíveis — ou refazer o upload pelo
+admin.
+
+### Desenvolvimento local
+
+1. Criar a estrutura (opcional; o Django cria no primeiro upload):
+
+   ```bash
+   mkdir -p media/institution_ic_sp/logos
+   ```
+
+2. Aplicar migrations e carregar dados institucionais:
+
+   ```bash
+   python manage.py migrate
+   ```
+
+3. Enviar os logos pelo **Django Admin** → Instituição → seção *Logos do
+   cabeçalho* (PNG recomendado, imagens pequenas).
+
+4. Em `DEBUG=True`, o próprio Django serve `/media/`; não é necessário nginx
+   local.
+
+Dependência: **Pillow** (`requirements.txt`) — exigida pelo `ImageField`.
+
+### Hospedagem / produção
+
+Checklist para quem opera o servidor:
+
+1. **Diretório persistente:** garantir que `MEDIA_ROOT` aponte para volume
+   persistente (ex.: `/var/www/reportline/media/`), com permissão de escrita
+   para o usuário do processo WSGI/ASGI.
+
+2. **Servir arquivos estáticos de mídia:** o Django **não** deve servir
+   `/media/` em produção. Configurar o reverse proxy (nginx, Apache, CDN) para
+   mapear `MEDIA_URL` → `MEDIA_ROOT`, ou usar storage externo (S3, etc.).
+
+3. **Backup:** incluir `MEDIA_ROOT` nos backups operacionais, junto com o
+   banco. Restaurar só o PostgreSQL **não** traz os PNGs de volta.
+
+4. **Primeiro deploy ou servidor novo:**
+   - rodar `migrate` (cria colunas e seed da instituição);
+   - fazer upload dos logos no admin **ou** copiar manualmente os arquivos para
+     `media/institution_ic_sp/logos/` e atualizar os caminhos no banco (preferir
+     admin para evitar inconsistência).
+
+5. **Deploys seguintes:** preservar o volume de `media/` entre releases; não
+   sobrescrever nem apagar a pasta no pipeline de deploy.
+
+6. **Ambientes múltiplos:** cada ambiente (dev, homolog, prod) mantém sua
+   própria cópia de `media/`; não há sincronização automática pelo Git.
+
+### Caminho de upload
+
+`upload_to="institution_ic_sp/logos/"` — arquivos gravados em:
+
+```
+media/
+└── institution_ic_sp/
+    └── logos/
+        ├── sp_logo.png      # exemplo
+        └── sptc_logo.png    # exemplo
+```
+
+Os nomes finais podem variar (sufixo aleatório do Django se houver colisão).
 
 ---
 

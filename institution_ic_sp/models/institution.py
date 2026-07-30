@@ -51,6 +51,18 @@ class Institution(BaseModel):
             "ser substituídos pelo equivalente institucional."
         ),
     )
+    sp_logo = models.ImageField(
+        upload_to="institution_ic_sp/logos/",
+        blank=True,
+        verbose_name="Logo do Estado de SP",
+        help_text="Imagem exibida no cabeçalho do laudo (logo do Governo de SP).",
+    )
+    sptc_logo = models.ImageField(
+        upload_to="institution_ic_sp/logos/",
+        blank=True,
+        verbose_name="Logo da SPTC",
+        help_text="Imagem exibida no cabeçalho do laudo (logo da SPTC).",
+    )
 
     class Meta:
         verbose_name = "Instituição"

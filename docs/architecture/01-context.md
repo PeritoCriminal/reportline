@@ -80,6 +80,21 @@ documentação. Em ambiente **institucional**, a instituição adotante pode
 utilizar **outro SGBD a seu critério**, desde que compatível com Django ORM
 (ver [ADR-0004](../decisions/0004-postgresql-sgbd.md)).
 
+### Arquivos de mídia (uploads)
+
+Além do banco relacional, o ReportLine usa **`MEDIA_ROOT`** para arquivos
+enviados pelo usuário ou pelo admin (ex.: logos institucionais no cabeçalho
+do laudo). Essa pasta **não é versionada no Git** (`.gitignore`).
+
+Em **produção**, quem hospeda o sistema deve:
+
+- manter `MEDIA_ROOT` em disco persistente ou storage externo;
+- servir `/media/` via reverse proxy ou CDN (não via Django);
+- incluir mídia nos backups e repor uploads após deploy em servidor novo.
+
+Detalhes operacionais e checklist de deploy:
+[04-institution-ic-sp.md — Logos e mídia no deploy](./04-institution-ic-sp.md#logos-e-mídia-no-deploy).
+
 ## Integrações externas (APIs)
 
 Funcionalidades futuras podem consumir **APIs externas** (IA, comando por voz

@@ -41,6 +41,8 @@ erDiagram
         string legal_reference
         string headquarters_city
         boolean is_provisional
+        image sp_logo "MEDIA — cabeçalho laudo"
+        image sptc_logo "MEDIA — cabeçalho laudo"
         datetime created_at
         datetime updated_at
     }
@@ -102,7 +104,7 @@ Cadastro **provisório** espelhando o organograma da SPTC. Detalhes em
 
 | Entidade | Registros seed | Descrição |
 |---|---|---|
-| `Institution` | 1 | IC-SP (`is_provisional=True`) |
+| `Institution` | 1 | IC-SP (`is_provisional=True`); logos opcionais em `MEDIA_ROOT` |
 | `ForensicNucleus` | 29 | Núcleos especializados, regionais e de apoio |
 | `ForensicTeam` | 59 | 17 capital/GSP + 40 interior + 2 apoio logístico |
 

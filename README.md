@@ -73,5 +73,27 @@ DB_PORT=5432
    
 7. **Acesse http://127.0.0.1:8000/ no seu navegador.**
 
+### Arquivos de mídia (logos e uploads)
+
+A pasta **`media/`** guarda uploads do Django (ex.: logos do cabeçalho do
+laudo em `Institution.sp_logo` e `Institution.sptc_logo`). Ela **não sobe no
+Git** — quem faz deploy precisa tratar mídia no servidor separadamente do
+código.
+
+**Desenvolvimento:**
+
+```bash
+# Opcional — o Django cria no primeiro upload
+mkdir media\institution_ic_sp\logos
+```
+
+Depois de `migrate`, envie os logos pelo **Django Admin** (Instituição →
+*Logos do cabeçalho*).
+
+**Produção / hospedagem:** preserve `MEDIA_ROOT` entre deploys, configure o
+servidor web para servir `/media/`, faça backup da pasta junto com o banco e
+reponha os logos após instalar em servidor novo. Checklist completo em
+[docs/architecture/04-institution-ic-sp.md](docs/architecture/04-institution-ic-sp.md#logos-e-mídia-no-deploy).
+
 📝 Licença
 Este projeto é aberto e voltado para fins educacionais e de portfólio. Sinta-se à vontade para estudar, clonar e contribuir!

@@ -132,22 +132,44 @@ SUPPORT_TEAMS = [
 ]
 
 
-def load_ic_sp_institution_data(*, clear_existing=False):
+def _resolve_seed_models(apps=None):
+    """
+    Retorna os models usados na carga, respeitando o estado histórico em migrations.
+
+    Em data migrations, `apps` deve ser informado para evitar consultas com campos
+    ainda não aplicados no banco.
+    """
+    if apps is not None:
+        return (
+            apps.get_model("institution_ic_sp", "Institution"),
+            apps.get_model("institution_ic_sp", "ForensicNucleus"),
+            apps.get_model("institution_ic_sp", "ForensicTeam"),
+        )
+
+    return Institution, ForensicNucleus, ForensicTeam
+
+
+def load_ic_sp_institution_data(*, clear_existing=False, apps=None):
     """
     Popula ou repovoa os dados institucionais do IC-SP.
 
     Args:
         clear_existing: Quando True, remove registros existentes antes de inserir.
+        apps: Registry histórico de migrations; obrigatório em RunPython.
 
     Returns:
         dict com contagem de registros criados por entidade.
     """
-    if clear_existing:
-        ForensicTeam.objects.all().delete()
-        ForensicNucleus.objects.all().delete()
-        Institution.objects.all().delete()
+    institution_model, forensic_nucleus_model, forensic_team_model = _resolve_seed_models(
+        apps
+    )
 
-    institution, _ = Institution.objects.get_or_create(
+    if clear_existing:
+        forensic_team_model.objects.all().delete()
+        forensic_nucleus_model.objects.all().delete()
+        institution_model.objects.all().delete()
+
+    institution, _ = institution_model.objects.get_or_create(
         acronym=IC_SP_INSTITUTION["acronym"],
         defaults=IC_SP_INSTITUTION,
     )
@@ -156,7 +178,7 @@ def load_ic_sp_institution_data(*, clear_existing=False):
     nuclei_created = 0
 
     for code, name, nucleus_type, center, city, sort_order in SPECIALIZED_NUCLEI:
-        nucleus, created = ForensicNucleus.objects.get_or_create(
+        nucleus, created = forensic_nucleus_model.objects.get_or_create(
             code=code,
             defaults={
                 "institution": institution,
@@ -171,7 +193,7 @@ def load_ic_sp_institution_data(*, clear_existing=False):
         nuclei_created += int(created)
 
     for code, name, nucleus_type, city, sort_order in FIELD_NUCLEI:
-        nucleus, created = ForensicNucleus.objects.get_or_create(
+        nucleus, created = forensic_nucleus_model.objects.get_or_create(
             code=code,
             defaults={
                 "institution": institution,
@@ -189,7 +211,7 @@ def load_ic_sp_institution_data(*, clear_existing=False):
     all_teams = CAPITAL_TEAMS + INTERIOR_TEAMS + SUPPORT_TEAMS
 
     for nucleus_code, code, name, city, is_embedded, sort_order in all_teams:
-        _, created = ForensicTeam.objects.get_or_create(
+        _, created = forensic_team_model.objects.get_or_create(
             code=code,
             defaults={
                 "nucleus": nucleus_by_code[nucleus_code],
