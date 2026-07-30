@@ -24,6 +24,7 @@ db.sqlite3-journal
 # Evita que fotos, laudos em PDF e mídias de teste criadas localmente subam para o repositório
 /media/
 /media_root/
+/test_media/
 /static_root/
 
 # ==========================================
