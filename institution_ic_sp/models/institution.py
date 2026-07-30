@@ -7,7 +7,11 @@ provisória de dados organizacionais durante o desenvolvimento do ReportLine.
 
 from django.db import models
 
+from common.file_fields import cleanup_replaced_files, delete_model_file_fields
 from common.models import BaseModel
+
+
+LOGO_FILE_FIELDS = ("sp_logo", "sptc_logo")
 
 
 class Institution(BaseModel):
@@ -71,3 +75,21 @@ class Institution(BaseModel):
 
     def __str__(self):
         return f"{self.acronym} — {self.name}"
+
+    def save(self, *args, **kwargs):
+        """
+        Persiste a instituição e remove logos substituídos ou limpos do storage.
+        """
+        previous = None
+        if self.pk:
+            previous = Institution.objects.filter(pk=self.pk).first()
+
+        super().save(*args, **kwargs)
+
+        if previous is not None:
+            cleanup_replaced_files(self, previous, LOGO_FILE_FIELDS)
+
+    def delete(self, *args, **kwargs):
+        """Exclui a instituição e remove arquivos de logo associados."""
+        delete_model_file_fields(self, LOGO_FILE_FIELDS)
+        super().delete(*args, **kwargs)
