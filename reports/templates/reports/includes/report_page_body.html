@@ -1,0 +1,11 @@
+<article class="report-editor-page">
+    {% if body_entries %}
+        {% for entry in body_entries %}
+            {% include "reports/includes/report_block_preview.html" with entry=entry %}
+        {% endfor %}
+    {% else %}
+        <div class="report-editor-page-empty">
+            O relatório ainda não possui blocos de conteúdo.
+        </div>
+    {% endif %}
+</article>

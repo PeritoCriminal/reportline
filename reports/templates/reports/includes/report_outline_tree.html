@@ -1,0 +1,9 @@
+{% if outline_tree %}
+<ul class="report-editor-outline" role="tree">
+    {% for entry in outline_tree %}
+        {% include "reports/includes/report_outline_item.html" with entry=entry %}
+    {% endfor %}
+</ul>
+{% else %}
+<p class="report-editor-outline-empty mb-0">Nenhum título no sumário.</p>
+{% endif %}

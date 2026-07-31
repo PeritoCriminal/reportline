@@ -26,6 +26,7 @@ urlpatterns = [
     path('accounts/', include('accounts.urls')),
     path('institution-ic-sp/', include('institution_ic_sp.urls')),
     path('profiles/', include('profiles.urls')),
+    path('reports/', include('reports.urls')),
     path('', TemplateView.as_view(template_name='index.html'), name='index'),
 ]
 

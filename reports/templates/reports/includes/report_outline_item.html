@@ -1,0 +1,15 @@
+<li class="report-editor-outline-item" role="treeitem" aria-level="{{ entry.depth|add:1 }}">
+    <a class="report-editor-outline-link"
+       href="#report-block-{{ entry.node_id }}"
+       style="padding-left: calc(0.75rem + {{ entry.depth }} * 0.875rem);">
+        <i class="bi bi-chevron-right flex-shrink-0" aria-hidden="true"></i>
+        <span class="text-truncate">{{ entry.label }}</span>
+    </a>
+    {% if entry.children %}
+    <ul class="report-editor-outline-children" role="group">
+        {% for child in entry.children %}
+            {% include "reports/includes/report_outline_item.html" with entry=child %}
+        {% endfor %}
+    </ul>
+    {% endif %}
+</li>

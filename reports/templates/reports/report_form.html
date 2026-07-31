@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+
+{% block title %}Novo relatório — ReportLine{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-8 col-xl-6">
+        <div class="mb-4">
+            <h1 class="h4 mb-1">Novo relatório</h1>
+            <p class="text-muted small mb-0">
+                Informe um título provisório. O conteúdo será composto no editor em seguida.
+            </p>
+        </div>
+
+        <div class="card border-secondary-subtle shadow-sm">
+            <div class="card-body p-4">
+                <form method="post" novalidate>
+                    {% csrf_token %}
+
+                    <div class="mb-4">
+                        <label for="{{ form.title.id_for_label }}" class="form-label">
+                            {{ form.title.label }}
+                        </label>
+                        <input
+                            type="text"
+                            name="{{ form.title.html_name }}"
+                            id="{{ form.title.id_for_label }}"
+                            class="form-control{% if form.title.errors %} is-invalid{% endif %}"
+                            value="{{ form.title.value|default:'' }}"
+                            maxlength="255"
+                            required
+                            placeholder="{{ form.title.field.widget.attrs.placeholder }}"
+                        >
+                        {% if form.title.help_text %}
+                            <div class="form-text">{{ form.title.help_text }}</div>
+                        {% endif %}
+                        {% for error in form.title.errors %}
+                            <div class="invalid-feedback d-block">{{ error }}</div>
+                        {% endfor %}
+                    </div>
+
+                    <button type="submit" class="btn btn-primary w-100">
+                        <i class="bi bi-file-earmark-plus me-1" aria-hidden="true"></i>
+                        Criar e abrir editor
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -160,6 +160,7 @@ Documentação completa: [05-profiles.md](./05-profiles.md).
 |---|---|
 | **Responsabilidade** | Relatórios modulares (`Report`), árvore de nós (`ReportNode`) e blocos genéricos (`ReportBlock`) |
 | **Models** | `Report`, `ReportNode`, `ReportBlock` |
+| **URLs (usuário)** | `reports:new`, `reports:edit` — montadas em `/reports/` |
 | **Depende de** | `accounts`, `common` |
 | **Integrações futuras** | APIs externas (IA, voz) via variáveis de ambiente — ver [ADR-0005](../decisions/0005-external-api-credentials.md) |
 | **Decisão** | [ADR-0002](../decisions/0002-report-node-structure.md) |
@@ -174,18 +175,32 @@ reports/
     report_admin.py
     report_block_admin.py
     report_node_admin.py
+  forms/
+    report_form.py
+  views/
+    report_create_views.py
+    report_editor_views.py
   services/
     author_snapshot.py
+    report_creation.py
+    report_editor_context.py
   signals.py
   tests/
     test_report_models.py
     test_report_block.py
+    test_report_creation.py
+    test_report_create_views.py
+    test_report_editor_context.py
+    test_report_editor_views.py
   migrations/
     0001_initial.py
   templates/reports/
+    report_form.html
+    report_editor.html
+    includes/
   static/reports/
-  urls.py                       # rotas a implementar
-  views/
+    css/report_editor.css
+  urls.py                       # /reports/new/, /reports/<pk>/edit/
 ```
 
 Documentação completa: [07-reports.md](./07-reports.md).
@@ -217,7 +232,7 @@ flowchart LR
 | `accounts` | ✅ registrado | implementado |
 | `institution_ic_sp` | ✅ registrado | implementado (provisório) |
 | `profiles` | ✅ registrado | implementado |
-| `reports` | ✅ registrado | implementado (models; UI pendente) |
+| `reports` | ✅ registrado | implementado (models + criação e editor visual; interatividade pendente) |
 
 ## Infraestrutura e integrações transversais
 

@@ -13,7 +13,7 @@ tipados. Base para laudos periciais e outros documentos produzidos no ReportLine
 |---|---|
 | **Problema** | Documentos periciais exigem seções aninhadas, tipos de conteúdo distintos e formatação consistente |
 | **Solução** | `Report` + árvore `ReportNode` + bloco genérico `ReportBlock` 1:1 por nó |
-| **Fora do escopo (fase atual)** | Editor web, renderização PDF, templates de laudo pericial específicos |
+| **Fora do escopo (fase atual)** | Inserção/movimentação interativa de blocos, renderização PDF, templates de laudo pericial específicos |
 | **Consumidor futuro** | Camada de laudo pericial (mapeia papéis semânticos → blocos genéricos) |
 
 ---
@@ -26,24 +26,135 @@ reports/
 │   ├── report_admin.py
 │   ├── report_block_admin.py
 │   └── report_node_admin.py
-├── forms/                         # reservado para telas de edição
+├── forms/
+│   └── report_form.py              # ReportCreateForm
 ├── models/
 │   ├── report.py
 │   ├── report_node.py
 │   └── report_block.py
 ├── services/
-│   └── author_snapshot.py         # snapshot textual do autor
-├── signals.py                     # cascata nó→bloco; snapshot na exclusão do user
+│   ├── author_snapshot.py          # snapshot textual do autor
+│   ├── report_creation.py          # criação de relatório em rascunho
+│   └── report_editor_context.py    # sumário e corpo para o editor
+├── signals.py                      # cascata nó→bloco; snapshot na exclusão do user
 ├── static/reports/
+│   └── css/report_editor.css
 ├── templates/reports/
+│   ├── report_form.html            # novo relatório
+│   ├── report_editor.html          # editor visual
+│   └── includes/                   # toolbar, sumário, folha A4, preview de bloco
 ├── tests/
 │   ├── test_report_models.py
-│   └── test_report_block.py
+│   ├── test_report_block.py
+│   ├── test_report_creation.py
+│   ├── test_report_create_views.py
+│   ├── test_report_editor_context.py
+│   └── test_report_editor_views.py
 ├── migrations/
 │   └── 0001_initial.py
-├── urls.py                        # app_name = "reports" (rotas a implementar)
-└── views/                         # CBVs futuras
+├── urls.py                         # app_name = "reports"
+└── views/
+    ├── report_create_views.py      # ReportCreateView
+    └── report_editor_views.py      # ReportEditorView
 ```
+
+---
+
+## Integração Django
+
+| Item | Valor |
+|---|---|
+| `INSTALLED_APPS` | `'reports'` |
+| URLs raiz | `path('reports/', include('reports.urls'))` em `reportline/urls.py` |
+| Namespace | `reports` |
+| Autenticação | `LoginRequiredMixin` em todas as CBVs de usuário final |
+
+---
+
+## Rotas HTTP
+
+| Rota | Name | View | Descrição |
+|---|---|---|---|
+| `GET/POST /reports/new/` | `reports:new` | `ReportCreateView` | Formulário de título; cria rascunho e redireciona ao editor |
+| `GET /reports/<uuid:pk>/edit/` | `reports:edit` | `ReportEditorView` | Editor visual do relatório (somente autor) |
+
+**Fluxo de criação:**
+
+1. Usuário autenticado acessa `/reports/new/` e informa o título.
+2. Serviço `create_report()` persiste `Report` com `status=draft` e snapshot do autor.
+3. Redirect para `/reports/<pk>/edit/` com toast de sucesso.
+
+Um relatório **pode existir sem nós** — blocos são adicionados posteriormente (toolbar interativa ou admin).
+
+---
+
+## Views
+
+### `ReportCreateView`
+
+- **Template:** `reports/report_form.html`
+- **Formulário:** `ReportCreateForm` (campo `title`)
+- **Persistência:** delegada a `create_report()`; não chama `form.save()` do model
+- **Sucesso:** `notify_success` + redirect para `reports:edit`
+
+### `ReportEditorView`
+
+- **Template:** `reports/report_editor.html`
+- **Permissão:** queryset restrito a `Report.objects.filter(author=request.user)` — demais usuários recebem 404
+- **Contexto:** enriquecido por `build_report_editor_context()` com `outline_tree` e `body_entries`
+
+---
+
+## Serviços
+
+### `create_report(author, title)`
+
+Cria relatório em rascunho vinculado ao autor. O snapshot textual (`author_username`, `author_display_name`) é preenchido pelo `save()` do model `Report`.
+
+### `build_report_editor_context(report)`
+
+Monta estruturas para os partials do editor:
+
+| Chave | Tipo | Descrição |
+|---|---|---|
+| `outline_tree` | `list[ReportOutlineEntry]` | Sumário hierárquico com blocos `heading` apenas; nós intermediários de outros tipos são ignorados, mas descendentes títulos permanecem no nível correto |
+| `body_entries` | `list[ReportBodyEntry]` | Todos os blocos em ordem profundidade-primeiro para renderização na folha A4 |
+
+---
+
+## Interface do editor
+
+Layout de três colunas com toolbar superior. Navbar global do `base.html` permanece visível; o template sobrescreve `{% block main_class %}` para layout full-width.
+
+```mermaid
+flowchart TB
+    subgraph editor ["Editor de relatório"]
+        toolbar["Toolbar — 7 tipos ReportBlockType"]
+        outline["Sumário em árvore (esquerda)"]
+        page["Folha A4 vertical (centro)"]
+        props["Propriedades (direita — reservada)"]
+    end
+    toolbar --> page
+    outline --> page
+```
+
+| Região | Implementação | Estado |
+|---|---|---|
+| Toolbar | Ícones Bootstrap Icons para os 7 `ReportBlockType` | UI pronta; botões desabilitados até camada interativa |
+| Sumário | Partial recursivo `report_outline_tree.html` | Dados reais via `outline_tree` |
+| Corpo | Folha simulada (`210mm × 297mm`, fundo branco) | Preview estático dos blocos via `body_entries` |
+| Propriedades | Coluna direita vazia | Reservada para layout/paginação do bloco |
+
+**Responsividade:** abaixo de **992px**, toolbar e laterais são ocultadas; permanece visível apenas a folha central.
+
+**Partials:**
+
+- `includes/report_editor_toolbar.html`
+- `includes/report_outline_tree.html` / `report_outline_item.html`
+- `includes/report_page_body.html`
+- `includes/report_block_preview.html`
+
+**Estilos:** `static/reports/css/report_editor.css`
 
 ---
 
@@ -113,8 +224,7 @@ Bloco genérico de conteúdo. Herda `BaseModel`.
 | `table` | Tabela | `{"headers": [...], "rows": [...]}` |
 | `image` | Imagem | `{"alt": "...", "file": "..."}` |
 
-Opções de layout aplicam-se a **todos** os tipos; a interpretação visual fica
-na camada de renderização (futura).
+Opções de layout aplicam-se a **todos** os tipos; a interpretação visual completa fica na camada de renderização (futura).
 
 #### Exemplo futuro — número do laudo pericial
 
@@ -173,6 +283,7 @@ erDiagram
 |---|---|
 | `accounts.CustomUser` | Autor do relatório |
 | `common.BaseModel` | UUID e timestamps |
+| `common.user_messages` | Toasts de sucesso na criação |
 
 Não depende de `profiles` nem `institution_ic_sp` no model layer; metadados
 periciais podem ser enriquecidos na renderização via perfil do autor.
@@ -187,6 +298,8 @@ Models registrados no Django Admin:
 - `ReportNode` — árvore e posição
 - `ReportBlock` — tipo, conteúdo e fieldset **Layout e paginação**
 
+Útil para compor nós/blocos enquanto a toolbar interativa não estiver disponível.
+
 ---
 
 ## Testes
@@ -195,6 +308,10 @@ Models registrados no Django Admin:
 |---|---|
 | `test_report_models.py` | Report, ReportNode, snapshot do autor, cascata |
 | `test_report_block.py` | Tipos de bloco, defaults de layout |
+| `test_report_creation.py` | Serviço `create_report`, rascunho, snapshot |
+| `test_report_create_views.py` | Formulário `/reports/new/`, redirect, erros inline |
+| `test_report_editor_context.py` | Sumário, ordem do corpo, árvore de títulos |
+| `test_report_editor_views.py` | Editor, permissão de autor, layout |
 
 Executar: `python manage.py test reports`
 
@@ -202,8 +319,13 @@ Executar: `python manage.py test reports`
 
 ## Próximos passos
 
-- [ ] CBVs de listagem e edição de relatório
+- [x] CBV de criação de relatório (`/reports/new/`)
+- [x] CBV de edição visual (`/reports/<pk>/edit/`) — shell do editor
+- [x] Serviço de contexto do editor (sumário + corpo)
+- [ ] CBV de listagem de relatórios do autor
 - [ ] Serviço de árvore (inserir, mover, reordenar nós)
+- [ ] Toolbar interativa (inserção de blocos via POST/API)
+- [ ] Painel de propriedades do bloco (layout e paginação)
 - [ ] Validação de `content` por `block_type`
 - [ ] Camada de laudo pericial (mapeamento semântico → blocos genéricos)
 - [ ] Renderização PDF/HTML com opções de layout
@@ -216,3 +338,4 @@ Executar: `python manage.py test reports`
 - [Modelo de dados](./02-data-model.md)
 - [Mapa de apps](./03-apps-map.md)
 - [App profiles](./05-profiles.md)
+- [Mensagens ao usuário](./06-user-messaging.md)

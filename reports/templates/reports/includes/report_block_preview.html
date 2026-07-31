@@ -1,0 +1,74 @@
+<div id="report-block-{{ entry.node_id }}" class="report-editor-block" data-block-type="{{ entry.block_type }}">
+    {% if entry.block_type == "heading" %}
+        <h2 class="report-editor-block-heading" data-level="{{ entry.title_level }}">
+            {{ entry.content.text|default:"Título sem texto" }}
+        </h2>
+    {% elif entry.block_type == "paragraph" %}
+        <p class="report-editor-block-paragraph">
+            {{ entry.content.text|default:"" }}
+        </p>
+    {% elif entry.block_type == "ordered_list" %}
+        <ol class="report-editor-block-list">
+            {% for item in entry.content.items %}
+                <li>{{ item }}</li>
+            {% empty %}
+                <li class="text-muted">Lista vazia</li>
+            {% endfor %}
+        </ol>
+    {% elif entry.block_type == "unordered_list" %}
+        <ul class="report-editor-block-list">
+            {% for item in entry.content.items %}
+                <li>{{ item }}</li>
+            {% empty %}
+                <li class="text-muted">Lista vazia</li>
+            {% endfor %}
+        </ul>
+    {% elif entry.block_type == "link" %}
+        <p class="report-editor-block-link">
+            {% if entry.content.url %}
+                <a href="{{ entry.content.url }}" target="_blank" rel="noopener noreferrer">
+                    {{ entry.content.text|default:entry.content.url }}
+                </a>
+            {% else %}
+                <span class="text-muted">{{ entry.content.text|default:"Link sem URL" }}</span>
+            {% endif %}
+        </p>
+    {% elif entry.block_type == "table" %}
+        <table class="report-editor-block-table">
+            {% if entry.content.headers %}
+            <thead>
+                <tr>
+                    {% for header in entry.content.headers %}
+                        <th scope="col">{{ header }}</th>
+                    {% endfor %}
+                </tr>
+            </thead>
+            {% endif %}
+            <tbody>
+                {% for row in entry.content.rows %}
+                    <tr>
+                        {% for cell in row %}
+                            <td>{{ cell }}</td>
+                        {% endfor %}
+                    </tr>
+                {% empty %}
+                    <tr>
+                        <td class="text-muted" colspan="{{ entry.content.headers|length|default:1 }}">
+                            Tabela sem linhas
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% elif entry.block_type == "image" %}
+        <figure class="report-editor-block-image">
+            {% if entry.content.file %}
+                <span>{{ entry.content.alt|default:"Imagem" }}</span>
+            {% else %}
+                <span>{{ entry.content.alt|default:"Imagem sem arquivo" }}</span>
+            {% endif %}
+        </figure>
+    {% else %}
+        <p class="text-muted small mb-0">{{ entry.block_type_label }}</p>
+    {% endif %}
+</div>

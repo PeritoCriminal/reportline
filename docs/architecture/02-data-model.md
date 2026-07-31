@@ -217,7 +217,8 @@ entre laudos pode ser reavaliada quando templates institucionais exigirem.
 - [x] Atualizar seção **Estado atual** ao implementar `ForensicExaminerSP`
 - [x] Atualizar seção **Estado atual** ao implementar `reports`
 - [x] Documentar app `reports` em [07-reports.md](./07-reports.md)
-- [ ] Documentar fluxo de criação de laudo em `04-flows/create-report.md`
+- [x] Documentar fluxo de criação de relatório em [07-reports.md](./07-reports.md) (rotas, serviço, editor)
+- [ ] Extrair fluxo detalhado para `04-flows/create-report.md` (opcional)
 - [ ] Complementar com ERD gerado automaticamente (opcional, futuro)
 
 ## Referências

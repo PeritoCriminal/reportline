@@ -106,7 +106,8 @@ laudo) sobre esses blocos genéricos — camada futura, fora do escopo desta ADR
 ### Negativas / trade-offs
 
 - `ReportNode` com auto-referência exige lógica de árvore (ordenação, exclusão
-  em cascata, movimentação de nós) — a implementar nas views/serviços.
+  em cascata, movimentação de nós) — parcialmente coberta pelo serviço de
+  contexto do editor; inserção/movimentação interativa pendente.
 - `ReportBlock.content` como JSON exige validação por `block_type` na camada de
   serviço ou form.
 - Blocos não são compartilhados entre relatórios (1:1 com nó); reutilização
