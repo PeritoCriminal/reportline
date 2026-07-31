@@ -18,7 +18,9 @@
     <div class="report-editor-workspace">
         <aside class="report-editor-sidebar report-editor-sidebar-left" aria-label="Sumário do relatório">
             <h2 class="report-editor-sidebar-heading">Sumário</h2>
-            {% include "reports/includes/report_outline_tree.html" %}
+            <div id="report-editor-outline-root">
+                {% include "reports/includes/report_outline_tree.html" %}
+            </div>
         </aside>
 
         <section class="report-editor-canvas" aria-label="Corpo do relatório">
@@ -38,7 +40,17 @@
 {% block footer %}{% endblock %}
 
 {% block extra_js %}
-<script src="{% static 'reports/js/report_editor.js' %}"></script>
+<script>
+    window.REPORT_EDITOR_OUTLINE = {
+        reorderNodesUrl: "{% url 'reports:node_reorder' pk=report.pk %}",
+        outlineUrl: "{% url 'reports:outline' pk=report.pk %}",
+    };
+</script>
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.6/Sortable.min.js" defer></script>
+<script src="{% static 'reports/js/report_outline_accordion.js' %}" defer></script>
+<script src="{% static 'reports/js/report_outline_dnd.js' %}" defer></script>
+<script src="{% static 'reports/js/report_outline_sync.js' %}" defer></script>
+<script src="{% static 'reports/js/report_editor.js' %}" defer></script>
 <script>
     document.addEventListener("DOMContentLoaded", function () {
         if (window.ReportLineEditor) {

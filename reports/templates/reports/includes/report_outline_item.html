@@ -1,15 +1,49 @@
-<li class="report-editor-outline-item" role="treeitem" aria-level="{{ entry.depth|add:1 }}">
-    <a class="report-editor-outline-link"
-       href="#report-block-{{ entry.node_id }}"
-       style="padding-left: calc(0.75rem + {{ entry.depth }} * 0.875rem);">
-        <i class="bi bi-chevron-right flex-shrink-0" aria-hidden="true"></i>
-        <span class="text-truncate">{{ entry.label }}</span>
-    </a>
+{% load report_outline %}
+<li class="report-editor-outline-item{% if reorderable %} report-editor-outline-dnd-item{% endif %}"
+    role="treeitem"
+    aria-level="{{ entry.depth|add:1 }}"
+    {% if reorderable %}data-outline-node-id="{{ entry.node_id }}"{% endif %}>
+    <div class="report-editor-outline-row d-flex align-items-center gap-1 min-w-0">
+        {% if reorderable %}
+        <span class="report-editor-outline-drag-handle flex-shrink-0"
+              role="button"
+              tabindex="0"
+              aria-label="Arrastar para reordenar"
+              title="Arrastar para reordenar">⋮⋮</span>
+        {% endif %}
+        <a class="report-editor-outline-link flex-grow-1 min-w-0 text-truncate"
+           href="#report-block-{{ entry.node_id }}"
+           title="{{ entry.label }}">
+            <span class="report-editor-outline-label text-truncate">{{ entry.label }}</span>
+        </a>
+        {% if entry.children %}
+        <button type="button"
+                class="report-editor-outline-accordion-toggle flex-shrink-0"
+                data-report-outline-accordion-toggle="1"
+                aria-expanded="false"
+                aria-controls="report-outline-accordion-{{ entry.node_id }}"
+                aria-label="Expandir seção"
+                title="Expandir seção"
+                data-report-outline-expand-label="Expandir seção"
+                data-report-outline-collapse-label="Recolher seção">
+            <span class="report-editor-outline-accordion-chevron" aria-hidden="true"></span>
+        </button>
+        {% endif %}
+    </div>
     {% if entry.children %}
-    <ul class="report-editor-outline-children" role="group">
-        {% for child in entry.children %}
-            {% include "reports/includes/report_outline_item.html" with entry=child %}
-        {% endfor %}
-    </ul>
+    <div id="report-outline-accordion-{{ entry.node_id }}"
+         class="report-editor-outline-accordion-body"
+         data-report-outline-accordion-body="1"
+         hidden>
+        {% with child_parent_id=entry.node_id %}
+        <ul class="report-editor-outline-children list-unstyled mb-0{% if entry.children|outline_list_reorderable:child_parent_id %} report-editor-outline-siblings{% endif %}"
+            role="group"
+            {% if entry.children|outline_list_reorderable:child_parent_id %}data-node-parent-id="{{ entry.node_id }}"{% endif %}>
+            {% for child in entry.children %}
+                {% include "reports/includes/report_outline_item.html" with entry=child reorderable=entry.children|outline_list_reorderable:child_parent_id %}
+            {% endfor %}
+        </ul>
+        {% endwith %}
+    </div>
     {% endif %}
 </li>

@@ -23,6 +23,7 @@ class ReportOutlineEntry:
     label: str
     title_level: int
     depth: int
+    report_parent_id: UUID | None
     children: list[ReportOutlineEntry] = field(default_factory=list)
 
 
@@ -89,6 +90,7 @@ def _build_outline_tree(
                     label=_heading_label(block.content),
                     title_level=block.title_level,
                     depth=depth,
+                    report_parent_id=node.parent_id,
                     children=_build_outline_tree(
                         nodes_by_parent,
                         node.pk,
@@ -136,6 +138,18 @@ def _body_entry_from_node(node: ReportNode) -> ReportBodyEntry:
         block_type_label=block.get_block_type_display(),
         title_level=block.title_level,
         content=block.content or {},
+    )
+
+
+def render_outline_tree_html(report: Report, request) -> str:
+    """Renderiza partial HTML do sumário lateral para atualização assíncrona."""
+    from django.template.loader import render_to_string
+
+    context = build_report_editor_context(report)
+    return render_to_string(
+        "reports/includes/report_outline_tree.html",
+        context,
+        request=request,
     )
 
 

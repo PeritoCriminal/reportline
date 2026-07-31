@@ -116,12 +116,25 @@ body.report-editor-active main {
     margin: 0;
 }
 
+.report-editor-outline-row {
+    padding: 0.125rem 0.75rem;
+}
+
+.report-editor-outline-drag-handle {
+    color: var(--bs-secondary-color);
+    font-size: 0.75rem;
+    line-height: 1;
+    cursor: grab;
+    user-select: none;
+}
+
+.report-editor-outline-drag-handle:active {
+    cursor: grabbing;
+}
+
 .report-editor-outline-link {
-    display: flex;
-    align-items: center;
-    gap: 0.375rem;
-    width: 100%;
-    padding: 0.375rem 0.75rem;
+    display: block;
+    padding: 0.25rem 0;
     border: 0;
     background: transparent;
     color: var(--bs-body-color);
@@ -132,19 +145,62 @@ body.report-editor-active main {
 
 .report-editor-outline-link:hover,
 .report-editor-outline-link:focus-visible {
-    background-color: var(--bs-secondary-bg);
     color: var(--bs-emphasis-color);
 }
 
 .report-editor-outline-link.is-active {
-    background-color: rgba(var(--bs-primary-rgb), 0.12);
     color: var(--bs-primary);
 }
 
-.report-editor-outline-children {
-    list-style: none;
-    margin: 0;
+.report-editor-outline-accordion-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.5rem;
+    height: 1.5rem;
     padding: 0;
+    border: 0;
+    border-radius: 0.25rem;
+    background: transparent;
+    color: var(--bs-secondary-color);
+}
+
+.report-editor-outline-accordion-toggle:hover,
+.report-editor-outline-accordion-toggle:focus-visible {
+    background-color: var(--bs-secondary-bg);
+    color: var(--bs-emphasis-color);
+}
+
+.report-editor-outline-accordion-chevron {
+    display: inline-block;
+    width: 0;
+    height: 0;
+    border-style: solid;
+    border-width: 0.28rem 0 0.28rem 0.42rem;
+    border-color: transparent transparent transparent currentColor;
+    transition: transform 0.15s ease;
+}
+
+.report-editor-outline-accordion-toggle[aria-expanded="true"] .report-editor-outline-accordion-chevron {
+    transform: rotate(90deg);
+}
+
+.report-editor-outline-accordion-body[hidden] {
+    display: none !important;
+}
+
+.report-editor-outline-children {
+    margin: 0;
+    padding: 0.125rem 0 0.25rem 0.5rem;
+    border-left: 1px solid var(--bs-border-color-translucent);
+}
+
+.report-editor-outline-dnd-ghost {
+    opacity: 0.45;
+}
+
+.report-editor-outline-dnd-drag {
+    opacity: 0.85;
 }
 
 .report-editor-outline-empty {

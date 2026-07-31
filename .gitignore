@@ -53,6 +53,12 @@ var/secrets/*
 *.swp
 
 # ==========================================
+# Referência local (outros repositórios)
+# ==========================================
+# Projetos clonados apenas para consulta/inspiração — não versionar
+modelo_conceito/
+
+# ==========================================
 # Arquivos de Sistema (Windows / Mac / Linux)
 # ==========================================
 Thumbs.db

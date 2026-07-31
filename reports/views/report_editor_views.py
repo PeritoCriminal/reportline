@@ -5,11 +5,17 @@ Concentra CBVs da interface de composição por blocos tipados.
 """
 
 from django.contrib.auth.mixins import LoginRequiredMixin
+from django.http import JsonResponse
+from django.views import View
 from django.views.generic import DetailView
 
 from reports.models import Report
 from reports.services.report_editor_bootstrap import ensure_editor_bootstrap
-from reports.services.report_editor_context import build_report_editor_context
+from reports.services.report_editor_context import (
+    build_report_editor_context,
+    render_outline_tree_html,
+)
+from reports.views.report_node_api_views import ReportAuthorMixin
 
 
 class ReportEditorView(LoginRequiredMixin, DetailView):
@@ -42,3 +48,19 @@ class ReportEditorView(LoginRequiredMixin, DetailView):
             self._bootstrapped_node.pk if self._bootstrapped_node else None
         )
         return context
+
+
+class ReportEditorOutlineView(ReportAuthorMixin, View):
+    """Retorna HTML atualizado do sumário lateral do editor (GET)."""
+
+    def get(self, request, pk):
+        """Serializa partial do sumário após alterações no documento."""
+        report = self.get_report()
+        html = render_outline_tree_html(report, request)
+        return JsonResponse({"html": html})
+
+    def http_method_not_allowed(self, request, *args, **kwargs):
+        """Restringe métodos aceitos neste endpoint."""
+        from django.http import HttpResponseNotAllowed
+
+        return HttpResponseNotAllowed(["GET"])

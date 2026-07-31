@@ -1,0 +1,30 @@
+---
+description: Referência local pith — só consultar quando o usuário pedir explicitamente
+alwaysApply: true
+---
+
+# Referência pith (`modelo_conceito/pith`)
+
+O repositório clonado em `modelo_conceito/pith/` é **material de consulta opcional**, não parte do ReportLine.
+
+## Quando usar
+
+- **Somente** quando o usuário pedir explicitamente com a frase **"com base no pith"** (ou variação clara equivalente).
+- Exemplo válido: *"Com base no pith, implemente o workspace de laudo."*
+
+## Quando NÃO usar
+
+- **Nunca** abrir, buscar ou copiar de `modelo_conceito/pith/` por iniciativa própria.
+- **Nunca** misturar padrões, estruturas ou convenções do pith com o ReportLine sem pedido explícito.
+- Em dúvida sobre origem de uma ideia, seguir **apenas** as regras e o código do ReportLine.
+
+## Como aplicar quando solicitado
+
+- Tratar o pith como **inspiração de conceito**, não como código a colar.
+- Adaptar ao ReportLine: nomenclatura em inglês, UI em português, `common.user_messages`, modularização em `models/`, `views/`, etc.
+- Não importar dependências, settings ou módulos do pith no projeto principal.
+
+## Proibido
+
+- Sugerir ou implementar algo "no estilo pith" sem o usuário ter citado a referência.
+- Assumir que o pith reflete decisões atuais do ReportLine.

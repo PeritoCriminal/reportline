@@ -192,3 +192,59 @@ class ReportNodeApiViewTests(TestCase):
         )
 
         self.assertEqual(response.status_code, 400)
+
+    def _post_reorder(self, payload, user="api_user"):
+        self.client.login(username=user, password="senha-segura")
+        return self.client.post(
+            reverse("reports:node_reorder", kwargs={"pk": self.report.pk}),
+            data=json.dumps(payload),
+            content_type="application/json",
+        )
+
+    def test_reorder_nodes_updates_heading_order(self):
+        """Garante reordenação de títulos raiz via POST JSON."""
+        second_block = ReportBlock.objects.create(
+            block_type=ReportBlockType.HEADING,
+            content={"text": "Final"},
+            title_level=0,
+        )
+        second_node = ReportNode.objects.create(
+            report=self.report,
+            block=second_block,
+            position=Decimal("2"),
+        )
+
+        response = self._post_reorder(
+            {
+                "parent_node_id": None,
+                "ordered_node_ids": [str(second_node.pk), str(self.node.pk)],
+            }
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["ok"], True)
+        self.node.refresh_from_db()
+        second_node.refresh_from_db()
+        self.assertGreater(self.node.position, second_node.position)
+
+    def test_reorder_nodes_rejects_foreign_author(self):
+        """Garante bloqueio de reordenação por usuário que não é autor."""
+        second_block = ReportBlock.objects.create(
+            block_type=ReportBlockType.HEADING,
+            content={"text": "Final"},
+        )
+        second_node = ReportNode.objects.create(
+            report=self.report,
+            block=second_block,
+            position=Decimal("2"),
+        )
+
+        response = self._post_reorder(
+            {
+                "parent_node_id": None,
+                "ordered_node_ids": [str(second_node.pk), str(self.node.pk)],
+            },
+            user="intruso",
+        )
+
+        self.assertEqual(response.status_code, 404)

@@ -14,6 +14,7 @@ from reports.services.report_tree import (
     delete_node,
     insert_sibling_after,
     insert_sibling_before,
+    reorder_heading_siblings,
     update_node_block,
 )
 
@@ -132,3 +133,52 @@ class ReportTreeServiceTests(TestCase):
         """Garante erro ao tentar excluir o único nó do relatório."""
         with self.assertRaises(ValidationError):
             delete_node(self.root)
+
+    def test_reorder_heading_siblings_preserves_non_heading_between(self):
+        """Garante reordenação de títulos mantendo parágrafos entre eles."""
+        intro = self.root
+        paragraph = ReportBlock.objects.create(
+            block_type=ReportBlockType.PARAGRAPH,
+            content={"text": "Corpo"},
+        )
+        paragraph_node = ReportNode.objects.create(
+            report=self.report,
+            block=paragraph,
+            position=Decimal("2"),
+        )
+        conclusion_block = ReportBlock.objects.create(
+            block_type=ReportBlockType.HEADING,
+            content={"text": "Conclusão"},
+            title_level=0,
+        )
+        conclusion = ReportNode.objects.create(
+            report=self.report,
+            block=conclusion_block,
+            position=Decimal("3"),
+        )
+
+        reorder_heading_siblings(
+            self.report,
+            None,
+            [conclusion.pk, intro.pk],
+        )
+
+        ordered = list(
+            ReportNode.objects.filter(report=self.report, parent__isnull=True).order_by(
+                "position"
+            )
+        )
+        self.assertEqual(
+            [node.pk for node in ordered],
+            [conclusion.pk, paragraph_node.pk, intro.pk],
+        )
+
+    def test_reorder_heading_siblings_rejects_mismatched_ids(self):
+        """Garante erro quando a lista enviada não corresponde aos títulos irmãos."""
+        with self.assertRaises(ValidationError):
+            reorder_heading_siblings(self.report, None, [])
+
+    def test_reorder_heading_siblings_requires_two_headings(self):
+        """Garante erro ao tentar reordenar com um único título."""
+        with self.assertRaises(ValidationError):
+            reorder_heading_siblings(self.report, None, [self.root.pk])

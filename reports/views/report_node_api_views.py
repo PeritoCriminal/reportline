@@ -26,6 +26,7 @@ from reports.services.report_tree import (
     delete_node,
     insert_sibling_after,
     insert_sibling_before,
+    reorder_heading_siblings,
     update_list_items,
     update_node_block,
 )
@@ -229,6 +230,58 @@ class ReportNodeCreateView(ReportAuthorMixin, View):
                 "insertion": "before" if before_node_id else "after",
             }
         )
+
+    def http_method_not_allowed(self, request, *args, **kwargs):
+        """Restringe métodos aceitos neste endpoint."""
+        return HttpResponseNotAllowed(["POST"])
+
+
+class ReportNodeReorderView(ReportAuthorMixin, View):
+    """Reordena títulos irmãos no sumário do editor (POST)."""
+
+    def post(self, request, pk):
+        """Persiste nova ordem de nós heading sob o mesmo pai."""
+        from uuid import UUID
+
+        report = self.get_report()
+
+        try:
+            payload = _parse_json_body(request)
+        except ValidationError as exc:
+            return _validation_error_response(exc)
+
+        parent_raw = payload.get("parent_node_id")
+        if parent_raw in (None, ""):
+            parent_id = None
+        else:
+            try:
+                parent_id = UUID(str(parent_raw))
+            except (ValueError, TypeError):
+                return _validation_error_response(
+                    ValidationError("parent_node_id inválido.")
+                )
+            get_object_or_404(ReportNode, pk=parent_id, report=report)
+
+        ordered_raw = payload.get("ordered_node_ids")
+        if not isinstance(ordered_raw, list):
+            return JsonResponse(
+                {"errors": ["ordered_node_ids deve ser uma lista."]},
+                status=400,
+            )
+
+        try:
+            ordered_heading_ids = [UUID(str(item)) for item in ordered_raw]
+        except (ValueError, TypeError):
+            return _validation_error_response(
+                ValidationError("ordered_node_ids contém identificadores inválidos.")
+            )
+
+        try:
+            reorder_heading_siblings(report, parent_id, ordered_heading_ids)
+        except ValidationError as exc:
+            return _validation_error_response(exc)
+
+        return JsonResponse({"ok": True})
 
     def http_method_not_allowed(self, request, *args, **kwargs):
         """Restringe métodos aceitos neste endpoint."""

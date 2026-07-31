@@ -99,4 +99,28 @@ class ReportEditorViewTests(TestCase):
         self.assertContains(response, 'data-block-type="heading"')
         self.assertContains(response, 'data-autofocus="true"')
         self.assertContains(response, "contenteditable")
-        self.assertContains(response, "report_editor.js")
+        self.assertContains(response, "report-editor-outline-root")
+        self.assertContains(response, "report_outline_sync.js")
+
+    def test_outline_endpoint_returns_tree_html(self):
+        """Garante HTML atualizado do sumário via GET JSON."""
+        self.client.login(username="autor_editor", password="senha-segura")
+        response = self.client.get(
+            reverse("reports:outline", kwargs={"pk": self.report.pk}),
+            HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertIn("html", payload)
+        self.assertIn("Histórico", payload["html"])
+        self.assertIn("report-editor-outline", payload["html"])
+
+    def test_outline_endpoint_rejects_non_author(self):
+        """Garante bloqueio do sumário assíncrono para usuário estranho."""
+        self.client.login(username="outro_usuario", password="senha-segura")
+        response = self.client.get(
+            reverse("reports:outline", kwargs={"pk": self.report.pk}),
+        )
+
+        self.assertEqual(response.status_code, 404)

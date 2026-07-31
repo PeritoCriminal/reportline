@@ -13,6 +13,7 @@
 
     let config = {};
     const saveTimers = new Map();
+    let lastEditorContext = null;
 
     function getCsrfToken() {
         const match = document.cookie.match(/(?:^|;\s*)csrftoken=([^;]+)/);
@@ -65,15 +66,37 @@
     }
 
     function getActiveBlock() {
+        const context = resolveInsertContext();
+        return context ? context.block : null;
+    }
+
+    function rememberEditorContext(block, editable) {
+        lastEditorContext = { block, editable };
+    }
+
+    function resolveInsertContext() {
         const active = document.activeElement;
         if (active && active.closest) {
-            const fromFocus = active.closest(".report-editor-block");
-            if (fromFocus) {
-                return fromFocus;
+            const editable = active.closest(".report-editor-block-editable");
+            const block = active.closest(".report-editor-block");
+            if (block && editable && block.contains(editable)) {
+                return { block, editable };
+            }
+            if (block) {
+                return { block, editable: getTextField(block) };
             }
         }
+
+        if (lastEditorContext && document.contains(lastEditorContext.block)) {
+            return lastEditorContext;
+        }
+
         const blocks = document.querySelectorAll("#report-editor-page .report-editor-block");
-        return blocks.length ? blocks[blocks.length - 1] : null;
+        const lastBlock = blocks.length ? blocks[blocks.length - 1] : null;
+        if (!lastBlock) {
+            return null;
+        }
+        return { block: lastBlock, editable: getTextField(lastBlock) };
     }
 
     function getTextField(block) {
@@ -137,21 +160,23 @@
     }
 
     function updateOutlineHeading(nodeId, text) {
-        const link = document.querySelector(
-            `.report-editor-outline-link[href="#report-block-${nodeId}"] span`
+        const label = document.querySelector(
+            `.report-editor-outline-link[href="#report-block-${nodeId}"] .report-editor-outline-label`
         );
-        if (link) {
-            link.textContent = text.trim() || "Título sem texto";
+        if (label) {
+            label.textContent = text.trim() || "Título sem texto";
+            const link = label.closest(".report-editor-outline-link");
+            if (link) {
+                link.setAttribute("title", label.textContent);
+            }
         }
     }
 
-    function removeOutlineHeading(nodeId) {
-        const item = document.querySelector(
-            `.report-editor-outline-link[href="#report-block-${nodeId}"]`
-        );
-        if (item) {
-            item.closest(".report-editor-outline-item")?.remove();
+    function refreshOutlineTree() {
+        if (window.ReportLineOutline && window.ReportLineOutline.refresh) {
+            return window.ReportLineOutline.refresh().catch(console.error);
         }
+        return Promise.resolve();
     }
 
     async function saveBlock(block, options = {}) {
@@ -234,7 +259,11 @@
 
         const data = await apiRequest(config.createNodeUrl, "POST", payload);
         const newBlock = insertBlockHtml(referenceBlock, data.html, data.insertion);
-        return focusNewBlock(newBlock, { caretAtStart: options.caretAtStart });
+        focusNewBlock(newBlock, { caretAtStart: options.caretAtStart });
+        if (data.block_type === "heading") {
+            await refreshOutlineTree();
+        }
+        return newBlock;
     }
 
     function getListItemIndex(listItem) {
@@ -300,43 +329,63 @@
         placeCaretAtEnd(newItem);
     }
 
-    async function handleTextBlockEnter(block, editable) {
+    async function insertBlockAtCaret(block, editable, newBlockType, options = {}) {
         clearSaveTimer(block.dataset.nodeId);
 
-        const fullText = editable.innerText;
-        const caret = getCaretOffset(editable);
-        const atStart = caret === 0;
-        const atEnd = caret >= fullText.length;
-        const blockType = block.dataset.blockType;
-        const newBlockType = blockType === "heading"
-            ? "paragraph"
-            : blockType;
-
-        if (atStart) {
-            await createSiblingBlock(block, newBlockType, {
-                insertion: "before",
-                content: { text: "" },
-            });
-            placeCaretAtStart(editable);
+        if (LIST_TYPES.has(block.dataset.blockType)) {
+            await saveBlock(block);
+            await createSiblingBlock(block, newBlockType);
             return;
         }
 
-        if (!atEnd) {
-            const beforeText = fullText.slice(0, caret);
-            const afterText = fullText.slice(caret);
-            setTextFieldContent(block, beforeText);
+        if (block.dataset.blockType === "image" || block.dataset.blockType === "table") {
             await saveBlock(block);
-            editable.innerText = beforeText;
-            await createSiblingBlock(block, blockType, {
-                insertion: "after",
-                content: { text: afterText },
-                caretAtStart: true,
-            });
+            await createSiblingBlock(block, newBlockType);
             return;
+        }
+
+        if (TEXT_BLOCK_TYPES.has(block.dataset.blockType) && editable) {
+            const fullText = editable.innerText;
+            const caret = getCaretOffset(editable);
+            const atStart = caret === 0;
+            const atEnd = caret >= fullText.length;
+
+            if (atStart) {
+                await createSiblingBlock(block, newBlockType, {
+                    insertion: "before",
+                    content: { text: "" },
+                });
+                if (options.keepFocusInPlace) {
+                    placeCaretAtStart(editable);
+                }
+                return;
+            }
+
+            if (!atEnd) {
+                const beforeText = fullText.slice(0, caret);
+                const afterText = fullText.slice(caret);
+                setTextFieldContent(block, beforeText);
+                await saveBlock(block);
+                editable.innerText = beforeText;
+                await createSiblingBlock(block, newBlockType, {
+                    insertion: "after",
+                    content: { text: afterText },
+                    caretAtStart: true,
+                });
+                return;
+            }
         }
 
         await saveBlock(block);
         await createSiblingBlock(block, newBlockType);
+    }
+
+    async function handleTextBlockEnter(block, editable) {
+        const blockType = block.dataset.blockType;
+        const newBlockType = blockType === "heading"
+            ? "paragraph"
+            : blockType;
+        await insertBlockAtCaret(block, editable, newBlockType, { keepFocusInPlace: true });
     }
 
     async function handleBlockEnter(block, editable) {
@@ -369,11 +418,10 @@
 
         await apiRequest(updateNodeUrl(nodeId), "DELETE");
 
-        if (blockType === "heading") {
-            removeOutlineHeading(nodeId);
-        }
-
         block.remove();
+        if (blockType === "heading") {
+            await refreshOutlineTree();
+        }
 
         if (previousBlock && previousBlock.classList.contains("report-editor-block")) {
             const editable = previousBlock.querySelector(".report-editor-block-editable");
@@ -458,6 +506,12 @@
             }
             const block = editable.closest(".report-editor-block");
             if (block) {
+                if (block.dataset.blockType === "heading") {
+                    const field = getTextField(block);
+                    if (field) {
+                        updateOutlineHeading(block.dataset.nodeId, field.innerText);
+                    }
+                }
                 scheduleDebouncedSave(block);
             }
         });
@@ -466,6 +520,10 @@
             const block = event.target.closest(".report-editor-block");
             if (block) {
                 block.classList.add("is-active");
+                const editable = event.target.closest(".report-editor-block-editable");
+                if (editable && block.contains(editable)) {
+                    rememberEditorContext(block, editable);
+                }
             }
         });
 
@@ -478,6 +536,12 @@
     }
 
     function bindToolbar(toolbar) {
+        toolbar.addEventListener("mousedown", (event) => {
+            if (event.target.closest("[data-insert-block-type]")) {
+                event.preventDefault();
+            }
+        });
+
         toolbar.addEventListener("click", (event) => {
             const button = event.target.closest("[data-insert-block-type]");
             if (!button) {
@@ -485,14 +549,12 @@
             }
 
             const blockType = button.dataset.insertBlockType;
-            const afterBlock = getActiveBlock();
-            if (!afterBlock) {
+            const context = resolveInsertContext();
+            if (!context || !context.block) {
                 return;
             }
 
-            saveBlock(afterBlock)
-                .then(() => createSiblingBlock(afterBlock, blockType))
-                .catch(console.error);
+            insertBlockAtCaret(context.block, context.editable, blockType).catch(console.error);
         });
     }
 

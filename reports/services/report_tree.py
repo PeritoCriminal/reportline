@@ -14,7 +14,7 @@ from uuid import UUID
 from django.core.exceptions import ValidationError
 from django.db import transaction
 
-from reports.models import Report, ReportBlock, ReportNode
+from reports.models import Report, ReportBlock, ReportBlockType, ReportNode
 from reports.services.report_block_content import (
     default_content_for_block_type,
     normalize_block_content,
@@ -172,6 +172,58 @@ def insert_sibling_after(
         block=block,
         position=position,
     )
+
+
+@transaction.atomic
+def reorder_heading_siblings(
+    report: Report,
+    parent_id: UUID | None,
+    ordered_heading_ids: list[UUID],
+) -> None:
+    """
+    Reordena títulos irmãos preservando blocos não-título entre eles.
+
+    Recebe a nova ordem dos nós ``heading`` sob ``parent_id`` e reatribui
+    posições decimais sequenciais à lista completa de irmãos.
+    """
+    siblings = list(
+        ReportNode.objects.filter(report=report, parent_id=parent_id)
+        .select_related("block")
+        .order_by("position", "created_at")
+    )
+    if not siblings:
+        if ordered_heading_ids:
+            raise ValidationError("Nenhum nó irmão encontrado para o pai informado.")
+        return
+
+    headings = [
+        node
+        for node in siblings
+        if node.block.block_type == ReportBlockType.HEADING
+    ]
+    heading_ids = {node.pk for node in headings}
+    if set(ordered_heading_ids) != heading_ids:
+        raise ValidationError("A lista de títulos não corresponde aos irmãos do pai informado.")
+    if len(ordered_heading_ids) < 2:
+        raise ValidationError("São necessários ao menos dois títulos para reordenar.")
+
+    heading_by_id = {node.pk: node for node in headings}
+    new_headings = [heading_by_id[node_id] for node_id in ordered_heading_ids]
+
+    heading_indices = [
+        index
+        for index, node in enumerate(siblings)
+        if node.block.block_type == ReportBlockType.HEADING
+    ]
+    new_order = list(siblings)
+    for slot, sibling_index in enumerate(heading_indices):
+        new_order[sibling_index] = new_headings[slot]
+
+    for index, node in enumerate(new_order, start=1):
+        new_position = Decimal(index)
+        if node.position != new_position:
+            node.position = new_position
+            node.save(update_fields=["position"])
 
 
 @transaction.atomic

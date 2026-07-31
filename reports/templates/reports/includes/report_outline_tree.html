@@ -1,7 +1,10 @@
+{% load report_outline %}
 {% if outline_tree %}
-<ul class="report-editor-outline" role="tree">
+<ul class="report-editor-outline{% if outline_tree|outline_list_reorderable:'' %} report-editor-outline-siblings{% endif %}"
+    role="tree"
+    {% if outline_tree|outline_list_reorderable:'' %}data-node-parent-id=""{% endif %}>
     {% for entry in outline_tree %}
-        {% include "reports/includes/report_outline_item.html" with entry=entry %}
+        {% include "reports/includes/report_outline_item.html" with entry=entry reorderable=outline_tree|outline_list_reorderable:'' %}
     {% endfor %}
 </ul>
 {% else %}
