@@ -108,7 +108,7 @@ credenciais **pessoais** via `.env` (fora do Git). Em ambiente
 | `accounts` | ✅ Implementado | `CustomUser` (UUID, OAuth), login Google (fase 1) + local staff; alvo institucional: gov.br ([ADR-0003](../decisions/0003-govbr-authentication.md)) |
 | `institution_ic_sp` | ✅ Implementado 🔵 | Núcleos e equipes IC-SP; **substituível** em produção (ver ADR-0006) |
 | `profiles` | ✅ Implementado | `ForensicExaminerSP` 1:1 com user, lotação em `ForensicTeam` (ver ADR-0007) |
-| `reports` | ✅ Implementado | Models + `/reports/new/` e editor visual; inserção de blocos e PDF pendentes ([07-reports.md](./07-reports.md)) |
+| `reports` | ✅ Implementado | Listagem, criação, editor interativo e hub na home; PDF e laudo pericial pendentes ([07-reports.md](./07-reports.md)) |
 
 ## Referências
 

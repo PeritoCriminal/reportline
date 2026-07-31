@@ -3,7 +3,9 @@
 
 {% block title %}Editar relatório — {{ report.title }} — ReportLine{% endblock %}
 
-{% block main_class %}container-fluid p-0 flex-grow-1 d-flex flex-column{% endblock %}
+{% block body_class %}report-editor-active{% endblock %}
+{% block navbar_class %}report-editor-navbar{% endblock %}
+{% block main_class %}container-fluid p-0 flex-grow-1 d-flex flex-column overflow-hidden{% endblock %}
 
 {% block extra_css %}
 <link rel="stylesheet" href="{% static 'reports/css/report_editor.css' %}">
@@ -11,16 +13,6 @@
 
 {% block content %}
 <div class="report-editor-shell">
-    <header class="report-editor-header px-3 py-2">
-        <div class="d-flex flex-wrap align-items-center justify-content-between gap-2">
-            <div>
-                <h1 class="h5 mb-0">{{ report.title }}</h1>
-                <p class="small text-muted mb-0">Editor de relatório</p>
-            </div>
-            <span class="badge text-bg-secondary">{{ report.get_status_display }}</span>
-        </div>
-    </header>
-
     {% include "reports/includes/report_editor_toolbar.html" %}
 
     <div class="report-editor-workspace">
@@ -42,6 +34,8 @@
     </div>
 </div>
 {% endblock %}
+
+{% block footer %}{% endblock %}
 
 {% block extra_js %}
 <script src="{% static 'reports/js/report_editor.js' %}"></script>

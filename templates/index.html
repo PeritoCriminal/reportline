@@ -1,10 +1,61 @@
-{% extends 'base.html' %}
+{% extends "base.html" %}
 
-{% block title %}Início - ReportLine{% endblock %}
+{% block title %}Início — ReportLine{% endblock %}
 
 {% block content %}
-<div class="text-center my-5">
-    <h1 class="display-4 fw-bold">Bem-vindo ao ReportLine</h1>
-    <p class="lead text-muted">Seu sistema de gerenciamento de relatórios.</p>
+<div class="text-center my-4 my-md-5">
+    <h1 class="display-5 fw-bold mb-2">Bem-vindo ao ReportLine</h1>
+    <p class="lead text-muted mb-0">Seu sistema de gerenciamento de relatórios.</p>
 </div>
+
+{% if user.is_authenticated %}
+    <div class="row justify-content-center g-3 g-md-4">
+        <div class="col-md-6 col-lg-5 col-xl-4">
+            <a class="card border-secondary-subtle shadow-sm h-100 text-decoration-none report-home-card"
+               href="{% url 'reports:list' %}">
+                <div class="card-body p-4 d-flex flex-column">
+                    <div class="mb-3">
+                        <i class="bi bi-folder2-open fs-2 text-primary" aria-hidden="true"></i>
+                    </div>
+                    <h2 class="h5 text-body mb-2">Meus relatórios</h2>
+                    <p class="text-muted small mb-0 flex-grow-1">
+                        Consulte e continue editando os documentos que você criou.
+                    </p>
+                </div>
+            </a>
+        </div>
+        <div class="col-md-6 col-lg-5 col-xl-4">
+            <a class="card border-secondary-subtle shadow-sm h-100 text-decoration-none report-home-card"
+               href="{% url 'reports:new' %}">
+                <div class="card-body p-4 d-flex flex-column">
+                    <div class="mb-3">
+                        <i class="bi bi-file-earmark-plus fs-2 text-primary" aria-hidden="true"></i>
+                    </div>
+                    <h2 class="h5 text-body mb-2">Novo relatório</h2>
+                    <p class="text-muted small mb-0 flex-grow-1">
+                        Inicie um documento em branco e abra o editor para composição.
+                    </p>
+                </div>
+            </a>
+        </div>
+    </div>
+{% else %}
+    <div class="text-center">
+        <a class="btn btn-primary" href="{% url 'accounts:login' %}">Entrar</a>
+    </div>
+{% endif %}
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .report-home-card {
+        transition: transform 0.15s ease, box-shadow 0.15s ease;
+    }
+
+    .report-home-card:hover,
+    .report-home-card:focus-visible {
+        transform: translateY(-2px);
+        box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.12) !important;
+    }
+</style>
 {% endblock %}

@@ -9,7 +9,13 @@ from django.core.exceptions import ValidationError
 from django.test import TestCase
 
 from reports.models import Report, ReportBlock, ReportBlockType, ReportNode
-from reports.services.report_tree import append_list_item, insert_sibling_after, update_node_block
+from reports.services.report_tree import (
+    append_list_item,
+    delete_node,
+    insert_sibling_after,
+    insert_sibling_before,
+    update_node_block,
+)
 
 User = get_user_model()
 
@@ -96,3 +102,33 @@ class ReportTreeServiceTests(TestCase):
                 self.root,
                 block_type=ReportBlockType.PARAGRAPH,
             )
+
+    def test_insert_sibling_before_places_node_with_lower_position(self):
+        """Garante posição fracionária ao inserir irmão antes do nó de referência."""
+        new_node = insert_sibling_before(
+            self.report,
+            self.root,
+            block_type=ReportBlockType.PARAGRAPH,
+        )
+
+        self.assertLess(new_node.position, self.root.position)
+
+    def test_delete_node_removes_block(self):
+        """Garante exclusão do nó e bloco quando há mais de um nó no relatório."""
+        sibling = insert_sibling_after(
+            self.report,
+            self.root,
+            block_type=ReportBlockType.PARAGRAPH,
+        )
+        sibling_id = sibling.pk
+        block_id = sibling.block_id
+
+        delete_node(sibling)
+
+        self.assertFalse(ReportNode.objects.filter(pk=sibling_id).exists())
+        self.assertFalse(ReportBlock.objects.filter(pk=block_id).exists())
+
+    def test_delete_last_node_raises_validation_error(self):
+        """Garante erro ao tentar excluir o único nó do relatório."""
+        with self.assertRaises(ValidationError):
+            delete_node(self.root)

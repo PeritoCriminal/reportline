@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+
+{% block title %}Meus relatórios — ReportLine{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-10 col-xl-8">
+        <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-4">
+            <div>
+                <h1 class="h4 mb-1">Meus relatórios</h1>
+                <p class="text-muted small mb-0">Documentos em rascunho ou publicados por você.</p>
+            </div>
+            <a class="btn btn-primary" href="{% url 'reports:new' %}">
+                <i class="bi bi-file-earmark-plus me-1" aria-hidden="true"></i>
+                Novo relatório
+            </a>
+        </div>
+
+        {% if reports %}
+            <div class="card border-secondary-subtle shadow-sm">
+                <div class="list-group list-group-flush">
+                    {% for report in reports %}
+                        <a class="list-group-item list-group-item-action py-3"
+                           href="{% url 'reports:edit' pk=report.pk %}">
+                            <div class="d-flex flex-wrap align-items-start justify-content-between gap-2">
+                                <div>
+                                    <h2 class="h6 mb-1">{{ report.title }}</h2>
+                                    <p class="text-muted small mb-0">
+                                        Criado em {{ report.created_at|date:"d/m/Y H:i" }}
+                                        · Atualizado em {{ report.updated_at|date:"d/m/Y H:i" }}
+                                    </p>
+                                </div>
+                                <span class="badge text-bg-secondary">{{ report.get_status_display }}</span>
+                            </div>
+                        </a>
+                    {% endfor %}
+                </div>
+            </div>
+
+            {% if is_paginated %}
+                <nav class="mt-3" aria-label="Paginação de relatórios">
+                    <ul class="pagination pagination-sm justify-content-center mb-0">
+                        {% if page_obj.has_previous %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ page_obj.previous_page_number }}">Anterior</a>
+                            </li>
+                        {% endif %}
+                        <li class="page-item disabled">
+                            <span class="page-link">Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}</span>
+                        </li>
+                        {% if page_obj.has_next %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ page_obj.next_page_number }}">Próxima</a>
+                            </li>
+                        {% endif %}
+                    </ul>
+                </nav>
+            {% endif %}
+        {% else %}
+            <div class="card border-secondary-subtle shadow-sm">
+                <div class="card-body p-4 text-center">
+                    <p class="text-muted mb-3">Você ainda não possui relatórios.</p>
+                    <a class="btn btn-primary" href="{% url 'reports:new' %}">
+                        <i class="bi bi-file-earmark-plus me-1" aria-hidden="true"></i>
+                        Criar primeiro relatório
+                    </a>
+                </div>
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

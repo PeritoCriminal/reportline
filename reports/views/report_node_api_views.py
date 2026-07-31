@@ -23,7 +23,10 @@ from reports.services.report_block_sequence import (
 from reports.services.report_editor_context import render_editable_block_html
 from reports.services.report_tree import (
     append_list_item,
+    delete_node,
     insert_sibling_after,
+    insert_sibling_before,
+    update_list_items,
     update_node_block,
 )
 
@@ -62,7 +65,7 @@ def _validation_error_response(exc: ValidationError) -> JsonResponse:
 
 
 class ReportNodeDetailView(ReportAuthorMixin, View):
-    """Atualiza conteúdo de um nó existente (PATCH)."""
+    """Atualiza ou exclui um nó existente (PATCH/DELETE)."""
 
     def patch(self, request, pk, node_id):
         """Persiste conteúdo do bloco ou acrescenta item de lista."""
@@ -95,6 +98,23 @@ class ReportNodeDetailView(ReportAuthorMixin, View):
                     }
                 )
 
+            if payload.get("update_list_items"):
+                if not is_list_block_type(node.block.block_type):
+                    raise ValidationError("Apenas listas aceitam atualização de itens.")
+                items = payload.get("items", [])
+                if not isinstance(items, list):
+                    raise ValidationError("Itens da lista devem ser uma lista.")
+                node = update_list_items(node, items=[str(item) for item in items])
+                block = node.block
+                return JsonResponse(
+                    {
+                        "node_id": str(node.pk),
+                        "block_type": block.block_type,
+                        "title_level": block.title_level,
+                        "content": block.content,
+                    }
+                )
+
             content = payload.get("content")
             if content is None:
                 raise ValidationError("Campo content é obrigatório.")
@@ -118,13 +138,25 @@ class ReportNodeDetailView(ReportAuthorMixin, View):
             }
         )
 
+    def delete(self, request, pk, node_id):
+        """Remove nó vazio do relatório."""
+        report = self.get_report()
+        node = self.get_node(report)
+
+        try:
+            delete_node(node)
+        except ValidationError as exc:
+            return _validation_error_response(exc)
+
+        return JsonResponse({"deleted": True, "node_id": str(node_id)})
+
     def http_method_not_allowed(self, request, *args, **kwargs):
         """Restringe métodos aceitos neste endpoint."""
-        return HttpResponseNotAllowed(["PATCH"])
+        return HttpResponseNotAllowed(["PATCH", "DELETE"])
 
 
 class ReportNodeCreateView(ReportAuthorMixin, View):
-    """Insere nó irmão após um nó existente (POST)."""
+    """Insere nó irmão antes ou depois de um nó existente (POST)."""
 
     def post(self, request, pk):
         """Cria bloco irmão e retorna HTML renderizado para inserção no DOM."""
@@ -136,35 +168,46 @@ class ReportNodeCreateView(ReportAuthorMixin, View):
             return _validation_error_response(exc)
 
         after_node_id = payload.get("after_node_id")
-        if not after_node_id:
+        before_node_id = payload.get("before_node_id")
+        if bool(after_node_id) == bool(before_node_id):
             return JsonResponse(
-                {"errors": ["Campo after_node_id é obrigatório."]},
+                {"errors": ["Informe after_node_id ou before_node_id."]},
                 status=400,
             )
 
-        after_node = get_object_or_404(
+        reference_node = get_object_or_404(
             ReportNode.objects.select_related("block"),
-            pk=after_node_id,
+            pk=after_node_id or before_node_id,
             report=report,
         )
 
         try:
             block_type = payload.get("block_type")
             if not block_type:
-                block_type = get_next_sibling_block_type(after_node.block.block_type)
+                block_type = get_next_sibling_block_type(reference_node.block.block_type)
 
             is_caption = payload.get(
                 "is_caption",
-                after_node.block.block_type == ReportBlockType.IMAGE,
+                after_node_id
+                and reference_node.block.block_type == ReportBlockType.IMAGE,
             )
 
-            node = insert_sibling_after(
-                report,
-                after_node,
-                block_type=block_type,
-                content=payload.get("content"),
-                title_level=payload.get("title_level"),
-            )
+            if before_node_id:
+                node = insert_sibling_before(
+                    report,
+                    reference_node,
+                    block_type=block_type,
+                    content=payload.get("content"),
+                    title_level=payload.get("title_level"),
+                )
+            else:
+                node = insert_sibling_after(
+                    report,
+                    reference_node,
+                    block_type=block_type,
+                    content=payload.get("content"),
+                    title_level=payload.get("title_level"),
+                )
         except ValidationError as exc:
             return _validation_error_response(exc)
 
@@ -183,6 +226,7 @@ class ReportNodeCreateView(ReportAuthorMixin, View):
                 "content": block.content,
                 "html": html,
                 "is_caption": is_caption and block_type == ReportBlockType.PARAGRAPH,
+                "insertion": "before" if before_node_id else "after",
             }
         )
 

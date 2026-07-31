@@ -1,22 +1,61 @@
+body.report-editor-active {
+    height: 100vh;
+    overflow: hidden;
+}
+
+body.report-editor-active main {
+    min-height: 0;
+    overflow: hidden;
+}
+
+.report-editor-navbar {
+    flex-shrink: 0;
+    position: sticky;
+    top: 0;
+    z-index: 1030;
+}
+
 .report-editor-shell {
     display: flex;
     flex-direction: column;
-    min-height: calc(100vh - 8.5rem);
-}
-
-.report-editor-header {
-    border-bottom: 1px solid var(--bs-border-color);
-    background-color: var(--bs-body-bg);
+    flex: 1;
+    min-height: 0;
+    height: 100%;
+    overflow: hidden;
 }
 
 .report-editor-toolbar {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
-    gap: 0.25rem;
+    gap: 0.5rem 0.75rem;
     padding: 0.5rem 1rem;
     border-bottom: 1px solid var(--bs-border-color);
     background-color: var(--bs-tertiary-bg);
+    flex-shrink: 0;
+    z-index: 1020;
+}
+
+.report-editor-toolbar-blocks {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+.report-editor-toolbar-meta {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    min-width: 0;
+    max-width: 100%;
+}
+
+.report-editor-toolbar-title {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--bs-body-color);
+    max-width: 16rem;
 }
 
 .report-editor-toolbar .btn-toolbar-block {
@@ -38,6 +77,8 @@
 
 .report-editor-sidebar {
     overflow-y: auto;
+    overflow-x: hidden;
+    min-height: 0;
     background-color: var(--bs-tertiary-bg);
     border-color: var(--bs-border-color);
 }
@@ -112,9 +153,9 @@
     color: var(--bs-secondary-color);
 }
 
-/* Folha do relatório — ocupa todo o painel central (sem margem externa). */
 .report-editor-canvas {
     overflow-y: auto;
+    overflow-x: hidden;
     min-height: 0;
     padding: 0;
     background-color: var(--report-page-bg);
@@ -213,9 +254,8 @@
     color: var(--report-page-color);
 }
 
-.report-editor-block-link a {
+.report-editor-block-link {
     color: var(--report-page-link);
-    text-decoration: underline;
 }
 
 .report-editor-block-table {
@@ -273,13 +313,17 @@
 }
 
 @media (max-width: 991.98px) {
-    .report-editor-toolbar,
+    .report-editor-toolbar-blocks,
     .report-editor-sidebar {
         display: none !important;
     }
 
     .report-editor-workspace {
         grid-template-columns: 1fr;
+    }
+
+    .report-editor-toolbar-meta {
+        margin-left: 0 !important;
     }
 
     .report-editor-page {

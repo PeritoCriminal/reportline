@@ -59,6 +59,15 @@ class ReportNodeApiViewTests(TestCase):
             content_type="application/json",
         )
 
+    def _delete_node(self, node, user="api_user"):
+        self.client.login(username=user, password="senha-segura")
+        return self.client.delete(
+            reverse(
+                "reports:node_update",
+                kwargs={"pk": self.report.pk, "node_id": node.pk},
+            ),
+        )
+
     def test_patch_updates_block_content(self):
         """Garante persistência de conteúdo via PATCH."""
         response = self._patch_node(self.node, {"content": {"text": "Atualizado"}})
@@ -125,3 +134,61 @@ class ReportNodeApiViewTests(TestCase):
         data = response.json()
         self.assertEqual(data["block_type"], ReportBlockType.PARAGRAPH)
         self.assertTrue(data["is_caption"])
+
+    def test_post_before_node_inserts_sibling(self):
+        """Garante inserção de irmão antes do nó de referência."""
+        paragraph_block = ReportBlock.objects.create(
+            block_type=ReportBlockType.PARAGRAPH,
+            content={"text": "Corpo"},
+        )
+        paragraph_node = ReportNode.objects.create(
+            report=self.report,
+            block=paragraph_block,
+            position=Decimal("2"),
+        )
+
+        response = self._post_node({"before_node_id": str(paragraph_node.pk)})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["insertion"], "before")
+        self.assertEqual(self.report.nodes.count(), 3)
+
+    def test_delete_node_via_api(self):
+        """Garante exclusão de nó via DELETE."""
+        paragraph_block = ReportBlock.objects.create(
+            block_type=ReportBlockType.PARAGRAPH,
+            content={"text": ""},
+        )
+        paragraph_node = ReportNode.objects.create(
+            report=self.report,
+            block=paragraph_block,
+            position=Decimal("2"),
+        )
+
+        response = self._delete_node(paragraph_node)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(ReportNode.objects.filter(pk=paragraph_node.pk).exists())
+
+    def test_delete_only_node_returns_bad_request(self):
+        """Garante erro ao excluir único nó do relatório."""
+        single_report = Report.objects.create(author=self.author, title="Único")
+        block = ReportBlock.objects.create(
+            block_type=ReportBlockType.HEADING,
+            content={"text": "Só"},
+        )
+        node = ReportNode.objects.create(
+            report=single_report,
+            block=block,
+            position=Decimal("1"),
+        )
+
+        self.client.login(username="api_user", password="senha-segura")
+        response = self.client.delete(
+            reverse(
+                "reports:node_update",
+                kwargs={"pk": single_report.pk, "node_id": node.pk},
+            ),
+        )
+
+        self.assertEqual(response.status_code, 400)

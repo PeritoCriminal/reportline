@@ -160,7 +160,8 @@ Documentação completa: [05-profiles.md](./05-profiles.md).
 |---|---|
 | **Responsabilidade** | Relatórios modulares (`Report`), árvore de nós (`ReportNode`) e blocos genéricos (`ReportBlock`) |
 | **Models** | `Report`, `ReportNode`, `ReportBlock` |
-| **URLs (usuário)** | `reports:new`, `reports:edit` — montadas em `/reports/` |
+| **URLs (usuário)** | `reports:list`, `reports:new`, `reports:edit`, `reports:node_create`, `reports:node_update` |
+| **Hub na home** | Cards em `templates/index.html` (autenticado) |
 | **Depende de** | `accounts`, `common` |
 | **Integrações futuras** | APIs externas (IA, voz) via variáveis de ambiente — ver [ADR-0005](../decisions/0005-external-api-credentials.md) |
 | **Decisão** | [ADR-0002](../decisions/0002-report-node-structure.md) |
@@ -178,29 +179,42 @@ reports/
   forms/
     report_form.py
   views/
+    report_list_views.py
     report_create_views.py
     report_editor_views.py
+    report_node_api_views.py
   services/
     author_snapshot.py
     report_creation.py
+    report_editor_bootstrap.py
     report_editor_context.py
+    report_block_content.py
+    report_block_sequence.py
+    report_tree.py
   signals.py
   tests/
     test_report_models.py
     test_report_block.py
     test_report_creation.py
     test_report_create_views.py
+    test_report_list_views.py
+    test_report_editor_bootstrap.py
     test_report_editor_context.py
     test_report_editor_views.py
+    test_report_block_content.py
+    test_report_tree.py
+    test_report_node_api_views.py
   migrations/
     0001_initial.py
   templates/reports/
+    report_list.html
     report_form.html
     report_editor.html
     includes/
   static/reports/
     css/report_editor.css
-  urls.py                       # /reports/new/, /reports/<pk>/edit/
+    js/report_editor.js
+  urls.py                       # /reports/, /reports/new/, /reports/<pk>/edit/, API nodes
 ```
 
 Documentação completa: [07-reports.md](./07-reports.md).
@@ -232,7 +246,7 @@ flowchart LR
 | `accounts` | ✅ registrado | implementado |
 | `institution_ic_sp` | ✅ registrado | implementado (provisório) |
 | `profiles` | ✅ registrado | implementado |
-| `reports` | ✅ registrado | implementado (models + criação e editor visual; interatividade pendente) |
+| `reports` | ✅ registrado | implementado (listagem, criação, editor interativo, API de nós) |
 
 ## Infraestrutura e integrações transversais
 

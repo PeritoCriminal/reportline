@@ -8,11 +8,17 @@ from django.urls import path
 
 from reports.views.report_create_views import ReportCreateView
 from reports.views.report_editor_views import ReportEditorView
+from reports.views.report_list_views import ReportListView
 from reports.views.report_node_api_views import ReportNodeCreateView, ReportNodeDetailView
 
 app_name = "reports"
 
 urlpatterns = [
+    path(
+        "",
+        ReportListView.as_view(),
+        name="list",
+    ),
     path(
         "new/",
         ReportCreateView.as_view(),
