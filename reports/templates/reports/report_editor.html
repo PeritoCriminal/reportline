@@ -30,7 +30,7 @@
         </aside>
 
         <section class="report-editor-canvas" aria-label="Corpo do relatório">
-            {% include "reports/includes/report_page_body.html" %}
+            {% include "reports/includes/report_page_body.html" with autofocus_node_id=autofocus_node_id %}
         </section>
 
         <aside class="report-editor-sidebar report-editor-sidebar-right" aria-label="Propriedades do bloco">
@@ -41,4 +41,22 @@
         </aside>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'reports/js/report_editor.js' %}"></script>
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        if (window.ReportLineEditor) {
+            window.ReportLineEditor.init({
+                reportId: "{{ report.pk }}",
+                createNodeUrl: "{% url 'reports:node_create' pk=report.pk %}",
+                updateNodeUrlTemplate: "{% url 'reports:node_update' pk=report.pk node_id='00000000-0000-0000-0000-000000000000' %}".replace(
+                    "00000000-0000-0000-0000-000000000000",
+                    "{node_id}"
+                ),
+            });
+        }
+    });
+</script>
 {% endblock %}

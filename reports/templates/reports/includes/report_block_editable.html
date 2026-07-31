@@ -1,0 +1,82 @@
+<div id="report-block-{{ entry.node_id }}"
+     class="report-editor-block"
+     data-node-id="{{ entry.node_id }}"
+     data-block-type="{{ entry.block_type }}"
+     data-title-level="{{ entry.title_level }}"
+     {% if is_caption %}data-is-caption="true"{% endif %}>
+    {% if entry.block_type == "heading" %}
+        <div class="report-editor-block-editable report-editor-block-heading"
+             contenteditable="true"
+             role="heading"
+             aria-level="{{ entry.title_level|add:1 }}"
+             data-level="{{ entry.title_level }}"
+             data-field="text"
+             data-placeholder="Título do relatório"
+             {% if autofocus %}data-autofocus="true"{% endif %}>{{ entry.content.text|default:"" }}</div>
+    {% elif entry.block_type == "paragraph" %}
+        <p class="report-editor-block-editable report-editor-block-paragraph"
+           contenteditable="true"
+           data-field="text"
+           data-placeholder="{% if is_caption %}Legenda da imagem{% else %}Digite o parágrafo…{% endif %}"
+           {% if autofocus %}data-autofocus="true"{% endif %}>{{ entry.content.text|default:"" }}</p>
+    {% elif entry.block_type == "ordered_list" %}
+        <ol class="report-editor-block-list" data-field="items">
+            {% for item in entry.content.items %}
+                <li class="report-editor-block-editable report-editor-list-item"
+                    contenteditable="true"
+                    data-list-index="{{ forloop.counter0 }}"
+                    data-placeholder="Item da lista"
+                    {% if autofocus and forloop.last %}data-autofocus="true"{% endif %}>{{ item }}</li>
+            {% empty %}
+                <li class="report-editor-block-editable report-editor-list-item"
+                    contenteditable="true"
+                    data-list-index="0"
+                    data-placeholder="Item da lista"
+                    {% if autofocus %}data-autofocus="true"{% endif %}></li>
+            {% endfor %}
+        </ol>
+    {% elif entry.block_type == "unordered_list" %}
+        <ul class="report-editor-block-list" data-field="items">
+            {% for item in entry.content.items %}
+                <li class="report-editor-block-editable report-editor-list-item"
+                    contenteditable="true"
+                    data-list-index="{{ forloop.counter0 }}"
+                    data-placeholder="Item da lista"
+                    {% if autofocus and forloop.last %}data-autofocus="true"{% endif %}>{{ item }}</li>
+            {% empty %}
+                <li class="report-editor-block-editable report-editor-list-item"
+                    contenteditable="true"
+                    data-list-index="0"
+                    data-placeholder="Item da lista"
+                    {% if autofocus %}data-autofocus="true"{% endif %}></li>
+            {% endfor %}
+        </ul>
+    {% elif entry.block_type == "link" %}
+        <p class="report-editor-block-editable report-editor-block-link"
+           contenteditable="true"
+           data-field="text"
+           data-placeholder="Texto do link"
+           {% if autofocus %}data-autofocus="true"{% endif %}>{{ entry.content.text|default:"" }}</p>
+    {% elif entry.block_type == "image" %}
+        <figure class="report-editor-block-figure">
+            <div class="report-editor-block-image">
+                {% if entry.content.file %}
+                    <span>{{ entry.content.alt|default:"Imagem" }}</span>
+                {% else %}
+                    <span>Imagem — envio de arquivo em breve</span>
+                {% endif %}
+            </div>
+            <figcaption class="report-editor-block-editable report-editor-block-image-alt"
+                          contenteditable="true"
+                          data-field="alt"
+                          data-placeholder="Descrição da imagem"
+                          {% if autofocus %}data-autofocus="true"{% endif %}>{{ entry.content.alt|default:"" }}</figcaption>
+        </figure>
+    {% elif entry.block_type == "table" %}
+        <p class="report-editor-block-static text-muted small">
+            Tabela — edição interativa em breve.
+        </p>
+    {% else %}
+        <p class="report-editor-block-static text-muted small">{{ entry.block_type_label }}</p>
+    {% endif %}
+</div>

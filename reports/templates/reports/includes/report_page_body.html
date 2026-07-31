@@ -1,7 +1,11 @@
-<article class="report-editor-page">
+<article class="report-editor-page" id="report-editor-page" data-report-id="{{ report.pk }}">
     {% if body_entries %}
         {% for entry in body_entries %}
-            {% include "reports/includes/report_block_preview.html" with entry=entry %}
+            {% if autofocus_node_id == entry.node_id %}
+                {% include "reports/includes/report_block_editable.html" with entry=entry autofocus=True %}
+            {% else %}
+                {% include "reports/includes/report_block_editable.html" with entry=entry autofocus=False %}
+            {% endif %}
         {% endfor %}
     {% else %}
         <div class="report-editor-page-empty">

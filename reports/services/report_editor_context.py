@@ -127,6 +127,39 @@ def _build_body_entries(
     return entries
 
 
+def _body_entry_from_node(node: ReportNode) -> ReportBodyEntry:
+    """Converte nó persistido em entrada de corpo para templates do editor."""
+    block = node.block
+    return ReportBodyEntry(
+        node_id=node.pk,
+        block_type=block.block_type,
+        block_type_label=block.get_block_type_display(),
+        title_level=block.title_level,
+        content=block.content or {},
+    )
+
+
+def render_editable_block_html(
+    node: ReportNode,
+    request,
+    *,
+    autofocus: bool = False,
+    is_caption: bool = False,
+) -> str:
+    """Renderiza partial HTML de bloco editável para respostas da API."""
+    from django.template.loader import render_to_string
+
+    return render_to_string(
+        "reports/includes/report_block_editable.html",
+        {
+            "entry": _body_entry_from_node(node),
+            "autofocus": autofocus,
+            "is_caption": is_caption,
+        },
+        request=request,
+    )
+
+
 def _heading_label(content: dict[str, Any]) -> str:
     """Extrai rótulo de título do payload JSON ou retorna fallback em português."""
     text = content.get("text")

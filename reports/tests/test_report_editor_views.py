@@ -80,10 +80,11 @@ class ReportEditorViewTests(TestCase):
         self.assertContains(response, "Histórico")
         self.assertContains(response, "Descrição dos fatos.")
         self.assertContains(response, 'data-block-type="heading"')
+        self.assertContains(response, "contenteditable")
         self.assertContains(response, "report-editor-page")
 
-    def test_author_sees_empty_state_without_nodes(self):
-        """Garante mensagem de corpo vazio quando relatório não possui blocos."""
+    def test_empty_report_bootstraps_heading_with_autofocus(self):
+        """Garante título H1 vazio com foco quando relatório não possui blocos."""
         empty_report = Report.objects.create(
             author=self.author,
             title="Sem conteúdo",
@@ -94,5 +95,8 @@ class ReportEditorViewTests(TestCase):
         )
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Nenhum título no sumário.")
-        self.assertContains(response, "ainda não possui blocos de conteúdo")
+        self.assertEqual(empty_report.nodes.count(), 1)
+        self.assertContains(response, 'data-block-type="heading"')
+        self.assertContains(response, 'data-autofocus="true"')
+        self.assertContains(response, "contenteditable")
+        self.assertContains(response, "report_editor.js")
