@@ -38,7 +38,7 @@ class ReportBlockContentTests(TestCase):
 
         self.assertEqual(content["headers"], ["", "", "", ""])
         self.assertEqual(len(content["rows"]), 2)
-        self.assertEqual(content["rows"][0], ["", "", "", ""])
+        self.assertEqual(content["rows"][0], [{"type": "text", "text": ""}] * 4)
 
     def test_normalize_table_pads_short_rows(self):
         """Garante normalização de linhas menores que o número de colunas."""
@@ -50,7 +50,41 @@ class ReportBlockContentTests(TestCase):
             },
         )
 
-        self.assertEqual(normalized["rows"], [["1", ""]])
+        self.assertEqual(normalized["rows"], [[{"type": "text", "text": "1"}, {"type": "text", "text": ""}]])
+
+    def test_normalize_image_includes_metadata(self):
+        """Garante normalização de bloco de imagem com metadados de exibição."""
+        normalized = normalize_block_content(
+            ReportBlockType.IMAGE,
+            {
+                "alt": "Figura 1",
+                "file": "reports/abc/photo.jpg",
+                "image_id": "uuid-1",
+                "width": 454,
+                "height": 300,
+            },
+        )
+
+        self.assertEqual(normalized["alt"], "Figura 1")
+        self.assertEqual(normalized["image_id"], "uuid-1")
+        self.assertEqual(normalized["width"], 454)
+        self.assertEqual(normalized["height"], 300)
+
+    def test_normalize_image_accepts_display_resize(self):
+        """Garante que dimensões menores que o original são aceitas no bloco."""
+        normalized = normalize_block_content(
+            ReportBlockType.IMAGE,
+            {
+                "alt": "",
+                "file": "reports/abc/photo.jpg",
+                "image_id": "uuid-1",
+                "width": 200,
+                "height": 150,
+            },
+        )
+
+        self.assertEqual(normalized["width"], 200)
+        self.assertEqual(normalized["height"], 150)
 
 
 class ReportBlockSequenceTests(TestCase):

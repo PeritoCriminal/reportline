@@ -2,9 +2,9 @@
     {% if body_entries %}
         {% for entry in body_entries %}
             {% if autofocus_node_id == entry.node_id %}
-                {% include "reports/includes/report_block_editable.html" with entry=entry autofocus=True %}
+                {% include "reports/includes/report_block_editable.html" with entry=entry is_caption=entry.is_caption autofocus=True %}
             {% else %}
-                {% include "reports/includes/report_block_editable.html" with entry=entry autofocus=False %}
+                {% include "reports/includes/report_block_editable.html" with entry=entry is_caption=entry.is_caption autofocus=False %}
             {% endif %}
         {% endfor %}
     {% else %}

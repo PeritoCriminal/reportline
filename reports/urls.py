@@ -8,6 +8,7 @@ from django.urls import path
 
 from reports.views.report_create_views import ReportCreateView
 from reports.views.report_editor_views import ReportEditorOutlineView, ReportEditorView
+from reports.views.report_image_api_views import ReportImageUploadView
 from reports.views.report_list_views import ReportListView
 from reports.views.report_node_api_views import (
     ReportNodeCreateView,
@@ -37,6 +38,11 @@ urlpatterns = [
         "<uuid:pk>/outline/",
         ReportEditorOutlineView.as_view(),
         name="outline",
+    ),
+    path(
+        "<uuid:pk>/images/upload/",
+        ReportImageUploadView.as_view(),
+        name="image_upload",
     ),
     path(
         "<uuid:pk>/nodes/",

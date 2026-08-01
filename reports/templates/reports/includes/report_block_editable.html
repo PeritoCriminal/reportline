@@ -3,6 +3,12 @@
      data-node-id="{{ entry.node_id }}"
      data-block-type="{{ entry.block_type }}"
      data-title-level="{{ entry.title_level }}"
+     {% if entry.block_type == "image" and entry.content.file %}
+     data-file="{{ entry.content.file }}"
+     data-image-id="{{ entry.content.image_id|default:'' }}"
+     data-image-width="{{ entry.content.width|default:0 }}"
+     data-image-height="{{ entry.content.height|default:0 }}"
+     {% endif %}
      {% if is_caption %}data-is-caption="true"{% endif %}>
     {% if entry.block_type == "heading" %}
         <div class="report-editor-block-heading-wrap d-flex align-items-baseline gap-1">
@@ -66,18 +72,29 @@
            {% if autofocus %}data-autofocus="true"{% endif %}>{{ entry.content.text|default:"" }}</p>
     {% elif entry.block_type == "image" %}
         <figure class="report-editor-block-figure">
-            <div class="report-editor-block-image">
-                {% if entry.content.file %}
-                    <span>{{ entry.content.alt|default:"Imagem" }}</span>
+            <div class="report-editor-block-image{% if entry.content.url %} has-image{% endif %}">
+                {% if entry.content.url %}
+                    <div class="report-editor-block-image-frame">
+                        <img src="{{ entry.content.url }}"
+                             alt="{{ entry.content.alt|default:'' }}"
+                             class="report-editor-block-image-img"
+                             width="{{ entry.content.width }}"
+                             height="{{ entry.content.height }}"
+                             {% if entry.content.width and entry.content.height %}
+                             style="width: {{ entry.content.width }}px; height: {{ entry.content.height }}px;"
+                             {% endif %}
+                             draggable="false">
+                        <div class="report-editor-image-resize-handles" hidden aria-hidden="true">
+                            <span class="report-editor-image-handle" data-handle="nw"></span>
+                            <span class="report-editor-image-handle" data-handle="ne"></span>
+                            <span class="report-editor-image-handle" data-handle="sw"></span>
+                            <span class="report-editor-image-handle" data-handle="se"></span>
+                        </div>
+                    </div>
                 {% else %}
-                    <span>Imagem — envio de arquivo em breve</span>
+                    <span class="report-editor-block-image-placeholder">Selecione uma imagem na barra de ferramentas</span>
                 {% endif %}
             </div>
-            <figcaption class="report-editor-block-editable report-editor-block-image-alt"
-                          contenteditable="true"
-                          data-field="alt"
-                          data-placeholder="Descrição da imagem"
-                          {% if autofocus %}data-autofocus="true"{% endif %}>{{ entry.content.alt|default:"" }}</figcaption>
         </figure>
     {% elif entry.block_type == "table" %}
         <div class="report-editor-block-table-wrap">
@@ -110,13 +127,8 @@
                     {% for row in entry.content.rows %}
                         <tr>
                             {% for cell in row %}
-                                <td>
-                                    <div class="report-editor-block-editable report-editor-table-cell"
-                                         contenteditable="true"
-                                         data-table-part="cell"
-                                         data-row-index="{{ forloop.parentloop.counter0 }}"
-                                         data-col-index="{{ forloop.counter0 }}"
-                                         data-placeholder="Célula">{{ cell }}</div>
+                                <td{% if cell.type == "image" and cell.file %} class="report-editor-table-cell-has-image"{% endif %}>
+                                    {% include "reports/includes/report_table_body_cell_editable.html" with cell=cell row_index=forloop.parentloop.counter0 col_index=forloop.counter0 autofocus=False %}
                                 </td>
                             {% endfor %}
                         </tr>

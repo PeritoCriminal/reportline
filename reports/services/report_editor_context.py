@@ -42,6 +42,24 @@ class ReportBodyEntry:
     title_level: int
     content: dict[str, Any]
     heading_number: str = ""
+    is_caption: bool = False
+
+
+def _enrich_block_content(block_type: str, content: dict[str, Any]) -> dict[str, Any]:
+    """Acrescenta campos derivados ao payload do bloco para templates."""
+    enriched = dict(content)
+    if block_type == ReportBlockType.IMAGE and enriched.get("file"):
+        from django.core.files.storage import default_storage
+
+        enriched["url"] = default_storage.url(enriched["file"])
+    if block_type == ReportBlockType.TABLE:
+        from reports.services.report_table_cell_content import enrich_table_body_cell
+
+        enriched["rows"] = [
+            [enrich_table_body_cell(cell) for cell in row]
+            for row in enriched.get("rows", [])
+        ]
+    return enriched
 
 
 def build_report_editor_context(report: Report) -> dict[str, Any]:
@@ -142,6 +160,26 @@ def _build_outline_tree_from_title_levels(
     return root
 
 
+def _is_caption_paragraph(
+    node: ReportNode,
+    nodes_by_parent: dict[UUID | None, list[ReportNode]],
+) -> bool:
+    """Indica parágrafo imediatamente após bloco de imagem (legenda)."""
+    if node.block.block_type != ReportBlockType.PARAGRAPH:
+        return False
+
+    siblings = nodes_by_parent.get(node.parent_id, [])
+    try:
+        index = siblings.index(node)
+    except ValueError:
+        return False
+
+    if index == 0:
+        return False
+
+    return siblings[index - 1].block.block_type == ReportBlockType.IMAGE
+
+
 def _build_body_entries(
     nodes_by_parent: dict[UUID | None, list[ReportNode]],
     parent_id: UUID | None = None,
@@ -159,8 +197,9 @@ def _build_body_entries(
                 block_type=block.block_type,
                 block_type_label=block.get_block_type_display(),
                 title_level=block.title_level,
-                content=block.content or {},
+                content=_enrich_block_content(block.block_type, block.content or {}),
                 heading_number=heading_numbers.get(node.pk, ""),
+                is_caption=_is_caption_paragraph(node, nodes_by_parent),
             )
         )
         entries.extend(
@@ -189,7 +228,7 @@ def _body_entry_from_node(
         block_type=block.block_type,
         block_type_label=block.get_block_type_display(),
         title_level=block.title_level,
-        content=block.content or {},
+        content=_enrich_block_content(block.block_type, block.content or {}),
         heading_number=numbers.get(node.pk, ""),
     )
 
@@ -233,17 +272,27 @@ def render_editable_block_html(
     request,
     *,
     autofocus: bool = False,
-    is_caption: bool = False,
+    is_caption: bool | None = None,
 ) -> str:
     """Renderiza partial HTML de bloco editável para respostas da API."""
     from django.template.loader import render_to_string
 
+    entry = _body_entry_from_node(node)
+    if is_caption is None and node.block.block_type == ReportBlockType.PARAGRAPH:
+        nodes = list(
+            node.report.nodes.select_related("block").order_by("position", "created_at")
+        )
+        nodes_by_parent = _group_nodes_by_parent(nodes)
+        entry.is_caption = _is_caption_paragraph(node, nodes_by_parent)
+    elif is_caption is not None:
+        entry.is_caption = is_caption
+
     return render_to_string(
         "reports/includes/report_block_editable.html",
         {
-            "entry": _body_entry_from_node(node),
+            "entry": entry,
             "autofocus": autofocus,
-            "is_caption": is_caption,
+            "is_caption": entry.is_caption,
         },
         request=request,
     )

@@ -126,7 +126,10 @@
     }
 
     function getTextField(block) {
-        return block.querySelector('[data-field="text"], [data-field="alt"]');
+        if (block.dataset.blockType === "image") {
+            return null;
+        }
+        return block.querySelector('[data-field="text"]');
     }
 
     function isEditableEmpty(editable) {
@@ -142,10 +145,13 @@
         }
 
         if (blockType === "image") {
-            const altField = block.querySelector('[data-field="alt"]');
+            const img = block.querySelector(".report-editor-block-image-img");
             return {
-                alt: altField ? altField.innerText : "",
+                alt: img ? (img.getAttribute("alt") || "") : "",
                 file: block.dataset.file || "",
+                image_id: block.dataset.imageId || "",
+                width: Number.parseInt(block.dataset.imageWidth || "0", 10) || 0,
+                height: Number.parseInt(block.dataset.imageHeight || "0", 10) || 0,
             };
         }
 
@@ -161,9 +167,25 @@
                 block.querySelectorAll('[data-table-part="header"]')
             ).map((cell) => cell.innerText);
             const rows = Array.from(block.querySelectorAll("tbody tr")).map((rowElement) =>
-                Array.from(rowElement.querySelectorAll('[data-table-part="cell"]')).map(
-                    (cell) => cell.innerText
-                )
+                Array.from(rowElement.querySelectorAll("td")).map((cellElement) => {
+                    const imageWrapper = cellElement.querySelector('[data-cell-type="image"]');
+                    if (imageWrapper) {
+                        const img = imageWrapper.querySelector("img");
+                        return {
+                            type: "image",
+                            alt: img ? (img.getAttribute("alt") || "") : "",
+                            file: imageWrapper.dataset.file || "",
+                            image_id: imageWrapper.dataset.imageId || "",
+                            width: Number.parseInt(imageWrapper.dataset.imageWidth || "0", 10) || 0,
+                            height: Number.parseInt(imageWrapper.dataset.imageHeight || "0", 10) || 0,
+                        };
+                    }
+                    const textCell = cellElement.querySelector('[data-table-part="cell"]');
+                    return {
+                        type: "text",
+                        text: textCell ? textCell.innerText : "",
+                    };
+                })
             );
             return { headers, rows };
         }
@@ -315,6 +337,31 @@
         if (cell) {
             placeCaretAtEnd(cell);
         }
+    }
+
+    function focusCaptionParagraph(paragraphBlock) {
+        const field = paragraphBlock.querySelector('[data-field="text"]');
+        if (field) {
+            placeCaretAtEnd(field);
+            rememberEditorContext(paragraphBlock, field);
+        }
+    }
+
+    async function ensureCaptionParagraphAfterImage(imageBlock) {
+        const nextBlock = imageBlock.nextElementSibling;
+        if (
+            nextBlock
+            && nextBlock.classList.contains("report-editor-block")
+            && nextBlock.dataset.blockType === "paragraph"
+        ) {
+            focusCaptionParagraph(nextBlock);
+            return nextBlock;
+        }
+
+        return createSiblingBlock(imageBlock, "paragraph", {
+            content: { text: "" },
+            isCaption: true,
+        });
     }
 
     function getListItems(block) {
@@ -601,6 +648,9 @@
         if (options.titleLevel !== undefined) {
             payload.title_level = options.titleLevel;
         }
+        if (options.isCaption !== undefined) {
+            payload.is_caption = options.isCaption;
+        }
         if (options.insertion === "before") {
             payload.before_node_id = referenceBlock.dataset.nodeId;
         } else {
@@ -692,15 +742,16 @@
         const tableContent = newBlockType === "table"
             ? (options.content || buildTableContent(options.tableRows ?? 2, options.tableCols ?? 2))
             : null;
+        const imageContent = newBlockType === "image" ? options.content : null;
+        const blockContent = imageContent ?? tableContent ?? options.content;
 
         if (LIST_TYPES.has(block.dataset.blockType)) {
             await saveBlock(block);
-            await createSiblingBlock(
+            return createSiblingBlock(
                 block,
                 newBlockType,
-                siblingInsertOptions(options, { content: tableContent ?? options.content })
+                siblingInsertOptions(options, { content: blockContent })
             );
-            return;
         }
 
         if (block.dataset.blockType === "image" || block.dataset.blockType === "table") {
@@ -708,12 +759,12 @@
             const newBlock = await createSiblingBlock(
                 block,
                 newBlockType,
-                siblingInsertOptions(options, { content: tableContent ?? options.content })
+                siblingInsertOptions(options, { content: blockContent })
             );
             if (newBlockType === "table") {
                 focusTableBlock(newBlock);
             }
-            return;
+            return newBlock;
         }
 
         if (TEXT_BLOCK_TYPES.has(block.dataset.blockType) && editable) {
@@ -722,18 +773,21 @@
             const atStart = caret === 0;
             const atEnd = caret >= fullText.length;
 
-            if (newBlockType === "table") {
+            if (newBlockType === "table" || newBlockType === "image") {
+                const insertContent = newBlockType === "table" ? tableContent : imageContent;
                 if (atStart) {
-                    const tableBlock = await createSiblingBlock(
+                    const insertedBlock = await createSiblingBlock(
                         block,
-                        "table",
+                        newBlockType,
                         siblingInsertOptions(options, {
                             insertion: "before",
-                            content: tableContent,
+                            content: insertContent,
                         })
                     );
-                    focusTableBlock(tableBlock);
-                    return;
+                    if (newBlockType === "table") {
+                        focusTableBlock(insertedBlock);
+                    }
+                    return insertedBlock;
                 }
 
                 if (!atEnd) {
@@ -742,28 +796,33 @@
                     setTextFieldContent(block, beforeText);
                     await saveBlock(block);
                     editable.innerText = beforeText;
-                    const tableBlock = await createSiblingBlock(
+                    const insertedBlock = await createSiblingBlock(
                         block,
-                        "table",
-                        siblingInsertOptions(options, { content: tableContent })
+                        newBlockType,
+                        siblingInsertOptions(options, { content: insertContent })
                     );
-                    focusTableBlock(tableBlock);
+                    if (newBlockType === "table") {
+                        focusTableBlock(insertedBlock);
+                    }
                     if (afterText) {
-                        await createSiblingBlock(tableBlock, "paragraph", {
+                        await createSiblingBlock(insertedBlock, "paragraph", {
                             content: { text: afterText },
                             caretAtStart: true,
+                            isCaption: false,
                         });
                     }
-                    return;
+                    return insertedBlock;
                 }
 
-                const tableBlock = await createSiblingBlock(
+                const insertedBlock = await createSiblingBlock(
                     block,
-                    "table",
-                    siblingInsertOptions(options, { content: tableContent })
+                    newBlockType,
+                    siblingInsertOptions(options, { content: insertContent })
                 );
-                focusTableBlock(tableBlock);
-                return;
+                if (newBlockType === "table") {
+                    focusTableBlock(insertedBlock);
+                }
+                return insertedBlock;
             }
 
             if (atStart) {
@@ -804,11 +863,128 @@
         const newBlock = await createSiblingBlock(
             block,
             newBlockType,
-            siblingInsertOptions(options, { content: tableContent ?? options.content })
+            siblingInsertOptions(options, { content: blockContent })
         );
         if (newBlockType === "table") {
             focusTableBlock(newBlock);
         }
+        return newBlock;
+    }
+
+    function isTableBodyCellEditable(editable) {
+        return Boolean(
+            editable
+            && editable.classList.contains("report-editor-table-cell")
+            && editable.dataset.tablePart === "cell"
+        );
+    }
+
+    function getTableCellUsableWidth(cellElement) {
+        const cellContainer = cellElement.closest("td");
+        if (!cellContainer) {
+            return 0;
+        }
+        return Math.max(32, cellContainer.clientWidth);
+    }
+
+    function buildTableCellImageHtml(imagePayload, displayWidth, displayHeight) {
+        const safeUrl = imagePayload.url || "";
+        return `
+            <div class="report-editor-table-cell-image"
+                 data-cell-type="image"
+                 data-file="${imagePayload.file || ""}"
+                 data-image-id="${imagePayload.image_id || ""}"
+                 data-image-width="${displayWidth}"
+                 data-image-height="${displayHeight}">
+                <img src="${safeUrl}"
+                     alt="${imagePayload.alt || ""}"
+                     class="report-editor-table-cell-img"
+                     width="${displayWidth}"
+                     height="${displayHeight}"
+                     draggable="false">
+            </div>
+        `;
+    }
+
+    function computeImageSizeForCell(imagePayload, usableWidth) {
+        const sourceWidth = imagePayload.width || 1;
+        const sourceHeight = imagePayload.height || 1;
+        const aspectRatio = sourceWidth / sourceHeight;
+        const displayWidth = Math.max(32, usableWidth);
+        const displayHeight = Math.max(1, Math.round(displayWidth / aspectRatio));
+        return { width: displayWidth, height: displayHeight };
+    }
+
+    async function insertImageInTableCell(block, cellElement, imagePayload) {
+        clearSaveTimer(block.dataset.nodeId);
+        const cellContainer = cellElement.closest("td");
+        if (!cellContainer) {
+            return null;
+        }
+
+        cellContainer.classList.add("report-editor-table-cell-has-image");
+        const usableWidth = getTableCellUsableWidth(cellElement);
+        const displaySize = computeImageSizeForCell(imagePayload, usableWidth);
+        cellContainer.innerHTML = buildTableCellImageHtml(
+            imagePayload,
+            displaySize.width,
+            displaySize.height
+        );
+        await saveBlock(block);
+        return block;
+    }
+
+    async function insertImageAtCursor(imagePayload) {
+        const context = resolveInsertContext();
+        if (!context || !context.block) {
+            return null;
+        }
+
+        if (
+            context.block.dataset.blockType === "table"
+            && isTableBodyCellEditable(context.editable)
+        ) {
+            return insertImageInTableCell(
+                context.block,
+                context.editable,
+                imagePayload
+            );
+        }
+
+        const content = {
+            alt: imagePayload.alt || "",
+            file: imagePayload.file || "",
+            image_id: imagePayload.image_id || "",
+            width: imagePayload.width || 0,
+            height: imagePayload.height || 0,
+        };
+        const options = { content };
+        const sourceType = context.block.dataset.blockType;
+        let imageBlock = null;
+
+        if (
+            LIST_TYPES.has(sourceType)
+            && isListItemEditable(context.editable)
+        ) {
+            imageBlock = await insertBlockFromListCursor(
+                context.block,
+                context.editable,
+                "image",
+                options
+            );
+        } else {
+            imageBlock = await insertBlockAtCaret(
+                context.block,
+                context.editable,
+                "image",
+                options
+            );
+        }
+
+        if (imageBlock) {
+            await ensureCaptionParagraphAfterImage(imageBlock);
+        }
+        return imageBlock;
     }
 
     async function insertTableAtCursor(rowCount, columnCount) {
@@ -865,7 +1041,7 @@
         if (block.dataset.blockType === "image") {
             clearSaveTimer(block.dataset.nodeId);
             await saveBlock(block);
-            await createSiblingBlock(block, "paragraph");
+            await ensureCaptionParagraphAfterImage(block);
             return;
         }
 
@@ -1090,5 +1266,5 @@
         focusInitialBlock(page);
     }
 
-    window.ReportLineEditor = { init, insertTableAtCursor };
+    window.ReportLineEditor = { init, insertTableAtCursor, insertImageAtCursor, saveBlock };
 })();

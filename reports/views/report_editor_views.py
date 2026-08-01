@@ -15,6 +15,7 @@ from reports.services.report_editor_context import (
     build_report_editor_context,
     render_outline_refresh_payload,
 )
+from reports.services.report_image_processing import MAX_IMAGE_SIDE_PX
 from reports.views.report_node_api_views import ReportAuthorMixin
 
 
@@ -47,6 +48,7 @@ class ReportEditorView(LoginRequiredMixin, DetailView):
         context["autofocus_node_id"] = (
             self._bootstrapped_node.pk if self._bootstrapped_node else None
         )
+        context["max_image_side_px"] = MAX_IMAGE_SIDE_PX
         return context
 
 

@@ -4,6 +4,7 @@ from .report_block import (
     ReportBlockLineSpacing,
     ReportBlockType,
 )
+from .report_image import ReportImage
 from .report_node import ReportNode
 
 __all__ = [
@@ -11,6 +12,7 @@ __all__ = [
     "ReportBlock",
     "ReportBlockLineSpacing",
     "ReportBlockType",
+    "ReportImage",
     "ReportNode",
     "ReportStatus",
 ]

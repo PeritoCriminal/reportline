@@ -27,7 +27,7 @@ def default_content_for_block_type(block_type: str) -> dict[str, Any]:
     if block_type == ReportBlockType.TABLE:
         return {"headers": [], "rows": []}
     if block_type == ReportBlockType.IMAGE:
-        return {"alt": "", "file": ""}
+        return {"alt": "", "file": "", "image_id": "", "width": 0, "height": 0}
     raise ValidationError("Tipo de bloco não suportado.")
 
 
@@ -39,9 +39,10 @@ def build_empty_table_content(row_count: int, column_count: int) -> dict[str, An
     """
     rows = max(1, min(int(row_count), 20))
     cols = max(1, min(int(column_count), 12))
+    empty_cell = {"type": "text", "text": ""}
     return {
         "headers": [""] * cols,
-        "rows": [[""] * cols for _ in range(rows - 1)],
+        "rows": [[empty_cell.copy() for _ in range(cols)] for _ in range(rows - 1)],
     }
 
 
@@ -78,15 +79,21 @@ def normalize_block_content(block_type: str, content: Any) -> dict[str, Any]:
         rows = content.get("rows", [])
         if not isinstance(headers, list) or not isinstance(rows, list):
             raise ValidationError("Tabela exige headers e rows como listas.")
-        normalized_headers = [str(header) for header in headers]
+
+        from reports.services.report_table_cell_content import (
+            normalize_table_body_cell,
+            normalize_table_header_cell,
+        )
+
+        normalized_headers = [normalize_table_header_cell(header) for header in headers]
         column_count = len(normalized_headers)
         normalized_rows = []
         for row in rows:
             if not isinstance(row, list):
                 raise ValidationError("Cada linha da tabela deve ser uma lista.")
-            cells = [str(cell) for cell in row][:column_count]
+            cells = [normalize_table_body_cell(cell) for cell in row][:column_count]
             while len(cells) < column_count:
-                cells.append("")
+                cells.append({"type": "text", "text": ""})
             normalized_rows.append(cells)
         return {
             "headers": normalized_headers,
@@ -96,8 +103,21 @@ def normalize_block_content(block_type: str, content: Any) -> dict[str, Any]:
     if block_type == ReportBlockType.IMAGE:
         alt = content.get("alt", "")
         file_ref = content.get("file", "")
+        image_id = content.get("image_id", "")
+        width = content.get("width", 0)
+        height = content.get("height", 0)
         if not isinstance(alt, str) or not isinstance(file_ref, str):
             raise ValidationError("Imagem exige alt e file como texto.")
-        return {"alt": alt, "file": file_ref}
+        if image_id is not None and not isinstance(image_id, (str, int)):
+            raise ValidationError("Imagem exige image_id como texto.")
+        if not isinstance(width, int) or not isinstance(height, int):
+            raise ValidationError("Imagem exige width e height inteiros.")
+        return {
+            "alt": alt,
+            "file": file_ref,
+            "image_id": str(image_id) if image_id else "",
+            "width": max(0, width),
+            "height": max(0, height),
+        }
 
     raise ValidationError("Tipo de bloco não suportado.")

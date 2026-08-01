@@ -46,6 +46,10 @@
         reorderNodesUrl: "{% url 'reports:node_reorder' pk=report.pk %}",
         outlineUrl: "{% url 'reports:outline' pk=report.pk %}",
     };
+    window.REPORT_EDITOR_IMAGES = {
+        uploadUrl: "{% url 'reports:image_upload' pk=report.pk %}",
+        maxSidePx: {{ max_image_side_px }},
+    };
 </script>
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.6/Sortable.min.js" defer></script>
 <script src="{% versioned_static 'reports/js/report_outline_accordion.js' %}" defer></script>
@@ -53,6 +57,8 @@
 <script src="{% versioned_static 'reports/js/report_outline_sync.js' %}" defer></script>
 <script src="{% versioned_static 'reports/js/report_editor.js' %}" defer></script>
 <script src="{% versioned_static 'reports/js/report_table_insert.js' %}" defer></script>
+<script src="{% versioned_static 'reports/js/report_image_insert.js' %}" defer></script>
+<script src="{% versioned_static 'reports/js/report_image_resize.js' %}" defer></script>
 {# TODO(produção): remover bloco abaixo (atalho ipsumN) antes do deploy em produção. #}
 {% if report_editor_dev_ipsum %}
 <script src="{% versioned_static 'reports/js/report_editor_dev_ipsum.js' %}" defer></script>
@@ -71,6 +77,12 @@
         }
         if (window.ReportLineTableInsert) {
             window.ReportLineTableInsert.init();
+        }
+        if (window.ReportLineImageInsert && window.REPORT_EDITOR_IMAGES) {
+            window.ReportLineImageInsert.init(window.REPORT_EDITOR_IMAGES);
+        }
+        if (window.ReportLineImageResize) {
+            window.ReportLineImageResize.init(window.REPORT_EDITOR_IMAGES || {});
         }
     });
 </script>

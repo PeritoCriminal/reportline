@@ -1,0 +1,25 @@
+{% if cell.type == "image" and cell.file %}
+    <div class="report-editor-table-cell-image"
+         data-cell-type="image"
+         data-file="{{ cell.file }}"
+         data-image-id="{{ cell.image_id|default:'' }}"
+         data-image-width="{{ cell.width|default:0 }}"
+         data-image-height="{{ cell.height|default:0 }}">
+        {% if cell.url %}
+            <img src="{{ cell.url }}"
+                 alt="{{ cell.alt|default:'' }}"
+                 class="report-editor-table-cell-img"
+                 width="{{ cell.width }}"
+                 height="{{ cell.height }}"
+                 draggable="false">
+        {% endif %}
+    </div>
+{% else %}
+    <div class="report-editor-block-editable report-editor-table-cell"
+         contenteditable="true"
+         data-table-part="cell"
+         data-row-index="{{ row_index }}"
+         data-col-index="{{ col_index }}"
+         data-placeholder="Célula"
+         {% if autofocus %}data-autofocus="true"{% endif %}>{% if cell.type == "text" %}{{ cell.text|default:"" }}{% else %}{{ cell|default:"" }}{% endif %}</div>
+{% endif %}
