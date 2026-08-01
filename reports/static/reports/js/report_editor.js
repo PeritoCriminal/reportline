@@ -9,7 +9,12 @@
 
     const LIST_TYPES = new Set(["ordered_list", "unordered_list"]);
     const TEXT_BLOCK_TYPES = new Set(["heading", "paragraph", "link"]);
-    const HEADING_CONVERTIBLE_TYPES = new Set(["heading", "paragraph"]);
+    const IN_PLACE_CONVERTIBLE_TYPES = new Set([
+        "heading",
+        "paragraph",
+        "ordered_list",
+        "unordered_list",
+    ]);
     const DEBOUNCE_MS = 1500;
 
     let config = {};
@@ -280,34 +285,260 @@
         return replacement;
     }
 
-    async function convertBlockToHeading(block, editable, titleLevel) {
-        clearSaveTimer(block.dataset.nodeId);
-        const field = editable || getTextField(block);
-        const text = field ? field.innerText : "";
-        const nodeId = block.dataset.nodeId;
-        const caret = field ? getCaretOffset(field) : text.length;
+    function getListItems(block) {
+        return Array.from(block.querySelectorAll(".report-editor-list-item")).map(
+            (item) => item.innerText
+        );
+    }
 
-        const data = await apiRequest(updateNodeUrl(nodeId), "PATCH", {
-            content: { text },
-            block_type: "heading",
-            title_level: titleLevel,
-        });
+    function buildContentForBlockType(block, editable, targetBlockType) {
+        const sourceType = block.dataset.blockType;
+
+        if (LIST_TYPES.has(targetBlockType)) {
+            if (LIST_TYPES.has(sourceType)) {
+                const items = getListItems(block);
+                return { items: items.length ? items : [""] };
+            }
+            if (TEXT_BLOCK_TYPES.has(sourceType)) {
+                const field = editable || getTextField(block);
+                const text = field ? field.innerText : "";
+                const lines = text.split("\n");
+                return { items: lines.length ? lines : [""] };
+            }
+        }
+
+        if (targetBlockType === "paragraph") {
+            if (TEXT_BLOCK_TYPES.has(sourceType)) {
+                const field = editable || getTextField(block);
+                return { text: field ? field.innerText : "" };
+            }
+            if (LIST_TYPES.has(sourceType)) {
+                const items = getListItems(block);
+                return { text: items.join("\n") };
+            }
+        }
+
+        if (targetBlockType === "heading") {
+            if (TEXT_BLOCK_TYPES.has(sourceType)) {
+                const field = editable || getTextField(block);
+                return { text: field ? field.innerText : "" };
+            }
+            if (LIST_TYPES.has(sourceType)) {
+                const items = getListItems(block);
+                const text = items.map((item) => item.trim()).filter(Boolean).join(" ");
+                return { text: text || items[0] || "" };
+            }
+        }
+
+        return collectBlockContent(block);
+    }
+
+    function focusConvertedBlock(block, targetBlockType, options = {}) {
+        if (TEXT_BLOCK_TYPES.has(targetBlockType)) {
+            const field = block.querySelector('[data-field="text"]');
+            if (!field) {
+                return;
+            }
+            const caret = options.caret ?? field.innerText.length;
+            setCaretOffset(field, Math.min(caret, field.innerText.length));
+            return;
+        }
+
+        if (LIST_TYPES.has(targetBlockType)) {
+            const items = block.querySelectorAll(".report-editor-list-item");
+            const target = items[options.listItemIndex ?? 0] || items[0];
+            if (target) {
+                const caret = options.caret;
+                if (caret !== undefined) {
+                    setCaretOffset(target, Math.min(caret, target.innerText.length));
+                } else {
+                    placeCaretAtEnd(target);
+                }
+            }
+        }
+    }
+
+    async function convertBlockInPlace(block, editable, targetBlockType, options = {}) {
+        const sourceType = block.dataset.blockType;
+
+        if (
+            sourceType === targetBlockType
+            && targetBlockType !== "heading"
+        ) {
+            if (editable) {
+                placeCaretAtEnd(editable);
+            }
+            return block;
+        }
+
+        if (
+            targetBlockType === "heading"
+            && sourceType === "heading"
+            && options.titleLevel !== undefined
+            && Number.parseInt(block.dataset.titleLevel, 10) === options.titleLevel
+        ) {
+            if (editable) {
+                placeCaretAtEnd(editable);
+            }
+            return block;
+        }
+
+        clearSaveTimer(block.dataset.nodeId);
+
+        const nodeId = block.dataset.nodeId;
+        const content = buildContentForBlockType(block, editable, targetBlockType);
+        const focusOptions = {};
+
+        if (TEXT_BLOCK_TYPES.has(sourceType) && editable) {
+            focusOptions.caret = getCaretOffset(editable);
+        } else if (
+            LIST_TYPES.has(sourceType)
+            && editable
+            && editable.classList.contains("report-editor-list-item")
+        ) {
+            focusOptions.listItemIndex = getListItemIndex(editable);
+            focusOptions.caret = getCaretOffset(editable);
+        }
+
+        const payload = {
+            content,
+            block_type: targetBlockType,
+        };
+        if (targetBlockType === "heading" && options.titleLevel !== undefined) {
+            payload.title_level = options.titleLevel;
+        }
+
+        const data = await apiRequest(updateNodeUrl(nodeId), "PATCH", payload);
 
         let targetBlock = block;
         if (data.html) {
             targetBlock = replaceBlockFromHtml(nodeId, data.html) || block;
         } else {
-            block.dataset.blockType = "heading";
-            block.dataset.titleLevel = String(titleLevel);
+            block.dataset.blockType = targetBlockType;
+            if (targetBlockType === "heading" && options.titleLevel !== undefined) {
+                block.dataset.titleLevel = String(options.titleLevel);
+            }
         }
 
-        const headingField = targetBlock.querySelector('[data-field="text"]');
-        if (headingField) {
-            setCaretOffset(headingField, caret);
+        focusConvertedBlock(targetBlock, targetBlockType, focusOptions);
+
+        if (sourceType === "heading" || targetBlockType === "heading") {
+            await refreshOutlineTree();
         }
 
-        await refreshOutlineTree();
         return targetBlock;
+    }
+
+    function buildNewBlockContent(blockType, text) {
+        if (LIST_TYPES.has(blockType)) {
+            return { items: [text || ""] };
+        }
+        return { text: text || "" };
+    }
+
+    async function patchBlockStructure(block, targetBlockType, content, options = {}) {
+        const nodeId = block.dataset.nodeId;
+        const payload = {
+            content,
+            block_type: targetBlockType,
+        };
+        if (targetBlockType === "heading" && options.titleLevel !== undefined) {
+            payload.title_level = options.titleLevel;
+        }
+
+        const data = await apiRequest(updateNodeUrl(nodeId), "PATCH", payload);
+
+        let targetBlock = block;
+        if (data.html) {
+            targetBlock = replaceBlockFromHtml(nodeId, data.html) || block;
+        }
+
+        return targetBlock;
+    }
+
+    async function insertBlockFromListCursor(block, activeItem, newBlockType, options = {}) {
+        clearSaveTimer(block.dataset.nodeId);
+
+        const listBlockType = block.dataset.blockType;
+        const items = getListItems(block);
+        const index = getListItemIndex(activeItem);
+        const caret = getCaretOffset(activeItem);
+        const text = activeItem.innerText;
+        const atStart = caret === 0;
+        const atEnd = caret >= text.length;
+
+        let beforeItems;
+        let newBlockContent;
+        let afterItems;
+
+        if (atStart) {
+            beforeItems = items.slice(0, index);
+            afterItems = items.slice(index);
+            newBlockContent = buildNewBlockContent(newBlockType, "");
+        } else if (atEnd) {
+            beforeItems = items.slice(0, index + 1);
+            afterItems = items.slice(index + 1);
+            newBlockContent = buildNewBlockContent(newBlockType, "");
+        } else {
+            const beforeText = text.slice(0, caret);
+            const afterText = text.slice(caret);
+            beforeItems = items.slice(0, index).concat(beforeText);
+            afterItems = items.slice(index + 1);
+            newBlockContent = buildNewBlockContent(newBlockType, afterText);
+        }
+
+        const needsHeadingRefresh = newBlockType === "heading";
+
+        if (beforeItems.length === 0) {
+            const convertedBlock = await patchBlockStructure(
+                block,
+                newBlockType,
+                newBlockContent,
+                options
+            );
+            focusConvertedBlock(convertedBlock, newBlockType, {
+                caret: !atStart && !atEnd ? 0 : undefined,
+                listItemIndex: 0,
+            });
+
+            if (afterItems.length > 0) {
+                await createSiblingBlock(convertedBlock, listBlockType, {
+                    content: { items: afterItems },
+                });
+            }
+
+            if (needsHeadingRefresh) {
+                await refreshOutlineTree();
+            }
+            return convertedBlock;
+        }
+
+        await saveBlock(block, { updateListItems: true, items: beforeItems });
+        rebuildListItems(block, beforeItems);
+
+        const insertOptions = siblingInsertOptions(options, {
+            content: newBlockContent,
+            caretAtStart: !atStart && !atEnd,
+        });
+        const newBlock = await createSiblingBlock(block, newBlockType, insertOptions);
+
+        if (afterItems.length > 0) {
+            await createSiblingBlock(newBlock, listBlockType, {
+                content: { items: afterItems },
+            });
+        }
+
+        if (needsHeadingRefresh) {
+            await refreshOutlineTree();
+        }
+
+        return newBlock;
+    }
+
+    function isListItemEditable(editable) {
+        return Boolean(
+            editable && editable.classList.contains("report-editor-list-item")
+        );
     }
 
     async function createSiblingBlock(referenceBlock, blockType, options = {}) {
@@ -641,21 +872,40 @@
                 return;
             }
 
+            const sourceType = context.block.dataset.blockType;
+            const insertOptions = {};
+            if (titleLevelRaw !== undefined && titleLevelRaw !== "") {
+                insertOptions.titleLevel = titleLevel;
+            }
+
             if (
-                blockType === "heading"
-                && HEADING_CONVERTIBLE_TYPES.has(context.block.dataset.blockType)
+                LIST_TYPES.has(sourceType)
+                && isListItemEditable(context.editable)
             ) {
-                convertBlockToHeading(
+                if (blockType === sourceType) {
+                    placeCaretAtEnd(context.editable);
+                    return;
+                }
+                insertBlockFromListCursor(
                     context.block,
                     context.editable,
-                    titleLevel
+                    blockType,
+                    insertOptions
                 ).catch(console.error);
                 return;
             }
 
-            const insertOptions = {};
-            if (titleLevelRaw !== undefined && titleLevelRaw !== "") {
-                insertOptions.titleLevel = titleLevel;
+            if (
+                IN_PLACE_CONVERTIBLE_TYPES.has(blockType)
+                && IN_PLACE_CONVERTIBLE_TYPES.has(sourceType)
+            ) {
+                convertBlockInPlace(
+                    context.block,
+                    context.editable,
+                    blockType,
+                    insertOptions
+                ).catch(console.error);
+                return;
             }
 
             insertBlockAtCaret(

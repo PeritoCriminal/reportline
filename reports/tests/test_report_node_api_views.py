@@ -133,6 +133,68 @@ class ReportNodeApiViewTests(TestCase):
         paragraph_node.block.refresh_from_db()
         self.assertEqual(paragraph_node.block.block_type, ReportBlockType.HEADING)
 
+    def test_patch_converts_paragraph_to_ordered_list_with_html(self):
+        """Garante conversão in-place de parágrafo em lista numerada."""
+        paragraph_block = ReportBlock.objects.create(
+            block_type=ReportBlockType.PARAGRAPH,
+            content={"text": "Item único"},
+        )
+        paragraph_node = ReportNode.objects.create(
+            report=self.report,
+            block=paragraph_block,
+            position=Decimal("3"),
+        )
+
+        response = self._patch_node(
+            paragraph_node,
+            {
+                "content": {"items": ["Item único"]},
+                "block_type": ReportBlockType.ORDERED_LIST,
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertEqual(payload["block_type"], ReportBlockType.ORDERED_LIST)
+        self.assertIn("html", payload)
+        self.assertIn("report-editor-block-list", payload["html"])
+        paragraph_node.block.refresh_from_db()
+        self.assertEqual(
+            paragraph_node.block.content,
+            {"items": ["Item único"]},
+        )
+
+    def test_patch_converts_ordered_list_to_paragraph_with_html(self):
+        """Garante conversão in-place de lista numerada em parágrafo."""
+        list_block = ReportBlock.objects.create(
+            block_type=ReportBlockType.ORDERED_LIST,
+            content={"items": ["Primeiro", "Segundo"]},
+        )
+        list_node = ReportNode.objects.create(
+            report=self.report,
+            block=list_block,
+            position=Decimal("4"),
+        )
+
+        response = self._patch_node(
+            list_node,
+            {
+                "content": {"text": "Primeiro\nSegundo"},
+                "block_type": ReportBlockType.PARAGRAPH,
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertEqual(payload["block_type"], ReportBlockType.PARAGRAPH)
+        self.assertIn("html", payload)
+        self.assertIn("report-editor-block-paragraph", payload["html"])
+        list_node.block.refresh_from_db()
+        self.assertEqual(
+            list_node.block.content,
+            {"text": "Primeiro\nSegundo"},
+        )
+
     def test_non_author_post_receives_404(self):
         """Garante 404 para usuário que não é autor do relatório."""
         response = self._post_node(

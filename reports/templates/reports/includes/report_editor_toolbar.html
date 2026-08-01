@@ -1,85 +1,215 @@
 {% comment %}
-Barra de ferramentas do editor: título, status e inserção de blocos.
+Barra de ferramentas do editor: blocos, formatação (visual) e ações do documento.
+Botões de formatação ainda sem comportamento — apenas layout.
 {% endcomment %}
 <div class="report-editor-toolbar" role="toolbar" aria-label="Ferramentas do editor">
-    <div class="report-editor-toolbar-blocks">
-        <div class="btn-group report-editor-toolbar-heading-group">
+    <div class="report-editor-toolbar-groups">
+        {# 1 — Blocos #}
+        <div class="report-editor-toolbar-group" role="group" aria-label="Inserir blocos">
+            <div class="btn-group report-editor-toolbar-heading-group">
+                <button type="button"
+                        class="btn btn-outline-secondary btn-toolbar-block btn-toolbar-heading-main"
+                        data-insert-block-type="heading"
+                        data-title-level="0"
+                        title="Aplicar título nível 1"
+                        aria-label="Aplicar título nível 1">
+                    <span class="report-editor-toolbar-heading-letter" aria-hidden="true">T</span>
+                </button>
+                <button type="button"
+                        class="btn btn-outline-secondary btn-toolbar-block btn-toolbar-heading-toggle dropdown-toggle dropdown-toggle-split"
+                        data-bs-toggle="dropdown"
+                        aria-expanded="false"
+                        title="Escolher nível do título"
+                        aria-label="Escolher nível do título">
+                    <span class="visually-hidden">Escolher nível do título</span>
+                </button>
+                <ul class="dropdown-menu">
+                    <li>
+                        <button type="button"
+                                class="dropdown-item"
+                                data-insert-block-type="heading"
+                                data-title-level="0">
+                            Título 1
+                        </button>
+                    </li>
+                    <li>
+                        <button type="button"
+                                class="dropdown-item"
+                                data-insert-block-type="heading"
+                                data-title-level="1">
+                            Título 2
+                        </button>
+                    </li>
+                    <li>
+                        <button type="button"
+                                class="dropdown-item"
+                                data-insert-block-type="heading"
+                                data-title-level="2">
+                            Título 3
+                        </button>
+                    </li>
+                    <li>
+                        <button type="button"
+                                class="dropdown-item"
+                                data-insert-block-type="heading"
+                                data-title-level="3">
+                            Título 4
+                        </button>
+                    </li>
+                </ul>
+            </div>
             <button type="button"
-                    class="btn btn-outline-secondary btn-toolbar-block btn-toolbar-heading-main"
-                    data-insert-block-type="heading"
-                    data-title-level="0"
-                    title="Aplicar título nível 1"
-                    aria-label="Aplicar título nível 1">
-                <span class="report-editor-toolbar-heading-letter" aria-hidden="true">T</span>
+                    class="btn btn-outline-secondary btn-toolbar-block"
+                    data-insert-block-type="paragraph"
+                    title="Parágrafo"
+                    aria-label="Inserir parágrafo">
+                <i class="bi bi-text-paragraph" aria-hidden="true"></i>
             </button>
             <button type="button"
-                    class="btn btn-outline-secondary btn-toolbar-block btn-toolbar-heading-toggle dropdown-toggle dropdown-toggle-split"
-                    data-bs-toggle="dropdown"
-                    aria-expanded="false"
-                    title="Escolher nível do título"
-                    aria-label="Escolher nível do título">
-                <span class="visually-hidden">Escolher nível do título</span>
+                    class="btn btn-outline-secondary btn-toolbar-block"
+                    data-insert-block-type="ordered_list"
+                    title="Lista numerada"
+                    aria-label="Inserir lista numerada">
+                <i class="bi bi-list-ol" aria-hidden="true"></i>
             </button>
-            <ul class="dropdown-menu">
-                <li>
-                    <button type="button"
-                            class="dropdown-item"
-                            data-insert-block-type="heading"
-                            data-title-level="0">
-                        Título 1
-                    </button>
-                </li>
-                <li>
-                    <button type="button"
-                            class="dropdown-item"
-                            data-insert-block-type="heading"
-                            data-title-level="1">
-                        Título 2
-                    </button>
-                </li>
-                <li>
-                    <button type="button"
-                            class="dropdown-item"
-                            data-insert-block-type="heading"
-                            data-title-level="2">
-                        Título 3
-                    </button>
-                </li>
-                <li>
-                    <button type="button"
-                            class="dropdown-item"
-                            data-insert-block-type="heading"
-                            data-title-level="3">
-                        Título 4
-                    </button>
-                </li>
-            </ul>
+            <button type="button"
+                    class="btn btn-outline-secondary btn-toolbar-block"
+                    data-insert-block-type="unordered_list"
+                    title="Lista com marcadores"
+                    aria-label="Inserir lista com marcadores">
+                <i class="bi bi-list-ul" aria-hidden="true"></i>
+            </button>
+            <button type="button"
+                    class="btn btn-outline-secondary btn-toolbar-block"
+                    data-insert-block-type="table"
+                    title="Tabela"
+                    aria-label="Inserir tabela">
+                <i class="bi bi-table" aria-hidden="true"></i>
+            </button>
+            <button type="button"
+                    class="btn btn-outline-secondary btn-toolbar-block"
+                    data-insert-block-type="image"
+                    title="Imagem"
+                    aria-label="Inserir imagem">
+                <i class="bi bi-image" aria-hidden="true"></i>
+            </button>
         </div>
-        <button type="button" class="btn btn-outline-secondary btn-toolbar-block"
-                data-insert-block-type="paragraph" title="Parágrafo" aria-label="Inserir parágrafo">
-            <i class="bi bi-text-paragraph" aria-hidden="true"></i>
-        </button>
-        <button type="button" class="btn btn-outline-secondary btn-toolbar-block"
-                data-insert-block-type="ordered_list" title="Lista numerada" aria-label="Inserir lista numerada">
-            <i class="bi bi-list-ol" aria-hidden="true"></i>
-        </button>
-        <button type="button" class="btn btn-outline-secondary btn-toolbar-block"
-                data-insert-block-type="unordered_list" title="Lista com marcadores" aria-label="Inserir lista com marcadores">
-            <i class="bi bi-list-ul" aria-hidden="true"></i>
-        </button>
-        <button type="button" class="btn btn-outline-secondary btn-toolbar-block"
-                data-insert-block-type="link" title="Link" aria-label="Inserir link">
-            <i class="bi bi-link-45deg" aria-hidden="true"></i>
-        </button>
-        <button type="button" class="btn btn-outline-secondary btn-toolbar-block"
-                data-insert-block-type="table" title="Tabela" aria-label="Inserir tabela">
-            <i class="bi bi-table" aria-hidden="true"></i>
-        </button>
-        <button type="button" class="btn btn-outline-secondary btn-toolbar-block"
-                data-insert-block-type="image" title="Imagem" aria-label="Inserir imagem">
-            <i class="bi bi-image" aria-hidden="true"></i>
-        </button>
+
+        <div class="report-editor-toolbar-divider" aria-hidden="true"></div>
+
+        {# 2 — Alinhamento #}
+        <div class="report-editor-toolbar-group" role="group" aria-label="Alinhamento">
+            <button type="button"
+                    class="btn btn-outline-secondary btn-toolbar-block"
+                    disabled
+                    title="Alinhar à direita"
+                    aria-label="Alinhar à direita">
+                <i class="bi bi-text-right" aria-hidden="true"></i>
+            </button>
+            <button type="button"
+                    class="btn btn-outline-secondary btn-toolbar-block"
+                    disabled
+                    title="Centralizar"
+                    aria-label="Centralizar">
+                <i class="bi bi-text-center" aria-hidden="true"></i>
+            </button>
+            <button type="button"
+                    class="btn btn-outline-secondary btn-toolbar-block"
+                    disabled
+                    title="Alinhar à esquerda"
+                    aria-label="Alinhar à esquerda">
+                <i class="bi bi-text-left" aria-hidden="true"></i>
+            </button>
+            <button type="button"
+                    class="btn btn-outline-secondary btn-toolbar-block"
+                    disabled
+                    title="Justificar"
+                    aria-label="Justificar">
+                <i class="bi bi-justify" aria-hidden="true"></i>
+            </button>
+        </div>
+
+        <div class="report-editor-toolbar-divider" aria-hidden="true"></div>
+
+        {# 3 — Recuo #}
+        <div class="report-editor-toolbar-group" role="group" aria-label="Recuo">
+            <button type="button"
+                    class="btn btn-outline-secondary btn-toolbar-block"
+                    disabled
+                    title="Aumentar recuo"
+                    aria-label="Aumentar recuo">
+                <i class="bi bi-text-indent-right" aria-hidden="true"></i>
+            </button>
+            <button type="button"
+                    class="btn btn-outline-secondary btn-toolbar-block"
+                    disabled
+                    title="Diminuir recuo"
+                    aria-label="Diminuir recuo">
+                <i class="bi bi-text-indent-left" aria-hidden="true"></i>
+            </button>
+        </div>
+
+        <div class="report-editor-toolbar-divider" aria-hidden="true"></div>
+
+        {# 4 — Formatação inline #}
+        <div class="report-editor-toolbar-group" role="group" aria-label="Formatação de texto">
+            <button type="button"
+                    class="btn btn-outline-secondary btn-toolbar-block"
+                    disabled
+                    title="Negrito"
+                    aria-label="Negrito">
+                <i class="bi bi-type-bold" aria-hidden="true"></i>
+            </button>
+            <button type="button"
+                    class="btn btn-outline-secondary btn-toolbar-block"
+                    disabled
+                    title="Itálico"
+                    aria-label="Itálico">
+                <i class="bi bi-type-italic" aria-hidden="true"></i>
+            </button>
+            <button type="button"
+                    class="btn btn-outline-secondary btn-toolbar-block"
+                    disabled
+                    title="Sublinhado"
+                    aria-label="Sublinhado">
+                <i class="bi bi-type-underline" aria-hidden="true"></i>
+            </button>
+            <button type="button"
+                    class="btn btn-outline-secondary btn-toolbar-block"
+                    disabled
+                    title="Riscado"
+                    aria-label="Riscado">
+                <i class="bi bi-type-strikethrough" aria-hidden="true"></i>
+            </button>
+            <button type="button"
+                    class="btn btn-outline-secondary btn-toolbar-block"
+                    disabled
+                    title="Link"
+                    aria-label="Inserir link">
+                <i class="bi bi-link-45deg" aria-hidden="true"></i>
+            </button>
+        </div>
+
+        <div class="report-editor-toolbar-divider" aria-hidden="true"></div>
+
+        {# 5 — Ações do documento #}
+        <div class="report-editor-toolbar-group" role="group" aria-label="Ações do relatório">
+            <button type="button"
+                    class="btn btn-outline-secondary btn-toolbar-block"
+                    disabled
+                    title="Gerar PDF"
+                    aria-label="Gerar PDF">
+                <i class="bi bi-file-earmark-pdf" aria-hidden="true"></i>
+            </button>
+            <a class="btn btn-outline-secondary btn-toolbar-block"
+               href="{% url 'reports:list' %}"
+               title="Voltar à lista"
+               aria-label="Voltar à lista de relatórios">
+                <i class="bi bi-arrow-left" aria-hidden="true"></i>
+            </a>
+        </div>
     </div>
+
     <div class="report-editor-toolbar-meta ms-auto">
         <span class="report-editor-toolbar-title text-truncate">{{ report.title }}</span>
         <span class="badge text-bg-secondary">{{ report.get_status_display }}</span>
