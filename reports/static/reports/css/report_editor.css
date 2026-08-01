@@ -611,6 +611,37 @@ body.report-editor-active main {
     text-indent: var(--report-paragraph-first-line-indent, 1.25cm);
 }
 
+.report-editor-block-editable strong,
+.report-editor-block-editable b {
+    font-weight: 700;
+}
+
+.report-editor-block-editable em,
+.report-editor-block-editable i {
+    font-style: italic;
+}
+
+.report-editor-block-editable u {
+    text-decoration: underline;
+}
+
+.report-editor-block-editable s,
+.report-editor-block-editable strike,
+.report-editor-block-editable del {
+    text-decoration: line-through;
+}
+
+.report-editor-block-editable a {
+    color: var(--report-page-link);
+    text-decoration: underline;
+}
+
+.report-editor-toolbar-format-group .btn-toolbar-block.active {
+    color: var(--bs-primary);
+    border-color: var(--bs-primary);
+    background-color: rgba(var(--bs-primary-rgb), 0.12);
+}
+
 .report-editor-block-list {
     margin: 0 0 1rem 1.25rem;
     padding: 0;

@@ -1,6 +1,5 @@
 {% comment %}
-Barra de ferramentas do editor: blocos, formatação (visual) e ações do documento.
-Botões de formatação ainda sem comportamento — apenas layout.
+Barra de ferramentas do editor: blocos, formatação inline e ações do documento.
 {% endcomment %}
 <div class="report-editor-toolbar" role="toolbar" aria-label="Ferramentas do editor">
     <div class="report-editor-toolbar-groups">
@@ -319,40 +318,49 @@ Botões de formatação ainda sem comportamento — apenas layout.
         <div class="report-editor-toolbar-divider" aria-hidden="true"></div>
 
         {# 3 — Formatação inline #}
-        <div class="report-editor-toolbar-group" role="group" aria-label="Formatação de texto">
+        <div class="report-editor-toolbar-group report-editor-toolbar-format-group" role="group" aria-label="Formatação de texto">
             <button type="button"
                     class="btn btn-outline-secondary btn-toolbar-block"
-                    disabled
-                    title="Negrito"
-                    aria-label="Negrito">
+                    data-report-text-format="bold"
+                    title="Negrito (Ctrl+B)"
+                    aria-label="Negrito"
+                    aria-pressed="false"
+                    disabled>
                 <i class="bi bi-type-bold" aria-hidden="true"></i>
             </button>
             <button type="button"
                     class="btn btn-outline-secondary btn-toolbar-block"
-                    disabled
-                    title="Itálico"
-                    aria-label="Itálico">
+                    data-report-text-format="italic"
+                    title="Itálico (Ctrl+I)"
+                    aria-label="Itálico"
+                    aria-pressed="false"
+                    disabled>
                 <i class="bi bi-type-italic" aria-hidden="true"></i>
             </button>
             <button type="button"
                     class="btn btn-outline-secondary btn-toolbar-block"
-                    disabled
-                    title="Sublinhado"
-                    aria-label="Sublinhado">
+                    data-report-text-format="underline"
+                    title="Sublinhado (Ctrl+U)"
+                    aria-label="Sublinhado"
+                    aria-pressed="false"
+                    disabled>
                 <i class="bi bi-type-underline" aria-hidden="true"></i>
             </button>
             <button type="button"
                     class="btn btn-outline-secondary btn-toolbar-block"
-                    disabled
-                    title="Riscado"
-                    aria-label="Riscado">
+                    data-report-text-format="strikethrough"
+                    title="Riscado (Ctrl+Shift+X)"
+                    aria-label="Riscado"
+                    aria-pressed="false"
+                    disabled>
                 <i class="bi bi-type-strikethrough" aria-hidden="true"></i>
             </button>
             <button type="button"
                     class="btn btn-outline-secondary btn-toolbar-block"
-                    disabled
-                    title="Link"
-                    aria-label="Inserir link">
+                    data-report-text-link
+                    title="Inserir link"
+                    aria-label="Inserir link"
+                    disabled>
                 <i class="bi bi-link-45deg" aria-hidden="true"></i>
             </button>
         </div>

@@ -15,13 +15,14 @@ from reports.services.report_block_alignment import (
     default_text_align_for_table_header,
     normalize_text_align,
 )
+from reports.services.report_inline_text import sanitize_inline_text_html
 
 
 def normalize_table_header_cell(cell: Any) -> dict[str, Any]:
     """Normaliza cabeçalho de tabela com texto e alinhamento opcional."""
     if isinstance(cell, str):
         return {
-            "text": cell,
+            "text": sanitize_inline_text_html(cell),
             "align": default_text_align_for_table_header(),
         }
 
@@ -35,7 +36,7 @@ def normalize_table_header_cell(cell: Any) -> dict[str, Any]:
             cell.get("align"),
             default=default_text_align_for_table_header(),
         )
-        return {"text": text, "align": align}
+        return {"text": sanitize_inline_text_html(text), "align": align}
 
     raise ValidationError("Cabeçalho de tabela aceita apenas texto.")
 
@@ -49,7 +50,7 @@ def normalize_table_body_cell(cell: Any) -> dict[str, Any]:
     if isinstance(cell, str):
         return {
             "type": "text",
-            "text": cell,
+            "text": sanitize_inline_text_html(cell),
             "align": default_text_align_for_table_cell("text"),
         }
 
@@ -65,7 +66,7 @@ def normalize_table_body_cell(cell: Any) -> dict[str, Any]:
             cell.get("align"),
             default=default_text_align_for_table_cell("text"),
         )
-        return {"type": "text", "text": text, "align": align}
+        return {"type": "text", "text": sanitize_inline_text_html(text), "align": align}
 
     if cell_type == "image":
         alt = cell.get("alt", "")

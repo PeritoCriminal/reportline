@@ -13,6 +13,7 @@ from typing import Any
 from uuid import UUID
 
 from reports.models import Report, ReportBlockType, ReportNode
+from reports.services.report_inline_text import inline_text_plain
 from reports.services.report_heading_numbering import (
     build_heading_number_map,
     build_heading_number_map_for_report,
@@ -333,5 +334,7 @@ def _heading_label(content: dict[str, Any]) -> str:
     """Extrai rótulo de título do payload JSON ou retorna fallback em português."""
     text = content.get("text")
     if isinstance(text, str) and text.strip():
-        return text.strip()
+        plain = inline_text_plain(text).strip()
+        if plain:
+            return plain
     return "Título sem texto"

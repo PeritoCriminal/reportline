@@ -1,3 +1,4 @@
+{% load report_inline_text %}
 {% if cell.type == "image" and cell.file %}
     <div class="report-editor-table-cell-image"
          data-cell-type="image"
@@ -37,5 +38,5 @@
          data-col-index="{{ col_index }}"
          data-text-align="{{ cell.align|default:'left' }}"
          data-placeholder="Célula"
-         {% if cell_autofocus %}data-autofocus="true"{% endif %}>{% if cell.type == "text" %}{{ cell.text|default:"" }}{% else %}{{ cell|default:"" }}{% endif %}</div>
+         {% if cell_autofocus %}data-autofocus="true"{% endif %}>{% if cell.type == "text" %}{{ cell.text|default:""|inline_text }}{% else %}{{ cell|default:"" }}{% endif %}</div>
 {% endif %}

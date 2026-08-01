@@ -81,18 +81,73 @@
         if (!selection) {
             return;
         }
+
         const range = document.createRange();
-        const textNode = element.firstChild;
-        if (!textNode) {
-            range.selectNodeContents(element);
-            range.collapse(true);
-        } else {
-            const safeOffset = Math.min(Math.max(offset, 0), textNode.textContent.length);
-            range.setStart(textNode, safeOffset);
-            range.collapse(true);
+        let currentOffset = 0;
+        const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
+        let textNode = walker.nextNode();
+
+        while (textNode) {
+            const length = textNode.textContent.length;
+            if (currentOffset + length >= offset) {
+                range.setStart(textNode, offset - currentOffset);
+                range.collapse(true);
+                selection.removeAllRanges();
+                selection.addRange(range);
+                return;
+            }
+            currentOffset += length;
+            textNode = walker.nextNode();
         }
+
+        range.selectNodeContents(element);
+        range.collapse(false);
         selection.removeAllRanges();
         selection.addRange(range);
+    }
+
+    function getInlineTextHelpers() {
+        return window.ReportLineInlineText || null;
+    }
+
+    function getEditableHtml(editable) {
+        if (!editable) {
+            return "";
+        }
+        const helpers = getInlineTextHelpers();
+        return helpers ? helpers.getHtml(editable) : editable.innerHTML;
+    }
+
+    function setEditableHtml(editable, html) {
+        if (!editable) {
+            return;
+        }
+        const helpers = getInlineTextHelpers();
+        if (helpers) {
+            helpers.setHtml(editable, html);
+            return;
+        }
+        editable.innerHTML = html || "";
+    }
+
+    function getEditablePlainText(editable) {
+        if (!editable) {
+            return "";
+        }
+        const helpers = getInlineTextHelpers();
+        return helpers ? helpers.getPlainText(editable) : (editable.textContent || "");
+    }
+
+    function splitEditableAtCaret(editable) {
+        const helpers = getInlineTextHelpers();
+        if (helpers) {
+            return helpers.splitHtmlAtSelection(editable);
+        }
+
+        return {
+            beforeHtml: editable ? editable.innerHTML : "",
+            afterHtml: "",
+        };
     }
 
     function getActiveBlock() {
@@ -137,7 +192,7 @@
     }
 
     function isEditableEmpty(editable) {
-        return editable.innerText.trim() === "";
+        return getEditablePlainText(editable).trim() === "";
     }
 
     function collectBlockContent(block) {
@@ -145,7 +200,7 @@
 
         if (TEXT_BLOCK_TYPES.has(blockType)) {
             const field = getTextField(block);
-            return { text: field ? field.innerText : "" };
+            return { text: field ? getEditableHtml(field) : "" };
         }
 
         if (blockType === "image") {
@@ -161,7 +216,7 @@
 
         if (LIST_TYPES.has(blockType)) {
             const items = Array.from(block.querySelectorAll(".report-editor-list-item")).map(
-                (item) => item.innerText
+                (item) => getEditableHtml(item)
             );
             return { items };
         }
@@ -170,7 +225,7 @@
             const headers = Array.from(
                 block.querySelectorAll('[data-table-part="header"]')
             ).map((cell) => ({
-                text: cell.innerText,
+                text: getEditableHtml(cell),
                 align: cell.dataset.textAlign || "left",
             }));
             const rows = Array.from(block.querySelectorAll("tbody tr")).map((rowElement) =>
@@ -191,7 +246,7 @@
                     const textCell = cellElement.querySelector('[data-table-part="cell"]');
                     return {
                         type: "text",
-                        text: textCell ? textCell.innerText : "",
+                        text: textCell ? getEditableHtml(textCell) : "",
                         align: textCell ? (textCell.dataset.textAlign || "left") : "left",
                     };
                 })
@@ -212,7 +267,7 @@
     function setTextFieldContent(block, text) {
         const field = getTextField(block);
         if (field) {
-            field.innerText = text;
+            setEditableHtml(field, text);
         }
     }
 
@@ -240,7 +295,7 @@
             `.report-editor-outline-link[href="#report-block-${nodeId}"] .report-editor-outline-label`
         );
         if (label) {
-            label.textContent = text.trim() || "Título sem texto";
+            label.textContent = (text || "").trim() || "Título sem texto";
             const link = label.closest(".report-editor-outline-link");
             if (link) {
                 const number = link.querySelector(".report-editor-outline-number");
@@ -452,7 +507,7 @@
 
     function getListItems(block) {
         return Array.from(block.querySelectorAll(".report-editor-list-item")).map(
-            (item) => item.innerText
+            (item) => getEditableHtml(item)
         );
     }
 
@@ -466,7 +521,7 @@
             }
             if (TEXT_BLOCK_TYPES.has(sourceType)) {
                 const field = editable || getTextField(block);
-                const text = field ? field.innerText : "";
+                const text = field ? getEditablePlainText(field) : "";
                 const lines = text.split("\n");
                 return { items: lines.length ? lines : [""] };
             }
@@ -475,7 +530,7 @@
         if (targetBlockType === "paragraph") {
             if (TEXT_BLOCK_TYPES.has(sourceType)) {
                 const field = editable || getTextField(block);
-                return { text: field ? field.innerText : "" };
+                return { text: field ? getEditableHtml(field) : "" };
             }
             if (LIST_TYPES.has(sourceType)) {
                 const items = getListItems(block);
@@ -486,7 +541,7 @@
         if (targetBlockType === "heading") {
             if (TEXT_BLOCK_TYPES.has(sourceType)) {
                 const field = editable || getTextField(block);
-                return { text: field ? field.innerText : "" };
+                return { text: field ? getEditableHtml(field) : "" };
             }
             if (LIST_TYPES.has(sourceType)) {
                 const items = getListItems(block);
@@ -504,8 +559,8 @@
             if (!field) {
                 return;
             }
-            const caret = options.caret ?? field.innerText.length;
-            setCaretOffset(field, Math.min(caret, field.innerText.length));
+            const caret = options.caret ?? getEditablePlainText(field).length;
+            setCaretOffset(field, Math.min(caret, getEditablePlainText(field).length));
             return;
         }
 
@@ -515,7 +570,7 @@
             if (target) {
                 const caret = options.caret;
                 if (caret !== undefined) {
-                    setCaretOffset(target, Math.min(caret, target.innerText.length));
+                    setCaretOffset(target, Math.min(caret, getEditablePlainText(target).length));
                 } else {
                     placeCaretAtEnd(target);
                 }
@@ -654,7 +709,7 @@
         const items = getListItems(block);
         const index = getListItemIndex(activeItem);
         const caret = getCaretOffset(activeItem);
-        const text = activeItem.innerText;
+        const text = getEditablePlainText(activeItem);
         const atStart = caret === 0;
         const atEnd = caret >= text.length;
 
@@ -673,12 +728,11 @@
             newBlockContent = options.content
                 ?? buildNewBlockContent(newBlockType, "", options);
         } else {
-            const beforeText = text.slice(0, caret);
-            const afterText = text.slice(caret);
-            beforeItems = items.slice(0, index).concat(beforeText);
+            const { beforeHtml, afterHtml } = splitEditableAtCaret(activeItem);
+            beforeItems = items.slice(0, index).concat(beforeHtml);
             afterItems = items.slice(index + 1);
             newBlockContent = options.content
-                ?? buildNewBlockContent(newBlockType, afterText, options);
+                ?? buildNewBlockContent(newBlockType, afterHtml, options);
         }
 
         const needsHeadingRefresh = newBlockType === "heading";
@@ -825,19 +879,17 @@
             item.contentEditable = "true";
             item.dataset.listIndex = String(index);
             item.dataset.placeholder = "Item da lista";
-            item.innerText = text;
+            setEditableHtml(item, text);
             list.appendChild(item);
         });
     }
 
     async function handleListEnter(block, activeItem) {
         clearSaveTimer(block.dataset.nodeId);
-        const items = Array.from(block.querySelectorAll(".report-editor-list-item")).map(
-            (item) => item.innerText
-        );
+        const items = getListItems(block);
         const index = getListItemIndex(activeItem);
         const caret = getCaretOffset(activeItem);
-        const text = activeItem.innerText;
+        const text = getEditablePlainText(activeItem);
         const atStart = caret === 0;
         const atEnd = caret >= text.length;
 
@@ -851,10 +903,9 @@
         }
 
         if (!atEnd) {
-            const before = text.slice(0, caret);
-            const after = text.slice(caret);
-            items[index] = before;
-            items.splice(index + 1, 0, after);
+            const { beforeHtml, afterHtml } = splitEditableAtCaret(activeItem);
+            items[index] = beforeHtml;
+            items.splice(index + 1, 0, afterHtml);
             await saveBlock(block, { updateListItems: true, items });
             rebuildListItems(block, items);
             const nextItem = block.querySelectorAll(".report-editor-list-item")[index + 1];
@@ -911,7 +962,7 @@
         }
 
         if (TEXT_BLOCK_TYPES.has(block.dataset.blockType) && editable) {
-            const fullText = editable.innerText;
+            const fullText = getEditablePlainText(editable);
             const caret = getCaretOffset(editable);
             const atStart = caret === 0;
             const atEnd = caret >= fullText.length;
@@ -934,11 +985,10 @@
                 }
 
                 if (!atEnd) {
-                    const beforeText = fullText.slice(0, caret);
-                    const afterText = fullText.slice(caret);
-                    setTextFieldContent(block, beforeText);
+                    const { beforeHtml, afterHtml } = splitEditableAtCaret(editable);
+                    setTextFieldContent(block, beforeHtml);
                     await saveBlock(block);
-                    editable.innerText = beforeText;
+                    setEditableHtml(editable, beforeHtml);
                     const insertedBlock = await createSiblingBlock(
                         block,
                         newBlockType,
@@ -947,9 +997,9 @@
                     if (newBlockType === "table") {
                         focusTableBlock(insertedBlock);
                     }
-                    if (afterText) {
+                    if (afterHtml) {
                         await createSiblingBlock(insertedBlock, "paragraph", {
-                            content: { text: afterText },
+                            content: { text: afterHtml },
                             caretAtStart: true,
                             isCaption: false,
                         });
@@ -984,17 +1034,16 @@
             }
 
             if (!atEnd) {
-                const beforeText = fullText.slice(0, caret);
-                const afterText = fullText.slice(caret);
-                setTextFieldContent(block, beforeText);
+                const { beforeHtml, afterHtml } = splitEditableAtCaret(editable);
+                setTextFieldContent(block, beforeHtml);
                 await saveBlock(block);
-                editable.innerText = beforeText;
+                setEditableHtml(editable, beforeHtml);
                 await createSiblingBlock(
                     block,
                     newBlockType,
                     siblingInsertOptions(options, {
                         insertion: "after",
-                        content: { text: afterText },
+                        content: { text: afterHtml },
                         caretAtStart: true,
                     })
                 );
@@ -1308,9 +1357,7 @@
     }
 
     async function handleListBackspace(block, activeItem) {
-        const items = Array.from(block.querySelectorAll(".report-editor-list-item")).map(
-            (item) => item.innerText
-        );
+        const items = getListItems(block);
         const index = getListItemIndex(activeItem);
 
         if (items.length <= 1) {
@@ -1843,7 +1890,7 @@
                 if (block.dataset.blockType === "heading") {
                     const field = getTextField(block);
                     if (field) {
-                        updateOutlineHeading(block.dataset.nodeId, field.innerText);
+                        updateOutlineHeading(block.dataset.nodeId, getEditablePlainText(field));
                     }
                 }
                 scheduleDebouncedSave(block);
@@ -1880,6 +1927,8 @@
                 event.target.closest("[data-insert-block-type]")
                 || event.target.closest("[data-report-text-align]")
                 || event.target.closest("[data-report-image-align]")
+                || event.target.closest("[data-report-text-format]")
+                || event.target.closest("[data-report-text-link]")
                 || event.target.closest("[data-report-paragraph-indent]")
                 || event.target.closest("[data-report-paragraph-first-line-indent]")
             ) {
@@ -2325,6 +2374,8 @@
         insertTableAtCursor,
         insertImageAtCursor,
         saveBlock,
+        scheduleDebouncedSave,
+        resolveEditorContext: resolveInsertContext,
         resolveTableCellContext,
         clearTableCellContext,
         insertTableRowAfterCursor,

@@ -1,3 +1,4 @@
+{% load report_inline_text %}
 <div id="report-block-{{ entry.node_id }}"
      class="report-editor-block"
      data-node-id="{{ entry.node_id }}"
@@ -40,7 +41,7 @@
                  data-level="{{ entry.title_level }}"
                  data-field="text"
                  data-placeholder="Título do relatório"
-                 {% if autofocus %}data-autofocus="true"{% endif %}>{{ entry.content.text|default:"" }}</div>
+                 {% if autofocus %}data-autofocus="true"{% endif %}>{{ entry.content.text|default:""|inline_text }}</div>
         </div>
     {% elif entry.block_type == "paragraph" %}
         <p class="report-editor-block-editable report-editor-block-paragraph"
@@ -48,7 +49,7 @@
            data-field="text"
            data-first-line-indent="{% if is_caption %}false{% elif entry.first_line_indent != False %}true{% else %}false{% endif %}"
            data-placeholder="{% if is_caption %}Legenda da imagem{% else %}Digite o parágrafo…{% endif %}"
-           {% if autofocus %}data-autofocus="true"{% endif %}>{{ entry.content.text|default:"" }}</p>
+           {% if autofocus %}data-autofocus="true"{% endif %}>{{ entry.content.text|default:""|inline_text }}</p>
     {% elif entry.block_type == "ordered_list" %}
         <ol class="report-editor-block-list" data-field="items">
             {% for item in entry.content.items %}
@@ -56,7 +57,7 @@
                     contenteditable="true"
                     data-list-index="{{ forloop.counter0 }}"
                     data-placeholder="Item da lista"
-                    {% if autofocus and forloop.last %}data-autofocus="true"{% endif %}>{{ item }}</li>
+                    {% if autofocus and forloop.last %}data-autofocus="true"{% endif %}>{{ item|inline_text }}</li>
             {% empty %}
                 <li class="report-editor-block-editable report-editor-list-item"
                     contenteditable="true"
@@ -72,7 +73,7 @@
                     contenteditable="true"
                     data-list-index="{{ forloop.counter0 }}"
                     data-placeholder="Item da lista"
-                    {% if autofocus and forloop.last %}data-autofocus="true"{% endif %}>{{ item }}</li>
+                    {% if autofocus and forloop.last %}data-autofocus="true"{% endif %}>{{ item|inline_text }}</li>
             {% empty %}
                 <li class="report-editor-block-editable report-editor-list-item"
                     contenteditable="true"
@@ -86,7 +87,7 @@
            contenteditable="true"
            data-field="text"
            data-placeholder="Texto do link"
-           {% if autofocus %}data-autofocus="true"{% endif %}>{{ entry.content.text|default:"" }}</p>
+           {% if autofocus %}data-autofocus="true"{% endif %}>{{ entry.content.text|default:""|inline_text }}</p>
     {% elif entry.block_type == "image" %}
         <figure class="report-editor-block-figure">
             <div class="report-editor-block-image{% if entry.content.url %} has-image{% endif %}">
@@ -132,7 +133,7 @@
                                      data-col-index="{{ forloop.counter0 }}"
                                      data-text-align="{{ header.align|default:'left' }}"
                                      data-placeholder="Coluna {{ forloop.counter }}"
-                                     {% if autofocus and focus_table_part == "header" and focus_table_col == forloop.counter0 %}data-autofocus="true"{% elif autofocus and not focus_table_part and forloop.first %}data-autofocus="true"{% endif %}>{{ header.text|default:"" }}</div>
+                                     {% if autofocus and focus_table_part == "header" and focus_table_col == forloop.counter0 %}data-autofocus="true"{% elif autofocus and not focus_table_part and forloop.first %}data-autofocus="true"{% endif %}>{{ header.text|default:""|inline_text }}</div>
                             </th>
                         {% empty %}
                             <th scope="col">

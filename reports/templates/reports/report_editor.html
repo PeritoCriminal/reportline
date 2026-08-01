@@ -36,6 +36,7 @@
     </div>
 </div>
 {% include "reports/includes/report_table_insert_modal.html" %}
+{% include "reports/includes/report_link_insert_modal.html" %}
 {% endblock %}
 
 {% block footer %}{% endblock %}
@@ -55,6 +56,7 @@
 <script src="{% versioned_static 'reports/js/report_outline_accordion.js' %}" defer></script>
 <script src="{% versioned_static 'reports/js/report_outline_dnd.js' %}" defer></script>
 <script src="{% versioned_static 'reports/js/report_outline_sync.js' %}" defer></script>
+<script src="{% versioned_static 'reports/js/report_inline_text.js' %}" defer></script>
 <script src="{% versioned_static 'reports/js/report_editor.js' %}" defer></script>
 <script src="{% versioned_static 'reports/js/report_table_insert.js' %}" defer></script>
 <script src="{% versioned_static 'reports/js/report_table_structure.js' %}" defer></script>
@@ -64,6 +66,8 @@
 <script src="{% versioned_static 'reports/js/report_image_resize.js' %}" defer></script>
 <script src="{% versioned_static 'reports/js/report_image_options.js' %}" defer></script>
 <script src="{% versioned_static 'reports/js/report_paragraph_options.js' %}" defer></script>
+<script src="{% versioned_static 'reports/js/report_text_format.js' %}" defer></script>
+<script src="{% versioned_static 'reports/js/report_text_link.js' %}" defer></script>
 {# TODO(produção): remover bloco abaixo (atalho ipsumN) antes do deploy em produção. #}
 {% if report_editor_dev_ipsum %}
 <script src="{% versioned_static 'reports/js/report_editor_dev_ipsum.js' %}" defer></script>
@@ -103,6 +107,12 @@
         }
         if (window.ReportLineParagraphOptions) {
             window.ReportLineParagraphOptions.init();
+        }
+        if (window.ReportLineTextFormat) {
+            window.ReportLineTextFormat.init();
+        }
+        if (window.ReportLineTextLink) {
+            window.ReportLineTextLink.init();
         }
     });
 </script>

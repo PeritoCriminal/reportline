@@ -12,6 +12,7 @@ from typing import Any
 from django.core.exceptions import ValidationError
 
 from reports.models import ReportBlockType
+from reports.services.report_inline_text import sanitize_inline_text_html
 
 
 def default_content_for_block_type(block_type: str) -> dict[str, Any]:
@@ -69,20 +70,20 @@ def normalize_block_content(block_type: str, content: Any) -> dict[str, Any]:
         text = content.get("text", "")
         if not isinstance(text, str):
             raise ValidationError("O campo text deve ser texto.")
-        return {"text": text}
+        return {"text": sanitize_inline_text_html(text)}
 
     if block_type in (ReportBlockType.ORDERED_LIST, ReportBlockType.UNORDERED_LIST):
         items = content.get("items", [])
         if not isinstance(items, list):
             raise ValidationError("O campo items deve ser uma lista.")
-        return {"items": [str(item) for item in items]}
+        return {"items": [sanitize_inline_text_html(str(item)) for item in items]}
 
     if block_type == ReportBlockType.LINK:
         text = content.get("text", "")
         url = content.get("url", "")
         if not isinstance(text, str) or not isinstance(url, str):
             raise ValidationError("Link exige text e url como texto.")
-        return {"text": text, "url": url}
+        return {"text": sanitize_inline_text_html(text), "url": url}
 
     if block_type == ReportBlockType.TABLE:
         headers = content.get("headers", [])

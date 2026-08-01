@@ -24,6 +24,14 @@ class ReportBlockContentTests(TestCase):
             {"text": ""},
         )
 
+    def test_normalize_paragraph_sanitizes_inline_formatting(self):
+        """Garante persistência segura de negrito e remoção de scripts no texto."""
+        normalized = normalize_block_content(
+            ReportBlockType.PARAGRAPH,
+            {"text": '<strong>Corpo</strong><script>x</script>'},
+        )
+        self.assertEqual(normalized["text"], "<strong>Corpo</strong>x")
+
     def test_normalize_rejects_invalid_list_items(self):
         """Garante erro quando items não é lista."""
         with self.assertRaises(ValidationError):

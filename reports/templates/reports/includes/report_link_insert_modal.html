@@ -1,0 +1,50 @@
+{# Modal para inserir link inline em texto selecionado. #}
+<div class="modal fade"
+     id="reportLinkInsertModal"
+     tabindex="-1"
+     aria-labelledby="reportLinkInsertModalLabel"
+     aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header border-secondary-subtle">
+                <h2 class="modal-title fs-5" id="reportLinkInsertModalLabel">
+                    <i class="bi bi-link-45deg text-primary me-2" aria-hidden="true"></i>
+                    Inserir link
+                </h2>
+                <button type="button"
+                        class="btn-close"
+                        data-bs-dismiss="modal"
+                        aria-label="Fechar"></button>
+            </div>
+            <form id="report-link-insert-form" novalidate>
+                <div class="modal-body">
+                    <label class="form-label" for="report-link-insert-url">
+                        Endereço (URL)
+                    </label>
+                    <input type="text"
+                           class="form-control"
+                           id="report-link-insert-url"
+                           name="url"
+                           placeholder="https://exemplo.gov.br"
+                           autocomplete="url"
+                           inputmode="url"
+                           required>
+                    <div class="invalid-feedback" id="report-link-insert-url-error">
+                        Informe um endereço válido.
+                    </div>
+                    <p class="text-muted small mb-0 mt-2">
+                        Selecione o texto no documento antes de aplicar o link.
+                    </p>
+                </div>
+                <div class="modal-footer border-secondary-subtle">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                        Cancelar
+                    </button>
+                    <button type="submit" class="btn btn-primary" id="report-link-insert-submit">
+                        Aplicar link
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
