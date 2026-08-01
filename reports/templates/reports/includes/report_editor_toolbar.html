@@ -94,7 +94,7 @@ Botões de formatação ainda sem comportamento — apenas layout.
                         aria-expanded="false"
                         title="Opções da tabela"
                         aria-label="Opções da tabela"
-                        hidden>
+                        disabled>
                     <span class="visually-hidden">Opções da tabela</span>
                 </button>
                 <ul class="dropdown-menu report-editor-toolbar-table-menu">
@@ -110,10 +110,28 @@ Botões de formatação ainda sem comportamento — apenas layout.
                     <li>
                         <button type="button"
                                 class="dropdown-item d-flex align-items-center gap-2"
+                                data-report-table-add-col>
+                            <span class="report-editor-toolbar-table-glyph report-editor-toolbar-table-glyph-col-add"
+                                  aria-hidden="true"></span>
+                            Inserir coluna à direita
+                        </button>
+                    </li>
+                    <li>
+                        <button type="button"
+                                class="dropdown-item d-flex align-items-center gap-2"
                                 data-report-table-delete-row>
                             <span class="report-editor-toolbar-table-glyph report-editor-toolbar-table-glyph-row-remove"
                                   aria-hidden="true"></span>
                             Excluir linha
+                        </button>
+                    </li>
+                    <li>
+                        <button type="button"
+                                class="dropdown-item d-flex align-items-center gap-2"
+                                data-report-table-delete-col>
+                            <span class="report-editor-toolbar-table-glyph report-editor-toolbar-table-glyph-col-remove"
+                                  aria-hidden="true"></span>
+                            Excluir coluna
                         </button>
                     </li>
                     <li><hr class="dropdown-divider"></li>
@@ -151,30 +169,74 @@ Botões de formatação ainda sem comportamento — apenas layout.
                     <li>
                         <button type="button"
                                 class="dropdown-item d-flex align-items-center gap-2"
-                                data-report-table-add-col>
-                            <span class="report-editor-toolbar-table-glyph report-editor-toolbar-table-glyph-col-add"
-                                  aria-hidden="true"></span>
-                            Inserir coluna à direita
+                                data-report-table-align="left">
+                            <i class="bi bi-text-left" aria-hidden="true"></i>
+                            Alinhar à esquerda
                         </button>
                     </li>
                     <li>
                         <button type="button"
                                 class="dropdown-item d-flex align-items-center gap-2"
-                                data-report-table-delete-col>
-                            <span class="report-editor-toolbar-table-glyph report-editor-toolbar-table-glyph-col-remove"
-                                  aria-hidden="true"></span>
-                            Excluir coluna
+                                data-report-table-align="center">
+                            <i class="bi bi-text-center" aria-hidden="true"></i>
+                            Alinhar ao centro
+                        </button>
+                    </li>
+                    <li>
+                        <button type="button"
+                                class="dropdown-item d-flex align-items-center gap-2"
+                                data-report-table-align="right">
+                            <i class="bi bi-text-right" aria-hidden="true"></i>
+                            Alinhar à direita
                         </button>
                     </li>
                 </ul>
             </div>
-            <button type="button"
-                    class="btn btn-outline-secondary btn-toolbar-block"
-                    data-report-image-insert
-                    title="Imagem"
-                    aria-label="Inserir imagem">
-                <i class="bi bi-image" aria-hidden="true"></i>
-            </button>
+            <div class="btn-group report-editor-toolbar-image-group">
+                <button type="button"
+                        class="btn btn-outline-secondary btn-toolbar-block btn-toolbar-image-main"
+                        data-report-image-insert
+                        title="Imagem"
+                        aria-label="Inserir imagem">
+                    <i class="bi bi-image" aria-hidden="true"></i>
+                </button>
+                <button type="button"
+                        class="btn btn-outline-secondary btn-toolbar-block btn-toolbar-image-toggle dropdown-toggle dropdown-toggle-split"
+                        data-bs-toggle="dropdown"
+                        data-report-image-options-toggle
+                        aria-expanded="false"
+                        title="Opções da imagem"
+                        aria-label="Opções da imagem"
+                        disabled>
+                    <span class="visually-hidden">Opções da imagem</span>
+                </button>
+                <ul class="dropdown-menu report-editor-toolbar-image-menu">
+                    <li>
+                        <button type="button"
+                                class="dropdown-item d-flex align-items-center gap-2"
+                                data-report-image-align="left">
+                            <i class="bi bi-text-left" aria-hidden="true"></i>
+                            Alinhar à esquerda
+                        </button>
+                    </li>
+                    <li>
+                        <button type="button"
+                                class="dropdown-item d-flex align-items-center gap-2"
+                                data-report-image-align="center">
+                            <i class="bi bi-text-center" aria-hidden="true"></i>
+                            Alinhar ao centro
+                        </button>
+                    </li>
+                    <li>
+                        <button type="button"
+                                class="dropdown-item d-flex align-items-center gap-2"
+                                data-report-image-align="right">
+                            <i class="bi bi-text-right" aria-hidden="true"></i>
+                            Alinhar à direita
+                        </button>
+                    </li>
+                </ul>
+            </div>
         </div>
 
         <div class="report-editor-toolbar-divider" aria-hidden="true"></div>

@@ -164,8 +164,49 @@
         img.style.height = `${height}px`;
 
         if (target.type === "block") {
-            syncCaptionWidth(target.root);
+            syncCaptionLayout(target.root);
         }
+    }
+
+    function normalizeImageAlign(align) {
+        return ["left", "center", "right"].includes(align) ? align : "center";
+    }
+
+    function syncCaptionLayout(imageBlock) {
+        const captionBlock = imageBlock.nextElementSibling;
+        if (!captionBlock || captionBlock.dataset.isCaption !== "true") {
+            return;
+        }
+
+        const align = normalizeImageAlign(imageBlock.dataset.textAlign || "center");
+        captionBlock.dataset.textAlign = align;
+
+        const frame = imageBlock.querySelector(".report-editor-block-image-frame");
+        const width = frame ? frame.offsetWidth : 0;
+        if (width > 0) {
+            captionBlock.style.width = `${width}px`;
+        }
+
+        if (align === "left") {
+            captionBlock.style.marginLeft = "0";
+            captionBlock.style.marginRight = "auto";
+        } else if (align === "right") {
+            captionBlock.style.marginLeft = "auto";
+            captionBlock.style.marginRight = "0";
+        } else {
+            captionBlock.style.marginLeft = "auto";
+            captionBlock.style.marginRight = "auto";
+        }
+    }
+
+    function syncCaptionWidth(imageBlock) {
+        syncCaptionLayout(imageBlock);
+    }
+
+    function notifySelectionChanged() {
+        document.dispatchEvent(new CustomEvent("reportline:image-selection-changed", {
+            detail: { target: selectedTarget },
+        }));
     }
 
     function normalizeSize(target, width, height) {
@@ -225,24 +266,33 @@
     }
 
     function syncCaptionWidth(imageBlock) {
-        const captionBlock = imageBlock.nextElementSibling;
-        if (!captionBlock || captionBlock.dataset.isCaption !== "true") {
-            return;
-        }
-
-        const frame = imageBlock.querySelector(".report-editor-block-image-frame");
-        const width = frame ? frame.offsetWidth : 0;
-        if (width <= 0) {
-            return;
-        }
-
-        captionBlock.style.width = `${width}px`;
-        captionBlock.style.marginLeft = "auto";
-        captionBlock.style.marginRight = "auto";
+        syncCaptionLayout(imageBlock);
     }
 
     function scanCaptionWidths(root) {
-        root.querySelectorAll(".report-editor-block[data-block-type=\"image\"]").forEach(syncCaptionWidth);
+        root.querySelectorAll(".report-editor-block[data-block-type=\"image\"]").forEach((imageBlock) => {
+            if (
+                window.ReportLineEditor
+                && window.ReportLineEditor.applyImageBlockAlignVisual
+            ) {
+                window.ReportLineEditor.applyImageBlockAlignVisual(
+                    imageBlock,
+                    imageBlock.dataset.textAlign || "center"
+                );
+            }
+            syncCaptionLayout(imageBlock);
+        });
+        root.querySelectorAll(".report-editor-table-cell-image").forEach((cellImage) => {
+            if (
+                window.ReportLineEditor
+                && window.ReportLineEditor.applyTableCellImageAlignVisual
+            ) {
+                window.ReportLineEditor.applyTableCellImageAlignVisual(
+                    cellImage,
+                    cellImage.dataset.textAlign || "center"
+                );
+            }
+        });
     }
 
     function showHandles(target) {
@@ -271,6 +321,7 @@
         }
         target.root.focus({ preventScroll: true });
         showHandles(target);
+        notifySelectionChanged();
     }
 
     function deselectTarget() {
@@ -280,6 +331,7 @@
         selectedTarget.root.classList.remove("is-image-selected");
         hideHandles(selectedTarget);
         selectedTarget = null;
+        notifySelectionChanged();
     }
 
     function getAnchorPoint(target, handleName) {
@@ -488,6 +540,7 @@
     window.ReportLineImageResize = {
         init,
         syncCaptionWidth,
+        syncCaptionLayout,
         getSelectedTarget: () => selectedTarget,
         deselectTarget,
     };

@@ -22,6 +22,7 @@
     const saveTimers = new Map();
     let lastEditorContext = null;
     let lastTableCellContext = null;
+    let lastImageSelection = null;
 
     function getCsrfToken() {
         const match = document.cookie.match(/(?:^|;\s*)csrftoken=([^;]+)/);
@@ -200,6 +201,7 @@
                 show_borders: block.dataset.tableShowBorders !== "false",
                 show_header: block.dataset.tableShowHeader !== "false",
                 column_widths: parseTableColumnWidths(block, headers.length),
+                display_width: parseTableDisplayWidth(block),
             };
         }
 
@@ -355,6 +357,14 @@
         return widths;
     }
 
+    function parseTableDisplayWidth(block) {
+        const raw = Number.parseInt(block.dataset.tableDisplayWidth || "0", 10);
+        if (raw >= 20 && raw <= 100) {
+            return raw;
+        }
+        return 100;
+    }
+
     function splitTableColumnWidth(widths, colIndex) {
         const next = [...widths];
         const current = next[colIndex];
@@ -392,6 +402,7 @@
             show_borders: true,
             show_header: true,
             column_widths: equalTableColumnWidths(cols),
+            display_width: 100,
         };
     }
 
@@ -1402,6 +1413,9 @@
             return context.target.dataset.textAlign
                 || (context.kind === "table-cell-image" ? "center" : "left");
         }
+        if (context.block.dataset.blockType === "image") {
+            return context.block.dataset.textAlign || "center";
+        }
         return context.block.dataset.textAlign || "justify";
     }
 
@@ -1429,6 +1443,9 @@
 
         if (context.kind === "table-cell" || context.kind === "table-cell-image") {
             applyTextAlignToTableTarget(context.target, align);
+            if (context.kind === "table-cell-image") {
+                applyTableCellImageAlignVisual(context.target, align);
+            }
             clearSaveTimer(context.block.dataset.nodeId);
             await saveBlock(context.block);
             updateAlignmentToolbar(align);
@@ -1437,10 +1454,149 @@
 
         applyTextAlignToBlock(context.block, align);
         clearSaveTimer(context.block.dataset.nodeId);
+        if (context.block.dataset.blockType === "image") {
+            await syncCaptionWithImageAlign(context.block, align);
+        }
+        if (
+            context.block.dataset.blockType === "table"
+            && window.ReportLineTableWidthResize
+            && window.ReportLineTableWidthResize.refreshTableDisplayLayout
+        ) {
+            window.ReportLineTableWidthResize.refreshTableDisplayLayout(context.block);
+        }
         await apiRequest(updateNodeUrl(context.block.dataset.nodeId), "PATCH", {
             text_align: align,
         });
         updateAlignmentToolbar(align);
+    }
+
+    function getCaptionBlock(imageBlock) {
+        const captionBlock = imageBlock.nextElementSibling;
+        if (captionBlock && captionBlock.dataset.isCaption === "true") {
+            return captionBlock;
+        }
+        return null;
+    }
+
+    function applyImageBlockAlignVisual(imageBlock, align) {
+        const imageWrap = imageBlock.querySelector(".report-editor-block-image");
+        const frame = imageBlock.querySelector(".report-editor-block-image-frame");
+        const normalized = ["left", "center", "right"].includes(align) ? align : "center";
+
+        if (imageWrap) {
+            imageWrap.style.justifyContent = normalized === "left"
+                ? "flex-start"
+                : normalized === "right"
+                    ? "flex-end"
+                    : "center";
+        }
+
+        if (frame) {
+            if (normalized === "left") {
+                frame.style.marginLeft = "0";
+                frame.style.marginRight = "auto";
+            } else if (normalized === "right") {
+                frame.style.marginLeft = "auto";
+                frame.style.marginRight = "0";
+            } else {
+                frame.style.marginLeft = "auto";
+                frame.style.marginRight = "auto";
+            }
+        }
+    }
+
+    function applyTableCellImageAlignVisual(cellImage, align) {
+        const frame = cellImage.querySelector(".report-editor-table-cell-image-frame");
+        const normalized = ["left", "center", "right"].includes(align) ? align : "center";
+
+        if (frame) {
+            if (normalized === "left") {
+                frame.style.marginLeft = "0";
+                frame.style.marginRight = "auto";
+            } else if (normalized === "right") {
+                frame.style.marginLeft = "auto";
+                frame.style.marginRight = "0";
+            } else {
+                frame.style.marginLeft = "auto";
+                frame.style.marginRight = "auto";
+            }
+        }
+    }
+
+    async function syncCaptionWithImageAlign(imageBlock, align) {
+        if (
+            window.ReportLineImageResize
+            && window.ReportLineImageResize.syncCaptionLayout
+        ) {
+            window.ReportLineImageResize.syncCaptionLayout(imageBlock);
+        }
+
+        const captionBlock = getCaptionBlock(imageBlock);
+        if (!captionBlock) {
+            return;
+        }
+
+        applyTextAlignToBlock(captionBlock, align);
+        await apiRequest(updateNodeUrl(captionBlock.dataset.nodeId), "PATCH", {
+            text_align: align,
+        });
+    }
+
+    async function setImageAlign(align, explicitTarget) {
+        const IMAGE_ALIGN_VALUES = new Set(["left", "center", "right"]);
+        if (!IMAGE_ALIGN_VALUES.has(align)) {
+            return;
+        }
+
+        const selectedTarget = explicitTarget || resolveImageSelectionContext();
+        if (!selectedTarget || !selectedTarget.root) {
+            return;
+        }
+
+        if (selectedTarget.type === "block") {
+            applyTextAlignToBlock(selectedTarget.root, align);
+            applyImageBlockAlignVisual(selectedTarget.root, align);
+            clearSaveTimer(selectedTarget.root.dataset.nodeId);
+            await syncCaptionWithImageAlign(selectedTarget.root, align);
+            await apiRequest(updateNodeUrl(selectedTarget.root.dataset.nodeId), "PATCH", {
+                text_align: align,
+            });
+            selectedTarget.root.focus({ preventScroll: true });
+            refreshAlignmentToolbarState();
+            return;
+        }
+
+        applyTextAlignToTableTarget(selectedTarget.root, align);
+        applyTableCellImageAlignVisual(selectedTarget.root, align);
+        clearSaveTimer(selectedTarget.tableBlock.dataset.nodeId);
+        await saveBlock(selectedTarget.tableBlock);
+        selectedTarget.root.focus({ preventScroll: true });
+        refreshAlignmentToolbarState();
+    }
+
+    async function setTableBlockAlign(align) {
+        const TABLE_BLOCK_ALIGN_VALUES = new Set(["left", "center", "right"]);
+        if (!TABLE_BLOCK_ALIGN_VALUES.has(align)) {
+            return;
+        }
+
+        const context = resolveTableCellContext();
+        if (!context || !context.block) {
+            return;
+        }
+
+        const block = context.block;
+        applyTextAlignToBlock(block, align);
+        clearSaveTimer(block.dataset.nodeId);
+        if (
+            window.ReportLineTableWidthResize
+            && window.ReportLineTableWidthResize.refreshTableDisplayLayout
+        ) {
+            window.ReportLineTableWidthResize.refreshTableDisplayLayout(block);
+        }
+        await apiRequest(updateNodeUrl(block.dataset.nodeId), "PATCH", {
+            text_align: align,
+        });
     }
 
     function bindImageDeleteShortcut() {
@@ -1543,6 +1699,8 @@
             if (
                 event.target.closest("[data-insert-block-type]")
                 || event.target.closest("[data-report-text-align]")
+                || event.target.closest("[data-report-image-align]")
+                || event.target.closest("[data-report-image-options-toggle]")
             ) {
                 event.preventDefault();
             }
@@ -1644,6 +1802,7 @@
             show_borders: content.show_borders !== false,
             show_header: content.show_header !== false,
             column_widths: [...(content.column_widths || equalTableColumnWidths(content.headers.length))],
+            display_width: content.display_width ?? 100,
         };
     }
 
@@ -1715,6 +1874,47 @@
             && element.closest
             && element.closest(".report-editor-toolbar-table-group")
         );
+    }
+
+    function isImageToolbarControl(element) {
+        return Boolean(
+            element
+            && element.closest
+            && (
+                element.closest(".report-editor-toolbar-image-group")
+                || element.closest(".report-editor-toolbar-image-menu")
+            )
+        );
+    }
+
+    function rememberImageSelection(target) {
+        if (target && target.root) {
+            lastImageSelection = target;
+        }
+    }
+
+    function clearImageSelectionContext() {
+        lastImageSelection = null;
+    }
+
+    function resolveImageSelectionContext() {
+        if (window.ReportLineImageResize && window.ReportLineImageResize.getSelectedTarget) {
+            const selectedTarget = window.ReportLineImageResize.getSelectedTarget();
+            if (selectedTarget) {
+                rememberImageSelection(selectedTarget);
+                return selectedTarget;
+            }
+        }
+
+        if (
+            lastImageSelection
+            && document.contains(lastImageSelection.root)
+            && isImageToolbarControl(document.activeElement)
+        ) {
+            return lastImageSelection;
+        }
+
+        return null;
     }
 
     function rememberTableCellContext(context) {
@@ -1952,5 +2152,12 @@
         deleteTableColumnAtCursor,
         toggleTableBorders,
         toggleTableHeader,
+        setTableBlockAlign,
+        resolveImageSelectionContext,
+        clearImageSelectionContext,
+        rememberImageSelection,
+        setImageAlign,
+        applyImageBlockAlignVisual,
+        applyTableCellImageAlignVisual,
     };
 })();

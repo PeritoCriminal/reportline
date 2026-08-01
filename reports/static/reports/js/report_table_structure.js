@@ -68,6 +68,20 @@
         });
     }
 
+    function updateTableAlignMenuState(block) {
+        if (!block) {
+            return;
+        }
+
+        const storedAlign = block.dataset.textAlign || "left";
+        const activeAlign = ["left", "center", "right"].includes(storedAlign) ? storedAlign : "left";
+        document.querySelectorAll("[data-report-table-align]").forEach((button) => {
+            const isActive = button.dataset.reportTableAlign === activeAlign;
+            button.classList.toggle("active", isActive);
+            button.setAttribute("aria-pressed", isActive ? "true" : "false");
+        });
+    }
+
     function closeTableDropdown() {
         if (!tableOptionsToggle || !window.bootstrap) {
             return;
@@ -82,12 +96,21 @@
         );
     }
 
+    function setOptionsToggleState(toggle, enabled) {
+        if (!toggle) {
+            return;
+        }
+
+        toggle.disabled = !enabled;
+        if (!enabled) {
+            closeTableDropdown();
+        }
+    }
+
     function updateToolbarVisibility(context) {
         const inTable = Boolean(context && context.block);
 
-        if (tableOptionsToggle) {
-            tableOptionsToggle.hidden = !inTable;
-        }
+        setOptionsToggleState(tableOptionsToggle, inTable);
 
         if (deleteRowButton) {
             deleteRowButton.disabled = !inTable || context.part !== "cell";
@@ -96,6 +119,7 @@
         if (context && context.block) {
             updateBorderToggleState(context.block);
             updateHeaderToggleState(context.block);
+            updateTableAlignMenuState(context.block);
         }
     }
 
@@ -182,6 +206,28 @@
                 return Promise.resolve();
             }
             return window.ReportLineEditor.toggleTableHeader();
+        });
+
+        document.querySelectorAll("[data-report-table-align]").forEach((button) => {
+            button.addEventListener("mousedown", (event) => {
+                event.preventDefault();
+            });
+            button.addEventListener("click", (event) => {
+                event.preventDefault();
+                const align = button.dataset.reportTableAlign;
+                if (!window.ReportLineEditor || !window.ReportLineEditor.setTableBlockAlign) {
+                    return;
+                }
+                window.ReportLineEditor.setTableBlockAlign(align)
+                    .then(() => {
+                        const context = resolveTableCellContext();
+                        if (context && context.block) {
+                            updateTableAlignMenuState(context.block);
+                        }
+                        closeTableDropdown();
+                    })
+                    .catch(console.error);
+            });
         });
 
         tableOptionsToggle.addEventListener("mousedown", () => {

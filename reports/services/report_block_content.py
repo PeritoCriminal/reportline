@@ -25,7 +25,7 @@ def default_content_for_block_type(block_type: str) -> dict[str, Any]:
     if block_type == ReportBlockType.LINK:
         return {"text": "", "url": ""}
     if block_type == ReportBlockType.TABLE:
-        return {"headers": [], "rows": [], "show_borders": True, "show_header": True, "column_widths": []}
+        return {"headers": [], "rows": [], "show_borders": True, "show_header": True, "column_widths": [], "display_width": 100}
     if block_type == ReportBlockType.IMAGE:
         return {"alt": "", "file": "", "image_id": "", "width": 0, "height": 0}
     raise ValidationError("Tipo de bloco não suportado.")
@@ -52,6 +52,7 @@ def build_empty_table_content(row_count: int, column_count: int) -> dict[str, An
         "show_borders": True,
         "show_header": True,
         "column_widths": equal_column_widths(cols),
+        "display_width": 100,
     }
 
 
@@ -94,6 +95,7 @@ def normalize_block_content(block_type: str, content: Any) -> dict[str, Any]:
             normalize_table_header_cell,
         )
         from reports.services.report_table_column_widths import normalize_column_widths
+        from reports.services.report_table_display_width import normalize_display_width
 
         normalized_headers = [normalize_table_header_cell(header) for header in headers]
         column_count = len(normalized_headers)
@@ -115,6 +117,7 @@ def normalize_block_content(block_type: str, content: Any) -> dict[str, Any]:
             raise ValidationError("O campo show_header deve ser verdadeiro ou falso.")
 
         column_widths = normalize_column_widths(content.get("column_widths"), column_count)
+        display_width = normalize_display_width(content.get("display_width"))
 
         return {
             "headers": normalized_headers,
@@ -122,6 +125,7 @@ def normalize_block_content(block_type: str, content: Any) -> dict[str, Any]:
             "show_borders": show_borders,
             "show_header": show_header,
             "column_widths": column_widths,
+            "display_width": display_width,
         }
 
     if block_type == ReportBlockType.IMAGE:

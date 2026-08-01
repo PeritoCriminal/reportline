@@ -3,17 +3,24 @@
      data-node-id="{{ entry.node_id }}"
      data-block-type="{{ entry.block_type }}"
      data-title-level="{{ entry.title_level }}"
-     {% if entry.block_type == "image" and entry.content.file %}
+     {% if entry.block_type == "image" %}
+     {% if entry.content.file %}
      data-file="{{ entry.content.file }}"
      data-image-id="{{ entry.content.image_id|default:'' }}"
      data-image-width="{{ entry.content.width|default:0 }}"
      data-image-height="{{ entry.content.height|default:0 }}"
+     {% endif %}
+     data-text-align="{{ entry.text_align|default:'center' }}"
      {% elif entry.block_type == "table" %}
      data-table-show-borders="{% if entry.content.show_borders == False %}false{% else %}true{% endif %}"
      data-table-show-header="{% if entry.content.show_header == False %}false{% else %}true{% endif %}"
      data-table-column-widths="{{ entry.content.column_widths|join:',' }}"
+     data-table-display-width="{{ entry.content.display_width|default:100 }}"
+     data-text-align="{{ entry.text_align|default:'left' }}"
      {% endif %}
+     {% if entry.block_type != "table" and entry.block_type != "image" %}
      data-text-align="{{ entry.text_align|default:'justify' }}"
+     {% endif %}
      {% if entry.block_type == "heading" and not entry.heading_number %}data-is-main-title="true"{% endif %}
      {% if is_caption %}data-is-caption="true"{% endif %}>
     {% if entry.block_type == "heading" %}
@@ -158,6 +165,18 @@
                     {% endfor %}
                 </tbody>
             </table>
+            <div class="report-editor-table-width-resizers" aria-hidden="true">
+                <div class="report-editor-table-width-resizer report-editor-table-width-resizer-left"
+                     data-table-width-edge="left"
+                     role="separator"
+                     aria-orientation="vertical"
+                     aria-label="Redimensionar largura da tabela pela borda esquerda"></div>
+                <div class="report-editor-table-width-resizer report-editor-table-width-resizer-right"
+                     data-table-width-edge="right"
+                     role="separator"
+                     aria-orientation="vertical"
+                     aria-label="Redimensionar largura da tabela pela borda direita"></div>
+            </div>
             <div class="report-editor-table-column-resizers" aria-hidden="true"></div>
         </div>
     {% else %}

@@ -46,6 +46,7 @@ class ReportBlockContentTests(TestCase):
             [{"type": "text", "text": "", "align": "left"}] * 4,
         )
         self.assertEqual(content["column_widths"], [25, 25, 25, 25])
+        self.assertEqual(content["display_width"], 100)
 
     def test_normalize_table_pads_short_rows(self):
         """Garante normalização de linhas menores que o número de colunas."""
