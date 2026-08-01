@@ -80,9 +80,50 @@
                           {% if autofocus %}data-autofocus="true"{% endif %}>{{ entry.content.alt|default:"" }}</figcaption>
         </figure>
     {% elif entry.block_type == "table" %}
-        <p class="report-editor-block-static text-muted small">
-            Tabela — edição interativa em breve.
-        </p>
+        <div class="report-editor-block-table-wrap">
+            <table class="report-editor-block-table table table-sm mb-0"
+                   data-field="table">
+                <thead>
+                    <tr>
+                        {% for header in entry.content.headers %}
+                            <th scope="col">
+                                <div class="report-editor-block-editable report-editor-table-cell"
+                                     contenteditable="true"
+                                     data-table-part="header"
+                                     data-col-index="{{ forloop.counter0 }}"
+                                     data-placeholder="Coluna {{ forloop.counter }}"
+                                     {% if autofocus and forloop.first %}data-autofocus="true"{% endif %}>{{ header }}</div>
+                            </th>
+                        {% empty %}
+                            <th scope="col">
+                                <div class="report-editor-block-editable report-editor-table-cell"
+                                     contenteditable="true"
+                                     data-table-part="header"
+                                     data-col-index="0"
+                                     data-placeholder="Coluna 1"
+                                     {% if autofocus %}data-autofocus="true"{% endif %}></div>
+                            </th>
+                        {% endfor %}
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in entry.content.rows %}
+                        <tr>
+                            {% for cell in row %}
+                                <td>
+                                    <div class="report-editor-block-editable report-editor-table-cell"
+                                         contenteditable="true"
+                                         data-table-part="cell"
+                                         data-row-index="{{ forloop.parentloop.counter0 }}"
+                                         data-col-index="{{ forloop.counter0 }}"
+                                         data-placeholder="Célula">{{ cell }}</div>
+                                </td>
+                            {% endfor %}
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
     {% else %}
         <p class="report-editor-block-static text-muted small">{{ entry.block_type_label }}</p>
     {% endif %}

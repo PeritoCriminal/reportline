@@ -7,6 +7,7 @@ from django.test import TestCase
 
 from reports.models import ReportBlockType
 from reports.services.report_block_content import (
+    build_empty_table_content,
     default_content_for_block_type,
     normalize_block_content,
 )
@@ -30,6 +31,26 @@ class ReportBlockContentTests(TestCase):
                 ReportBlockType.ORDERED_LIST,
                 {"items": "invalido"},
             )
+
+    def test_build_empty_table_content_includes_header_row(self):
+        """Garante payload com cabeçalho e linhas conforme dimensões escolhidas."""
+        content = build_empty_table_content(3, 4)
+
+        self.assertEqual(content["headers"], ["", "", "", ""])
+        self.assertEqual(len(content["rows"]), 2)
+        self.assertEqual(content["rows"][0], ["", "", "", ""])
+
+    def test_normalize_table_pads_short_rows(self):
+        """Garante normalização de linhas menores que o número de colunas."""
+        normalized = normalize_block_content(
+            ReportBlockType.TABLE,
+            {
+                "headers": ["A", "B"],
+                "rows": [["1"]],
+            },
+        )
+
+        self.assertEqual(normalized["rows"], [["1", ""]])
 
 
 class ReportBlockSequenceTests(TestCase):

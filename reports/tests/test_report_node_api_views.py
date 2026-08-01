@@ -262,6 +262,26 @@ class ReportNodeApiViewTests(TestCase):
         self.assertEqual(response.json()["insertion"], "before")
         self.assertEqual(self.report.nodes.count(), 3)
 
+    def test_post_creates_table_with_dimensions(self):
+        """Garante inserção de tabela com dimensões informadas no conteúdo."""
+        from reports.services.report_block_content import build_empty_table_content
+
+        table_content = build_empty_table_content(3, 2)
+        response = self._post_node(
+            {
+                "after_node_id": str(self.node.pk),
+                "block_type": ReportBlockType.TABLE,
+                "content": table_content,
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertEqual(payload["block_type"], ReportBlockType.TABLE)
+        self.assertIn("report-editor-block-table", payload["html"])
+        node = ReportNode.objects.get(pk=payload["node_id"])
+        self.assertEqual(node.block.content, table_content)
+
     def test_delete_node_via_api(self):
         """Garante exclusão de nó via DELETE."""
         paragraph_block = ReportBlock.objects.create(

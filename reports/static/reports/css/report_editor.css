@@ -376,10 +376,77 @@ body.report-editor-active main {
     color: var(--report-page-color);
 }
 
+.report-editor-block-table-wrap {
+    margin: 0 0 1rem;
+    overflow-x: auto;
+}
+
+.report-editor-table-cell {
+    min-width: 4rem;
+    min-height: 1.5rem;
+    outline: none;
+}
+
+.report-editor-table-cell:empty::before {
+    content: attr(data-placeholder);
+    color: var(--report-page-muted);
+    pointer-events: none;
+}
+
+.report-editor-block-table th,
+.report-editor-block-table td {
+    vertical-align: top;
+}
+
 .report-editor-block-table th,
 .report-editor-block-table td {
     border: 1px solid var(--report-page-border);
     padding: 0.375rem 0.5rem;
+}
+
+.report-table-insert-grid-wrap {
+    overflow-x: auto;
+}
+
+.report-table-insert-grid {
+    display: inline-flex;
+    flex-direction: column;
+    gap: 0.125rem;
+    padding: 0.25rem;
+    border: 1px solid var(--bs-border-color);
+    border-radius: 0.375rem;
+    background-color: var(--bs-body-bg);
+}
+
+.report-table-insert-grid-row {
+    display: flex;
+    gap: 0.125rem;
+}
+
+.report-table-insert-grid-cell {
+    width: 1.125rem;
+    height: 1.125rem;
+    padding: 0;
+    border: 1px solid var(--bs-border-color);
+    border-radius: 0.125rem;
+    background-color: var(--bs-tertiary-bg);
+    cursor: pointer;
+}
+
+.report-table-insert-grid-cell.is-selected {
+    background-color: var(--bs-primary);
+    border-color: var(--bs-primary);
+}
+
+.report-table-insert-grid-cell:focus-visible {
+    outline: 2px solid var(--bs-primary);
+    outline-offset: 1px;
+}
+
+.report-table-insert-size {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--bs-body-color);
 }
 
 .report-editor-block-image {

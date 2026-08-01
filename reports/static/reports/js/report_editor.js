@@ -156,6 +156,18 @@
             return { items };
         }
 
+        if (blockType === "table") {
+            const headers = Array.from(
+                block.querySelectorAll('[data-table-part="header"]')
+            ).map((cell) => cell.innerText);
+            const rows = Array.from(block.querySelectorAll("tbody tr")).map((rowElement) =>
+                Array.from(rowElement.querySelectorAll('[data-table-part="cell"]')).map(
+                    (cell) => cell.innerText
+                )
+            );
+            return { headers, rows };
+        }
+
         return {};
     }
 
@@ -283,6 +295,26 @@
         const replacement = current.nextElementSibling;
         current.remove();
         return replacement;
+    }
+
+    function buildTableContent(rowCount, columnCount) {
+        const rows = Math.max(1, Math.min(rowCount, 20));
+        const cols = Math.max(1, Math.min(columnCount, 12));
+        return {
+            headers: Array(cols).fill(""),
+            rows: Array(Math.max(0, rows - 1))
+                .fill(null)
+                .map(() => Array(cols).fill("")),
+        };
+    }
+
+    function focusTableBlock(block) {
+        const cell = block.querySelector(
+            '[data-table-part="header"][data-autofocus="true"], [data-table-part="header"]'
+        );
+        if (cell) {
+            placeCaretAtEnd(cell);
+        }
     }
 
     function getListItems(block) {
@@ -429,7 +461,16 @@
         return targetBlock;
     }
 
-    function buildNewBlockContent(blockType, text) {
+    function buildNewBlockContent(blockType, text, options = {}) {
+        if (blockType === "table") {
+            if (options.content) {
+                return options.content;
+            }
+            return buildTableContent(
+                options.tableRows ?? 2,
+                options.tableCols ?? 2
+            );
+        }
         if (LIST_TYPES.has(blockType)) {
             return { items: [text || ""] };
         }
@@ -474,17 +515,20 @@
         if (atStart) {
             beforeItems = items.slice(0, index);
             afterItems = items.slice(index);
-            newBlockContent = buildNewBlockContent(newBlockType, "");
+            newBlockContent = options.content
+                ?? buildNewBlockContent(newBlockType, "", options);
         } else if (atEnd) {
             beforeItems = items.slice(0, index + 1);
             afterItems = items.slice(index + 1);
-            newBlockContent = buildNewBlockContent(newBlockType, "");
+            newBlockContent = options.content
+                ?? buildNewBlockContent(newBlockType, "", options);
         } else {
             const beforeText = text.slice(0, caret);
             const afterText = text.slice(caret);
             beforeItems = items.slice(0, index).concat(beforeText);
             afterItems = items.slice(index + 1);
-            newBlockContent = buildNewBlockContent(newBlockType, afterText);
+            newBlockContent = options.content
+                ?? buildNewBlockContent(newBlockType, afterText, options);
         }
 
         const needsHeadingRefresh = newBlockType === "heading";
@@ -500,6 +544,10 @@
                 caret: !atStart && !atEnd ? 0 : undefined,
                 listItemIndex: 0,
             });
+
+            if (newBlockType === "table") {
+                focusTableBlock(convertedBlock);
+            }
 
             if (afterItems.length > 0) {
                 await createSiblingBlock(convertedBlock, listBlockType, {
@@ -521,6 +569,10 @@
             caretAtStart: !atStart && !atEnd,
         });
         const newBlock = await createSiblingBlock(block, newBlockType, insertOptions);
+
+        if (newBlockType === "table") {
+            focusTableBlock(newBlock);
+        }
 
         if (afterItems.length > 0) {
             await createSiblingBlock(newBlock, listBlockType, {
@@ -637,16 +689,30 @@
 
     async function insertBlockAtCaret(block, editable, newBlockType, options = {}) {
         clearSaveTimer(block.dataset.nodeId);
+        const tableContent = newBlockType === "table"
+            ? (options.content || buildTableContent(options.tableRows ?? 2, options.tableCols ?? 2))
+            : null;
 
         if (LIST_TYPES.has(block.dataset.blockType)) {
             await saveBlock(block);
-            await createSiblingBlock(block, newBlockType, siblingInsertOptions(options));
+            await createSiblingBlock(
+                block,
+                newBlockType,
+                siblingInsertOptions(options, { content: tableContent ?? options.content })
+            );
             return;
         }
 
         if (block.dataset.blockType === "image" || block.dataset.blockType === "table") {
             await saveBlock(block);
-            await createSiblingBlock(block, newBlockType, siblingInsertOptions(options));
+            const newBlock = await createSiblingBlock(
+                block,
+                newBlockType,
+                siblingInsertOptions(options, { content: tableContent ?? options.content })
+            );
+            if (newBlockType === "table") {
+                focusTableBlock(newBlock);
+            }
             return;
         }
 
@@ -655,6 +721,50 @@
             const caret = getCaretOffset(editable);
             const atStart = caret === 0;
             const atEnd = caret >= fullText.length;
+
+            if (newBlockType === "table") {
+                if (atStart) {
+                    const tableBlock = await createSiblingBlock(
+                        block,
+                        "table",
+                        siblingInsertOptions(options, {
+                            insertion: "before",
+                            content: tableContent,
+                        })
+                    );
+                    focusTableBlock(tableBlock);
+                    return;
+                }
+
+                if (!atEnd) {
+                    const beforeText = fullText.slice(0, caret);
+                    const afterText = fullText.slice(caret);
+                    setTextFieldContent(block, beforeText);
+                    await saveBlock(block);
+                    editable.innerText = beforeText;
+                    const tableBlock = await createSiblingBlock(
+                        block,
+                        "table",
+                        siblingInsertOptions(options, { content: tableContent })
+                    );
+                    focusTableBlock(tableBlock);
+                    if (afterText) {
+                        await createSiblingBlock(tableBlock, "paragraph", {
+                            content: { text: afterText },
+                            caretAtStart: true,
+                        });
+                    }
+                    return;
+                }
+
+                const tableBlock = await createSiblingBlock(
+                    block,
+                    "table",
+                    siblingInsertOptions(options, { content: tableContent })
+                );
+                focusTableBlock(tableBlock);
+                return;
+            }
 
             if (atStart) {
                 await createSiblingBlock(
@@ -691,7 +801,48 @@
         }
 
         await saveBlock(block);
-        await createSiblingBlock(block, newBlockType, siblingInsertOptions(options));
+        const newBlock = await createSiblingBlock(
+            block,
+            newBlockType,
+            siblingInsertOptions(options, { content: tableContent ?? options.content })
+        );
+        if (newBlockType === "table") {
+            focusTableBlock(newBlock);
+        }
+    }
+
+    async function insertTableAtCursor(rowCount, columnCount) {
+        const context = resolveInsertContext();
+        if (!context || !context.block) {
+            return null;
+        }
+
+        const content = buildTableContent(rowCount, columnCount);
+        const options = {
+            content,
+            tableRows: rowCount,
+            tableCols: columnCount,
+        };
+        const sourceType = context.block.dataset.blockType;
+
+        if (
+            LIST_TYPES.has(sourceType)
+            && isListItemEditable(context.editable)
+        ) {
+            return insertBlockFromListCursor(
+                context.block,
+                context.editable,
+                "table",
+                options
+            );
+        }
+
+        return insertBlockAtCaret(
+            context.block,
+            context.editable,
+            "table",
+            options
+        );
     }
 
     async function handleTextBlockEnter(block, editable) {
@@ -939,5 +1090,5 @@
         focusInitialBlock(page);
     }
 
-    window.ReportLineEditor = { init };
+    window.ReportLineEditor = { init, insertTableAtCursor };
 })();

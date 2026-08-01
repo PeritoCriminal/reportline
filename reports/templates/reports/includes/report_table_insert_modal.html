@@ -1,0 +1,47 @@
+{# Modal para escolher dimensões da tabela antes da inserção no editor. #}
+<div class="modal fade"
+     id="reportTableInsertModal"
+     tabindex="-1"
+     aria-labelledby="reportTableInsertModalLabel"
+     aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header border-secondary-subtle">
+                <h2 class="modal-title fs-5" id="reportTableInsertModalLabel">
+                    <i class="bi bi-table text-primary me-2" aria-hidden="true"></i>
+                    Inserir tabela
+                </h2>
+                <button type="button"
+                        class="btn-close"
+                        data-bs-dismiss="modal"
+                        aria-label="Fechar"></button>
+            </div>
+            <div class="modal-body">
+                <p class="text-muted small mb-3">
+                    Passe o mouse sobre a grade para escolher linhas e colunas.
+                </p>
+                <div class="report-table-insert-grid-wrap">
+                    <div class="report-table-insert-grid"
+                         id="report-table-insert-grid"
+                         role="grid"
+                         aria-label="Selecionar tamanho da tabela"></div>
+                </div>
+                <p class="report-table-insert-size mb-0 mt-3"
+                   id="report-table-insert-size-label"
+                   aria-live="polite">
+                    1 × 1
+                </p>
+            </div>
+            <div class="modal-footer border-secondary-subtle">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    Cancelar
+                </button>
+                <button type="button"
+                        class="btn btn-primary"
+                        id="report-table-insert-submit">
+                    Inserir tabela
+                </button>
+            </div>
+        </div>
+    </div>
+</div>

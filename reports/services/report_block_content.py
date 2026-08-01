@@ -31,6 +31,20 @@ def default_content_for_block_type(block_type: str) -> dict[str, Any]:
     raise ValidationError("Tipo de bloco não suportado.")
 
 
+def build_empty_table_content(row_count: int, column_count: int) -> dict[str, Any]:
+    """
+    Monta payload vazio de tabela com dimensões informadas.
+
+    A primeira linha corresponde ao cabeçalho; ``row_count`` inclui essa linha.
+    """
+    rows = max(1, min(int(row_count), 20))
+    cols = max(1, min(int(column_count), 12))
+    return {
+        "headers": [""] * cols,
+        "rows": [[""] * cols for _ in range(rows - 1)],
+    }
+
+
 def normalize_block_content(block_type: str, content: Any) -> dict[str, Any]:
     """
     Normaliza e valida o payload ``content`` para o tipo informado.
@@ -64,9 +78,19 @@ def normalize_block_content(block_type: str, content: Any) -> dict[str, Any]:
         rows = content.get("rows", [])
         if not isinstance(headers, list) or not isinstance(rows, list):
             raise ValidationError("Tabela exige headers e rows como listas.")
+        normalized_headers = [str(header) for header in headers]
+        column_count = len(normalized_headers)
+        normalized_rows = []
+        for row in rows:
+            if not isinstance(row, list):
+                raise ValidationError("Cada linha da tabela deve ser uma lista.")
+            cells = [str(cell) for cell in row][:column_count]
+            while len(cells) < column_count:
+                cells.append("")
+            normalized_rows.append(cells)
         return {
-            "headers": [str(header) for header in headers],
-            "rows": [[str(cell) for cell in row] for row in rows],
+            "headers": normalized_headers,
+            "rows": normalized_rows,
         }
 
     if block_type == ReportBlockType.IMAGE:
