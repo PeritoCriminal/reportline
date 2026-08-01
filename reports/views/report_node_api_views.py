@@ -122,6 +122,10 @@ class ReportNodeDetailView(ReportAuthorMixin, View):
 
             block_type = payload.get("block_type")
             title_level = payload.get("title_level")
+            refresh_html = bool(payload.get("refresh_html"))
+            focus_table_part = payload.get("focus_table_part")
+            focus_table_row = payload.get("focus_table_row")
+            focus_table_col = payload.get("focus_table_col")
             structure_changed = block_type is not None or title_level is not None
 
             node = update_node_block(
@@ -140,8 +144,20 @@ class ReportNodeDetailView(ReportAuthorMixin, View):
             "title_level": block.title_level,
             "content": block.content,
         }
-        if structure_changed:
-            response["html"] = render_editable_block_html(node, request, autofocus=True)
+        if structure_changed or refresh_html:
+            focus_kwargs = {}
+            if focus_table_part in ("header", "cell"):
+                focus_kwargs["focus_table_part"] = focus_table_part
+            if focus_table_row is not None:
+                focus_kwargs["focus_table_row"] = int(focus_table_row)
+            if focus_table_col is not None:
+                focus_kwargs["focus_table_col"] = int(focus_table_col)
+            response["html"] = render_editable_block_html(
+                node,
+                request,
+                autofocus=True,
+                **focus_kwargs,
+            )
         return JsonResponse(response)
 
     def delete(self, request, pk, node_id):

@@ -20,6 +20,7 @@
     let config = {};
     const saveTimers = new Map();
     let lastEditorContext = null;
+    let lastTableCellContext = null;
 
     function getCsrfToken() {
         const match = document.cookie.match(/(?:^|;\s*)csrftoken=([^;]+)/);
@@ -187,7 +188,11 @@
                     };
                 })
             );
-            return { headers, rows };
+            return {
+                headers,
+                rows,
+                show_borders: block.dataset.tableShowBorders !== "false",
+            };
         }
 
         return {};
@@ -327,6 +332,7 @@
             rows: Array(Math.max(0, rows - 1))
                 .fill(null)
                 .map(() => Array(cols).fill("")),
+            show_borders: true,
         };
     }
 
@@ -1251,6 +1257,268 @@
         }
     }
 
+    const MAX_TABLE_BODY_ROWS = 19;
+    const MAX_TABLE_COLUMNS = 12;
+
+    function emptyTableBodyCell() {
+        return { type: "text", text: "" };
+    }
+
+    function cloneTableContent(content) {
+        return {
+            headers: [...content.headers],
+            rows: content.rows.map((row) => row.map((cell) => {
+                if (cell && typeof cell === "object") {
+                    return { ...cell };
+                }
+                return { type: "text", text: String(cell ?? "") };
+            })),
+        };
+    }
+
+    function insertRowAfterContent(content, rowIndex) {
+        const next = cloneTableContent(content);
+        const insertAt = rowIndex < 0 ? 0 : rowIndex + 1;
+        if (next.rows.length >= MAX_TABLE_BODY_ROWS) {
+            throw new Error("A tabela não pode exceder 19 linhas de corpo.");
+        }
+        const columnCount = next.headers.length || (next.rows[0] ? next.rows[0].length : 1);
+        const newRow = Array.from({ length: columnCount }, () => emptyTableBodyCell());
+        next.rows.splice(insertAt, 0, newRow);
+        return next;
+    }
+
+    function deleteRowContent(content, rowIndex) {
+        const next = cloneTableContent(content);
+        if (rowIndex < 0 || rowIndex >= next.rows.length) {
+            throw new Error("Índice de linha inválido.");
+        }
+        if (next.rows.length <= 1) {
+            throw new Error("A tabela deve manter ao menos uma linha de corpo.");
+        }
+        next.rows.splice(rowIndex, 1);
+        return next;
+    }
+
+    function insertColumnAfterContent(content, colIndex) {
+        const next = cloneTableContent(content);
+        if (colIndex < 0 || colIndex >= next.headers.length) {
+            throw new Error("Índice de coluna inválido.");
+        }
+        if (next.headers.length >= MAX_TABLE_COLUMNS) {
+            throw new Error("A tabela não pode exceder 12 colunas.");
+        }
+        next.headers.splice(colIndex + 1, 0, "");
+        next.rows = next.rows.map((row) => {
+            const cells = [...row];
+            cells.splice(colIndex + 1, 0, emptyTableBodyCell());
+            return cells;
+        });
+        return next;
+    }
+
+    function deleteColumnContent(content, colIndex) {
+        const next = cloneTableContent(content);
+        if (colIndex < 0 || colIndex >= next.headers.length) {
+            throw new Error("Índice de coluna inválido.");
+        }
+        if (next.headers.length <= 1) {
+            throw new Error("A tabela deve manter ao menos uma coluna.");
+        }
+        next.headers.splice(colIndex, 1);
+        next.rows = next.rows.map((row) => row.filter((_, index) => index !== colIndex));
+        return next;
+    }
+
+    function isTableToolbarControl(element) {
+        return Boolean(
+            element
+            && element.closest
+            && element.closest(".report-editor-toolbar-table-group")
+        );
+    }
+
+    function rememberTableCellContext(context) {
+        if (context && context.block) {
+            lastTableCellContext = context;
+        }
+    }
+
+    function clearTableCellContext() {
+        lastTableCellContext = null;
+    }
+
+    function resolveTableCellContextFromActiveElement() {
+        const active = document.activeElement;
+        if (!active || !active.closest) {
+            return null;
+        }
+
+        const block = active.closest(".report-editor-block[data-block-type=\"table\"]");
+        if (!block) {
+            return null;
+        }
+
+        const textCell = active.closest(".report-editor-table-cell[data-table-part]");
+        if (textCell && block.contains(textCell)) {
+            return {
+                block,
+                part: textCell.dataset.tablePart,
+                rowIndex: textCell.dataset.tablePart === "cell"
+                    ? Number.parseInt(textCell.dataset.rowIndex, 10)
+                    : -1,
+                colIndex: Number.parseInt(textCell.dataset.colIndex, 10),
+                editable: textCell,
+            };
+        }
+
+        const bodyCell = active.closest("td[data-row-index]");
+        if (bodyCell && block.contains(bodyCell)) {
+            return {
+                block,
+                part: "cell",
+                rowIndex: Number.parseInt(bodyCell.dataset.rowIndex, 10),
+                colIndex: Number.parseInt(bodyCell.dataset.colIndex, 10),
+            };
+        }
+
+        const headerCell = active.closest("th[data-col-index]");
+        if (headerCell && block.contains(headerCell)) {
+            return {
+                block,
+                part: "header",
+                rowIndex: -1,
+                colIndex: Number.parseInt(headerCell.dataset.colIndex, 10),
+            };
+        }
+
+        return null;
+    }
+
+    function resolveTableCellContext() {
+        const fromActive = resolveTableCellContextFromActiveElement();
+        if (fromActive) {
+            rememberTableCellContext(fromActive);
+            return fromActive;
+        }
+
+        if (
+            lastTableCellContext
+            && document.contains(lastTableCellContext.block)
+            && isTableToolbarControl(document.activeElement)
+        ) {
+            return lastTableCellContext;
+        }
+
+        return null;
+    }
+
+    async function patchTableContent(block, content, focus) {
+        clearSaveTimer(block.dataset.nodeId);
+        const nodeId = block.dataset.nodeId;
+        const payload = {
+            content,
+            refresh_html: true,
+            focus_table_part: focus.part,
+            focus_table_col: focus.colIndex,
+        };
+        if (focus.part === "cell" && focus.rowIndex !== undefined && focus.rowIndex >= 0) {
+            payload.focus_table_row = focus.rowIndex;
+        }
+
+        const data = await apiRequest(updateNodeUrl(nodeId), "PATCH", payload);
+        if (data.html) {
+            const replacement = replaceBlockFromHtml(nodeId, data.html);
+            if (replacement) {
+                focusNewBlock(replacement);
+            }
+            return replacement;
+        }
+        return block;
+    }
+
+    async function insertTableRowAfterCursor() {
+        const context = resolveTableCellContext();
+        if (!context) {
+            return null;
+        }
+
+        const content = collectBlockContent(context.block);
+        const newContent = insertRowAfterContent(content, context.rowIndex);
+        const focusRow = context.rowIndex < 0 ? 0 : context.rowIndex + 1;
+        return patchTableContent(context.block, newContent, {
+            part: "cell",
+            rowIndex: focusRow,
+            colIndex: context.colIndex,
+        });
+    }
+
+    async function deleteTableRowAtCursor() {
+        const context = resolveTableCellContext();
+        if (!context || context.part !== "cell") {
+            return null;
+        }
+
+        const content = collectBlockContent(context.block);
+        const newContent = deleteRowContent(content, context.rowIndex);
+        const focusRow = Math.min(context.rowIndex, newContent.rows.length - 1);
+        return patchTableContent(context.block, newContent, {
+            part: "cell",
+            rowIndex: focusRow,
+            colIndex: context.colIndex,
+        });
+    }
+
+    async function insertTableColumnAfterCursor() {
+        const context = resolveTableCellContext();
+        if (!context) {
+            return null;
+        }
+
+        const content = collectBlockContent(context.block);
+        const newContent = insertColumnAfterContent(content, context.colIndex);
+        const focusPart = context.part === "header" ? "header" : "cell";
+        const focusRow = context.part === "cell" ? context.rowIndex : undefined;
+        return patchTableContent(context.block, newContent, {
+            part: focusPart,
+            rowIndex: focusRow,
+            colIndex: context.colIndex + 1,
+        });
+    }
+
+    async function deleteTableColumnAtCursor() {
+        const context = resolveTableCellContext();
+        if (!context) {
+            return null;
+        }
+
+        const content = collectBlockContent(context.block);
+        const newContent = deleteColumnContent(content, context.colIndex);
+        const focusCol = Math.min(context.colIndex, newContent.headers.length - 1);
+        const focusPart = context.part === "header" ? "header" : "cell";
+        return patchTableContent(context.block, newContent, {
+            part: focusPart,
+            rowIndex: context.part === "cell" ? context.rowIndex : undefined,
+            colIndex: focusCol,
+        });
+    }
+
+    async function toggleTableBorders() {
+        const context = resolveTableCellContext();
+        if (!context) {
+            return null;
+        }
+
+        const content = collectBlockContent(context.block);
+        content.show_borders = content.show_borders === false;
+        const focusPart = context.part === "header" ? "header" : "cell";
+        return patchTableContent(context.block, content, {
+            part: focusPart,
+            rowIndex: context.part === "cell" ? context.rowIndex : undefined,
+            colIndex: context.colIndex,
+        });
+    }
+
     function init(options) {
         config = options;
         const page = document.getElementById("report-editor-page");
@@ -1266,5 +1534,17 @@
         focusInitialBlock(page);
     }
 
-    window.ReportLineEditor = { init, insertTableAtCursor, insertImageAtCursor, saveBlock };
+    window.ReportLineEditor = {
+        init,
+        insertTableAtCursor,
+        insertImageAtCursor,
+        saveBlock,
+        resolveTableCellContext,
+        clearTableCellContext,
+        insertTableRowAfterCursor,
+        deleteTableRowAtCursor,
+        insertTableColumnAfterCursor,
+        deleteTableColumnAtCursor,
+        toggleTableBorders,
+    };
 })();

@@ -53,11 +53,17 @@ def update_node_block(
     """Atualiza conteúdo e metadados opcionais do bloco associado ao nó."""
     block = node.block
     target_type = block_type or block.block_type
+    old_content = block.content
+
     block.block_type = target_type
     block.content = normalize_block_content(target_type, content)
     if title_level is not None:
         block.title_level = title_level
     block.save(update_fields=["block_type", "content", "title_level", "updated_at"])
+
+    from reports.services.report_block_image_cleanup import delete_removed_block_images
+
+    delete_removed_block_images(target_type, old_content, block.content)
     return node
 
 

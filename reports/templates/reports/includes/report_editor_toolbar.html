@@ -79,13 +79,80 @@ Botões de formatação ainda sem comportamento — apenas layout.
                     aria-label="Inserir lista com marcadores">
                 <i class="bi bi-list-ul" aria-hidden="true"></i>
             </button>
-            <button type="button"
-                    class="btn btn-outline-secondary btn-toolbar-block"
-                    data-report-table-insert
-                    title="Inserir tabela"
-                    aria-label="Inserir tabela">
-                <i class="bi bi-table" aria-hidden="true"></i>
-            </button>
+            <div class="btn-group report-editor-toolbar-table-group">
+                <button type="button"
+                        class="btn btn-outline-secondary btn-toolbar-block btn-toolbar-table-main"
+                        data-report-table-insert
+                        title="Inserir tabela"
+                        aria-label="Inserir tabela">
+                    <i class="bi bi-table" aria-hidden="true"></i>
+                </button>
+                <button type="button"
+                        class="btn btn-outline-secondary btn-toolbar-block btn-toolbar-table-toggle dropdown-toggle dropdown-toggle-split"
+                        data-bs-toggle="dropdown"
+                        data-report-table-options-toggle
+                        aria-expanded="false"
+                        title="Opções da tabela"
+                        aria-label="Opções da tabela"
+                        hidden>
+                    <span class="visually-hidden">Opções da tabela</span>
+                </button>
+                <ul class="dropdown-menu report-editor-toolbar-table-menu">
+                    <li>
+                        <button type="button"
+                                class="dropdown-item d-flex align-items-center gap-2"
+                                data-report-table-add-row>
+                            <span class="report-editor-toolbar-table-glyph report-editor-toolbar-table-glyph-row-add"
+                                  aria-hidden="true"></span>
+                            Inserir linha abaixo
+                        </button>
+                    </li>
+                    <li>
+                        <button type="button"
+                                class="dropdown-item d-flex align-items-center gap-2"
+                                data-report-table-delete-row>
+                            <span class="report-editor-toolbar-table-glyph report-editor-toolbar-table-glyph-row-remove"
+                                  aria-hidden="true"></span>
+                            Excluir linha
+                        </button>
+                    </li>
+                    <li><hr class="dropdown-divider"></li>
+                    <li>
+                        <button type="button"
+                                class="dropdown-item d-flex align-items-center gap-2"
+                                data-report-table-toggle-borders>
+                            <span class="report-editor-toolbar-table-glyph report-editor-toolbar-table-glyph-borders-show"
+                                  data-table-border-glyph="show"
+                                  aria-hidden="true"></span>
+                            <span class="report-editor-toolbar-table-glyph report-editor-toolbar-table-glyph-borders-hide"
+                                  data-table-border-glyph="hide"
+                                  hidden
+                                  aria-hidden="true"></span>
+                            <span data-table-border-label="show">Mostrar linhas da tabela</span>
+                            <span data-table-border-label="hide" hidden>Ocultar linhas da tabela</span>
+                        </button>
+                    </li>
+                    <li><hr class="dropdown-divider"></li>
+                    <li>
+                        <button type="button"
+                                class="dropdown-item d-flex align-items-center gap-2"
+                                data-report-table-add-col>
+                            <span class="report-editor-toolbar-table-glyph report-editor-toolbar-table-glyph-col-add"
+                                  aria-hidden="true"></span>
+                            Inserir coluna à direita
+                        </button>
+                    </li>
+                    <li>
+                        <button type="button"
+                                class="dropdown-item d-flex align-items-center gap-2"
+                                data-report-table-delete-col>
+                            <span class="report-editor-toolbar-table-glyph report-editor-toolbar-table-glyph-col-remove"
+                                  aria-hidden="true"></span>
+                            Excluir coluna
+                        </button>
+                    </li>
+                </ul>
+            </div>
             <button type="button"
                     class="btn btn-outline-secondary btn-toolbar-block"
                     data-report-image-insert

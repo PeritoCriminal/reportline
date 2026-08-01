@@ -39,7 +39,7 @@
             {% endif %}
         </p>
     {% elif entry.block_type == "table" %}
-        <table class="report-editor-block-table">
+        <table class="report-editor-block-table{% if entry.content.show_borders == False %} report-editor-block-table--hide-borders{% endif %}">
             {% if entry.content.headers %}
             <thead>
                 <tr>

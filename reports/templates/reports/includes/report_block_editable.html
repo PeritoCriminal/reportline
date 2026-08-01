@@ -8,6 +8,8 @@
      data-image-id="{{ entry.content.image_id|default:'' }}"
      data-image-width="{{ entry.content.width|default:0 }}"
      data-image-height="{{ entry.content.height|default:0 }}"
+     {% elif entry.block_type == "table" %}
+     data-table-show-borders="{% if entry.content.show_borders == False %}false{% else %}true{% endif %}"
      {% endif %}
      {% if is_caption %}data-is-caption="true"{% endif %}>
     {% if entry.block_type == "heading" %}
@@ -98,18 +100,18 @@
         </figure>
     {% elif entry.block_type == "table" %}
         <div class="report-editor-block-table-wrap">
-            <table class="report-editor-block-table table table-sm mb-0"
+            <table class="report-editor-block-table table table-sm mb-0{% if entry.content.show_borders == False %} report-editor-block-table--hide-borders{% endif %}"
                    data-field="table">
                 <thead>
                     <tr>
                         {% for header in entry.content.headers %}
-                            <th scope="col">
+                            <th scope="col" data-col-index="{{ forloop.counter0 }}">
                                 <div class="report-editor-block-editable report-editor-table-cell"
                                      contenteditable="true"
                                      data-table-part="header"
                                      data-col-index="{{ forloop.counter0 }}"
                                      data-placeholder="Coluna {{ forloop.counter }}"
-                                     {% if autofocus and forloop.first %}data-autofocus="true"{% endif %}>{{ header }}</div>
+                                     {% if autofocus and focus_table_part == "header" and focus_table_col == forloop.counter0 %}data-autofocus="true"{% elif autofocus and not focus_table_part and forloop.first %}data-autofocus="true"{% endif %}>{{ header }}</div>
                             </th>
                         {% empty %}
                             <th scope="col">
@@ -127,9 +129,17 @@
                     {% for row in entry.content.rows %}
                         <tr>
                             {% for cell in row %}
-                                <td{% if cell.type == "image" and cell.file %} class="report-editor-table-cell-has-image"{% endif %}>
-                                    {% include "reports/includes/report_table_body_cell_editable.html" with cell=cell row_index=forloop.parentloop.counter0 col_index=forloop.counter0 autofocus=False %}
+                                {% with row_idx=forloop.parentloop.counter0 col_idx=forloop.counter0 %}
+                                <td data-row-index="{{ row_idx }}"
+                                    data-col-index="{{ col_idx }}"
+                                    {% if cell.type == "image" and cell.file %} class="report-editor-table-cell-has-image"{% endif %}>
+                                    {% if autofocus and focus_table_part == "cell" and focus_table_row == row_idx and focus_table_col == col_idx %}
+                                        {% include "reports/includes/report_table_body_cell_editable.html" with cell=cell row_index=row_idx col_index=col_idx cell_autofocus=True %}
+                                    {% else %}
+                                        {% include "reports/includes/report_table_body_cell_editable.html" with cell=cell row_index=row_idx col_index=col_idx cell_autofocus=False %}
+                                    {% endif %}
                                 </td>
+                                {% endwith %}
                             {% endfor %}
                         </tr>
                     {% endfor %}

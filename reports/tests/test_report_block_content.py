@@ -51,6 +51,41 @@ class ReportBlockContentTests(TestCase):
         )
 
         self.assertEqual(normalized["rows"], [[{"type": "text", "text": "1"}, {"type": "text", "text": ""}]])
+        self.assertTrue(normalized["show_borders"])
+
+    def test_normalize_table_show_borders_defaults_to_true(self):
+        """Garante bordas visíveis por padrão quando o campo não é enviado."""
+        normalized = normalize_block_content(
+            ReportBlockType.TABLE,
+            {"headers": ["A"], "rows": [[{"type": "text", "text": ""}]]},
+        )
+
+        self.assertTrue(normalized["show_borders"])
+
+    def test_normalize_table_show_borders_can_be_hidden(self):
+        """Garante persistência de tabela com linhas ocultas."""
+        normalized = normalize_block_content(
+            ReportBlockType.TABLE,
+            {
+                "headers": ["A"],
+                "rows": [[{"type": "text", "text": ""}]],
+                "show_borders": False,
+            },
+        )
+
+        self.assertFalse(normalized["show_borders"])
+
+    def test_normalize_table_rejects_invalid_show_borders(self):
+        """Garante erro quando show_borders não é booleano."""
+        with self.assertRaises(ValidationError):
+            normalize_block_content(
+                ReportBlockType.TABLE,
+                {
+                    "headers": ["A"],
+                    "rows": [[{"type": "text", "text": ""}]],
+                    "show_borders": "sim",
+                },
+            )
 
     def test_normalize_image_includes_metadata(self):
         """Garante normalização de bloco de imagem com metadados de exibição."""

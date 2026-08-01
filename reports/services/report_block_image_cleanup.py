@@ -28,3 +28,15 @@ def delete_block_images(block_type: str, content: dict | None) -> None:
     """Remove arquivos de imagem associados ao conteúdo do bloco."""
     for image_id in collect_image_ids_from_block(block_type, content):
         delete_report_image(image_id)
+
+
+def delete_removed_block_images(
+    block_type: str,
+    old_content: dict | None,
+    new_content: dict | None,
+) -> None:
+    """Remove imagens que deixaram de ser referenciadas após atualização do bloco."""
+    old_ids = set(collect_image_ids_from_block(block_type, old_content))
+    new_ids = set(collect_image_ids_from_block(block_type, new_content))
+    for image_id in old_ids - new_ids:
+        delete_report_image(image_id)

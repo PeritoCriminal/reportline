@@ -273,6 +273,9 @@ def render_editable_block_html(
     *,
     autofocus: bool = False,
     is_caption: bool | None = None,
+    focus_table_part: str | None = None,
+    focus_table_row: int | None = None,
+    focus_table_col: int | None = None,
 ) -> str:
     """Renderiza partial HTML de bloco editável para respostas da API."""
     from django.template.loader import render_to_string
@@ -293,6 +296,9 @@ def render_editable_block_html(
             "entry": entry,
             "autofocus": autofocus,
             "is_caption": entry.is_caption,
+            "focus_table_part": focus_table_part,
+            "focus_table_row": focus_table_row,
+            "focus_table_col": focus_table_col,
         },
         request=request,
     )

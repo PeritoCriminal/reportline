@@ -110,6 +110,121 @@ body.report-editor-active main {
     min-width: 8.5rem;
 }
 
+.report-editor-toolbar-table-group .btn-toolbar-table-toggle {
+    width: 1.625rem;
+    min-width: 1.625rem;
+    padding: 0;
+}
+
+.report-editor-toolbar-table-group .btn-toolbar-table-toggle[hidden] {
+    display: none !important;
+}
+
+.report-editor-toolbar-table-group:has(.btn-toolbar-table-toggle[hidden]) > .btn-toolbar-table-main {
+    border-top-right-radius: var(--bs-border-radius);
+    border-bottom-right-radius: var(--bs-border-radius);
+}
+
+.report-editor-toolbar-table-group .dropdown-menu {
+    min-width: 13rem;
+}
+
+.report-editor-toolbar-table-glyph {
+    display: inline-block;
+    width: 0.9375rem;
+    height: 0.9375rem;
+    position: relative;
+    flex-shrink: 0;
+    color: currentColor;
+}
+
+.report-editor-toolbar-table-glyph::before,
+.report-editor-toolbar-table-glyph::after {
+    position: absolute;
+    box-sizing: border-box;
+}
+
+/* Linhas horizontais (operações de linha) */
+.report-editor-toolbar-table-glyph-row-add::before,
+.report-editor-toolbar-table-glyph-row-remove::before {
+    content: "";
+    left: 0;
+    top: 0.125rem;
+    width: 0.5625rem;
+    height: 0.6875rem;
+    border-top: 1.5px solid currentColor;
+    border-bottom: 1.5px solid currentColor;
+    background: linear-gradient(currentColor, currentColor) 0 50% / 100% 1.5px no-repeat;
+}
+
+.report-editor-toolbar-table-glyph-row-add::after {
+    content: "+";
+    right: -0.0625rem;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 0.8125rem;
+    font-weight: 700;
+    line-height: 1;
+}
+
+.report-editor-toolbar-table-glyph-row-remove::after {
+    content: "−";
+    right: -0.0625rem;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 0.875rem;
+    font-weight: 700;
+    line-height: 1;
+}
+
+/* Linhas verticais (operações de coluna) */
+.report-editor-toolbar-table-glyph-col-add::before,
+.report-editor-toolbar-table-glyph-col-remove::before {
+    content: "";
+    left: 0.125rem;
+    top: 0;
+    width: 0.6875rem;
+    height: 0.5625rem;
+    border-left: 1.5px solid currentColor;
+    border-right: 1.5px solid currentColor;
+    background: linear-gradient(90deg, currentColor, currentColor) 50% 0 / 1.5px 100% no-repeat;
+}
+
+.report-editor-toolbar-table-glyph-col-add::after {
+    content: "+";
+    right: -0.0625rem;
+    bottom: -0.0625rem;
+    font-size: 0.8125rem;
+    font-weight: 700;
+    line-height: 1;
+}
+
+.report-editor-toolbar-table-glyph-col-remove::after {
+    content: "−";
+    right: -0.0625rem;
+    bottom: -0.0625rem;
+    font-size: 0.875rem;
+    font-weight: 700;
+    line-height: 1;
+}
+
+/* Grade com e sem bordas visíveis */
+.report-editor-toolbar-table-glyph-borders-show::before {
+    content: "";
+    inset: 0.0625rem;
+    border: 1.5px solid currentColor;
+    background:
+        linear-gradient(currentColor, currentColor) 50% 0 / 1.5px 100% no-repeat,
+        linear-gradient(currentColor, currentColor) 0 50% / 100% 1.5px no-repeat;
+}
+
+.report-editor-toolbar-table-glyph-borders-hide::before {
+    content: "";
+    inset: 0.0625rem;
+    border: 1.5px dashed currentColor;
+    opacity: 0.55;
+}
+
 .report-editor-workspace {
     display: grid;
     grid-template-columns: 15rem minmax(0, 1fr) 17.5rem;
@@ -432,6 +547,11 @@ body.report-editor-active main {
     overflow: hidden;
 }
 
+.report-editor-block-table--hide-borders th,
+.report-editor-block-table--hide-borders td {
+    border-color: transparent;
+}
+
 .report-table-insert-grid-wrap {
     overflow-x: auto;
 }
@@ -469,12 +589,6 @@ body.report-editor-active main {
 .report-table-insert-grid-cell:focus-visible {
     outline: 2px solid var(--bs-primary);
     outline-offset: 1px;
-}
-
-.report-table-insert-size {
-    font-size: 0.875rem;
-    font-weight: 600;
-    color: var(--bs-body-color);
 }
 
 .report-editor-block-image {
@@ -677,6 +791,11 @@ body.report-editor-active main {
     }
 
     .report-editor-toolbar-heading-group .btn-toolbar-heading-toggle {
+        width: 1.375rem;
+        min-width: 1.375rem;
+    }
+
+    .report-editor-toolbar-table-group .btn-toolbar-table-toggle {
         width: 1.375rem;
         min-width: 1.375rem;
     }

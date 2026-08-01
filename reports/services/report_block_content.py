@@ -25,7 +25,7 @@ def default_content_for_block_type(block_type: str) -> dict[str, Any]:
     if block_type == ReportBlockType.LINK:
         return {"text": "", "url": ""}
     if block_type == ReportBlockType.TABLE:
-        return {"headers": [], "rows": []}
+        return {"headers": [], "rows": [], "show_borders": True}
     if block_type == ReportBlockType.IMAGE:
         return {"alt": "", "file": "", "image_id": "", "width": 0, "height": 0}
     raise ValidationError("Tipo de bloco não suportado.")
@@ -43,6 +43,7 @@ def build_empty_table_content(row_count: int, column_count: int) -> dict[str, An
     return {
         "headers": [""] * cols,
         "rows": [[empty_cell.copy() for _ in range(cols)] for _ in range(rows - 1)],
+        "show_borders": True,
     }
 
 
@@ -95,9 +96,15 @@ def normalize_block_content(block_type: str, content: Any) -> dict[str, Any]:
             while len(cells) < column_count:
                 cells.append({"type": "text", "text": ""})
             normalized_rows.append(cells)
+
+        show_borders = content.get("show_borders", True)
+        if not isinstance(show_borders, bool):
+            raise ValidationError("O campo show_borders deve ser verdadeiro ou falso.")
+
         return {
             "headers": normalized_headers,
             "rows": normalized_rows,
+            "show_borders": show_borders,
         }
 
     if block_type == ReportBlockType.IMAGE:

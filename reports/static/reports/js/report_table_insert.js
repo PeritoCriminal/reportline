@@ -88,6 +88,7 @@
             });
             button.addEventListener("click", (event) => {
                 event.preventDefault();
+                event.stopPropagation();
                 openModal();
             });
         });
