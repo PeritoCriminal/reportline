@@ -41,15 +41,13 @@
          class="report-editor-outline-accordion-body"
          data-report-outline-accordion-body="1"
          hidden>
-        {% with child_parent_id=entry.node_id %}
-        <ul class="report-editor-outline-children list-unstyled mb-0{% if entry.children|outline_list_reorderable:child_parent_id %} report-editor-outline-siblings{% endif %}"
+        <ul class="report-editor-outline-children list-unstyled mb-0{% if entry.children|outline_list_reorderable %} report-editor-outline-siblings{% endif %}"
             role="group"
-            {% if entry.children|outline_list_reorderable:child_parent_id %}data-node-parent-id="{{ entry.node_id }}"{% endif %}>
+            {% if entry.children|outline_list_reorderable %}data-node-parent-id="{{ entry.children|outline_sibling_parent_id }}"{% endif %}>
             {% for child in entry.children %}
-                {% include "reports/includes/report_outline_item.html" with entry=child reorderable=entry.children|outline_list_reorderable:child_parent_id %}
+                {% include "reports/includes/report_outline_item.html" with entry=child reorderable=entry.children|outline_list_reorderable %}
             {% endfor %}
         </ul>
-        {% endwith %}
     </div>
     {% endif %}
 </li>

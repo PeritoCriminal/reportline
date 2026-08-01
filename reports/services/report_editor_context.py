@@ -58,7 +58,10 @@ def build_report_editor_context(report: Report) -> dict[str, Any]:
     heading_numbers = build_heading_number_map(nodes_by_parent)
 
     return {
-        "outline_tree": _build_outline_tree(nodes_by_parent, heading_numbers=heading_numbers),
+        "outline_tree": _build_outline_tree(
+            nodes_by_parent,
+            heading_numbers=heading_numbers,
+        ),
         "body_entries": _build_body_entries(nodes_by_parent, heading_numbers=heading_numbers),
         "heading_numbers": heading_numbers,
     }
@@ -76,51 +79,67 @@ def _group_nodes_by_parent(
     return grouped
 
 
-def _build_outline_tree(
+def _collect_headings_in_reading_order(
     nodes_by_parent: dict[UUID | None, list[ReportNode]],
     parent_id: UUID | None = None,
-    depth: int = 0,
+) -> list[ReportNode]:
+    """Coleta títulos em ordem de leitura (profundidade-primeiro)."""
+    headings: list[ReportNode] = []
+    for node in nodes_by_parent.get(parent_id, []):
+        block = node.block
+        if block.block_type == ReportBlockType.HEADING:
+            headings.append(node)
+        headings.extend(
+            _collect_headings_in_reading_order(nodes_by_parent, node.pk)
+        )
+    return headings
+
+
+def _build_outline_tree(
+    nodes_by_parent: dict[UUID | None, list[ReportNode]],
     *,
     heading_numbers: dict[UUID, str],
 ) -> list[ReportOutlineEntry]:
     """
-    Constrói sumário em árvore incluindo apenas blocos ``heading``.
+    Constrói sumário hierárquico a partir de ``title_level`` em ordem de leitura.
 
-    Nós intermediários de outros tipos são ignorados no sumário, mas seus
-    descendentes títulos permanecem no nível hierárquico correto.
+    A profundidade visual segue os níveis de título (como a numeração automática),
+    independentemente da árvore de nós ``ReportNode.parent``.
     """
-    entries: list[ReportOutlineEntry] = []
+    headings = _collect_headings_in_reading_order(nodes_by_parent)
+    return _build_outline_tree_from_title_levels(headings, heading_numbers)
 
-    for node in nodes_by_parent.get(parent_id, []):
+
+def _build_outline_tree_from_title_levels(
+    headings: list[ReportNode],
+    heading_numbers: dict[UUID, str],
+) -> list[ReportOutlineEntry]:
+    """Empilha títulos consecutivos conforme ``title_level`` decrescente na pilha."""
+    root: list[ReportOutlineEntry] = []
+    stack: list[ReportOutlineEntry] = []
+
+    for node in headings:
         block = node.block
-        if block.block_type == ReportBlockType.HEADING:
-            entries.append(
-                ReportOutlineEntry(
-                    node_id=node.pk,
-                    label=_heading_label(block.content),
-                    title_level=block.title_level,
-                    depth=depth,
-                    report_parent_id=node.parent_id,
-                    number=heading_numbers.get(node.pk, ""),
-                    children=_build_outline_tree(
-                        nodes_by_parent,
-                        node.pk,
-                        depth + 1,
-                        heading_numbers=heading_numbers,
-                    ),
-                )
-            )
+        entry = ReportOutlineEntry(
+            node_id=node.pk,
+            label=_heading_label(block.content),
+            title_level=block.title_level,
+            depth=0,
+            report_parent_id=node.parent_id,
+            number=heading_numbers.get(node.pk, ""),
+        )
+        while stack and stack[-1].title_level >= entry.title_level:
+            stack.pop()
+        if stack:
+            parent_entry = stack[-1]
+            entry.depth = parent_entry.depth + 1
+            parent_entry.children.append(entry)
         else:
-            entries.extend(
-                _build_outline_tree(
-                    nodes_by_parent,
-                    node.pk,
-                    depth,
-                    heading_numbers=heading_numbers,
-                )
-            )
+            entry.depth = 0
+            root.append(entry)
+        stack.append(entry)
 
-    return entries
+    return root
 
 
 def _build_body_entries(

@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% load static %}
+{% load static versioned_static %}
 
 {% block title %}Editar relatório — {{ report.title }} — ReportLine{% endblock %}
 
@@ -8,7 +8,7 @@
 {% block main_class %}container-fluid p-0 flex-grow-1 d-flex flex-column overflow-hidden{% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="{% static 'reports/css/report_editor.css' %}">
+<link rel="stylesheet" href="{% versioned_static 'reports/css/report_editor.css' %}">
 {% endblock %}
 
 {% block content %}
@@ -47,10 +47,14 @@
     };
 </script>
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.6/Sortable.min.js" defer></script>
-<script src="{% static 'reports/js/report_outline_accordion.js' %}" defer></script>
-<script src="{% static 'reports/js/report_outline_dnd.js' %}" defer></script>
-<script src="{% static 'reports/js/report_outline_sync.js' %}" defer></script>
-<script src="{% static 'reports/js/report_editor.js' %}" defer></script>
+<script src="{% versioned_static 'reports/js/report_outline_accordion.js' %}" defer></script>
+<script src="{% versioned_static 'reports/js/report_outline_dnd.js' %}" defer></script>
+<script src="{% versioned_static 'reports/js/report_outline_sync.js' %}" defer></script>
+<script src="{% versioned_static 'reports/js/report_editor.js' %}" defer></script>
+{# TODO(produção): remover bloco abaixo (atalho ipsumN) antes do deploy em produção. #}
+{% if report_editor_dev_ipsum %}
+<script src="{% versioned_static 'reports/js/report_editor_dev_ipsum.js' %}" defer></script>
+{% endif %}
 <script>
     document.addEventListener("DOMContentLoaded", function () {
         if (window.ReportLineEditor) {
