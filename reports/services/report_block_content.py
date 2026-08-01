@@ -25,7 +25,7 @@ def default_content_for_block_type(block_type: str) -> dict[str, Any]:
     if block_type == ReportBlockType.LINK:
         return {"text": "", "url": ""}
     if block_type == ReportBlockType.TABLE:
-        return {"headers": [], "rows": [], "show_borders": True}
+        return {"headers": [], "rows": [], "show_borders": True, "show_header": True, "column_widths": []}
     if block_type == ReportBlockType.IMAGE:
         return {"alt": "", "file": "", "image_id": "", "width": 0, "height": 0}
     raise ValidationError("Tipo de bloco não suportado.")
@@ -40,10 +40,14 @@ def build_empty_table_content(row_count: int, column_count: int) -> dict[str, An
     rows = max(1, min(int(row_count), 20))
     cols = max(1, min(int(column_count), 12))
     empty_cell = {"type": "text", "text": ""}
+    from reports.services.report_table_column_widths import equal_column_widths
+
     return {
         "headers": [""] * cols,
         "rows": [[empty_cell.copy() for _ in range(cols)] for _ in range(rows - 1)],
         "show_borders": True,
+        "show_header": True,
+        "column_widths": equal_column_widths(cols),
     }
 
 
@@ -85,6 +89,7 @@ def normalize_block_content(block_type: str, content: Any) -> dict[str, Any]:
             normalize_table_body_cell,
             normalize_table_header_cell,
         )
+        from reports.services.report_table_column_widths import normalize_column_widths
 
         normalized_headers = [normalize_table_header_cell(header) for header in headers]
         column_count = len(normalized_headers)
@@ -101,10 +106,18 @@ def normalize_block_content(block_type: str, content: Any) -> dict[str, Any]:
         if not isinstance(show_borders, bool):
             raise ValidationError("O campo show_borders deve ser verdadeiro ou falso.")
 
+        show_header = content.get("show_header", True)
+        if not isinstance(show_header, bool):
+            raise ValidationError("O campo show_header deve ser verdadeiro ou falso.")
+
+        column_widths = normalize_column_widths(content.get("column_widths"), column_count)
+
         return {
             "headers": normalized_headers,
             "rows": normalized_rows,
             "show_borders": show_borders,
+            "show_header": show_header,
+            "column_widths": column_widths,
         }
 
     if block_type == ReportBlockType.IMAGE:

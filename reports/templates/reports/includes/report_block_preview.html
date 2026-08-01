@@ -40,7 +40,14 @@
         </p>
     {% elif entry.block_type == "table" %}
         <table class="report-editor-block-table{% if entry.content.show_borders == False %} report-editor-block-table--hide-borders{% endif %}">
-            {% if entry.content.headers %}
+            {% if entry.content.column_widths %}
+            <colgroup>
+                {% for width in entry.content.column_widths %}
+                    <col style="width: {{ width }}%;">
+                {% endfor %}
+            </colgroup>
+            {% endif %}
+            {% if entry.content.show_header != False and entry.content.headers %}
             <thead>
                 <tr>
                     {% for header in entry.content.headers %}

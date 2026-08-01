@@ -192,6 +192,8 @@
                 headers,
                 rows,
                 show_borders: block.dataset.tableShowBorders !== "false",
+                show_header: block.dataset.tableShowHeader !== "false",
+                column_widths: parseTableColumnWidths(block, headers.length),
             };
         }
 
@@ -324,6 +326,47 @@
         return replacement;
     }
 
+    function equalTableColumnWidths(columnCount) {
+        if (columnCount <= 0) {
+            return [];
+        }
+        const base = Math.floor(100 / columnCount);
+        const remainder = 100 % columnCount;
+        return Array.from({ length: columnCount }, (_, index) => (
+            base + (index < remainder ? 1 : 0)
+        ));
+    }
+
+    function parseTableColumnWidths(block, columnCount) {
+        const raw = block.dataset.tableColumnWidths || "";
+        if (!raw) {
+            return equalTableColumnWidths(columnCount);
+        }
+        const widths = raw.split(",").map((part) => Number.parseInt(part.trim(), 10));
+        if (widths.length !== columnCount) {
+            return equalTableColumnWidths(columnCount);
+        }
+        return widths;
+    }
+
+    function splitTableColumnWidth(widths, colIndex) {
+        const next = [...widths];
+        const current = next[colIndex];
+        const left = Math.floor(current / 2);
+        const right = current - left;
+        next[colIndex] = left;
+        next.splice(colIndex + 1, 0, right);
+        return next;
+    }
+
+    function mergeTableColumnWidth(widths, colIndex) {
+        const next = [...widths];
+        const removed = next.splice(colIndex, 1)[0];
+        const targetIndex = colIndex < next.length ? colIndex : next.length - 1;
+        next[targetIndex] += removed;
+        return next;
+    }
+
     function buildTableContent(rowCount, columnCount) {
         const rows = Math.max(1, Math.min(rowCount, 20));
         const cols = Math.max(1, Math.min(columnCount, 12));
@@ -333,6 +376,8 @@
                 .fill(null)
                 .map(() => Array(cols).fill("")),
             show_borders: true,
+            show_header: true,
+            column_widths: equalTableColumnWidths(cols),
         };
     }
 
@@ -1273,6 +1318,9 @@
                 }
                 return { type: "text", text: String(cell ?? "") };
             })),
+            show_borders: content.show_borders !== false,
+            show_header: content.show_header !== false,
+            column_widths: [...(content.column_widths || equalTableColumnWidths(content.headers.length))],
         };
     }
 
@@ -1308,6 +1356,10 @@
         if (next.headers.length >= MAX_TABLE_COLUMNS) {
             throw new Error("A tabela não pode exceder 12 colunas.");
         }
+        next.column_widths = splitTableColumnWidth(
+            next.column_widths || equalTableColumnWidths(next.headers.length),
+            colIndex
+        );
         next.headers.splice(colIndex + 1, 0, "");
         next.rows = next.rows.map((row) => {
             const cells = [...row];
@@ -1325,6 +1377,10 @@
         if (next.headers.length <= 1) {
             throw new Error("A tabela deve manter ao menos uma coluna.");
         }
+        next.column_widths = mergeTableColumnWidth(
+            next.column_widths || equalTableColumnWidths(next.headers.length),
+            colIndex
+        );
         next.headers.splice(colIndex, 1);
         next.rows = next.rows.map((row) => row.filter((_, index) => index !== colIndex));
         return next;
@@ -1519,6 +1575,32 @@
         });
     }
 
+    async function toggleTableHeader() {
+        const context = resolveTableCellContext();
+        if (!context) {
+            return null;
+        }
+
+        const content = collectBlockContent(context.block);
+        const hidingHeader = content.show_header !== false;
+        content.show_header = content.show_header === false;
+
+        let focusPart = context.part === "header" ? "header" : "cell";
+        let focusRow = context.part === "cell" ? context.rowIndex : undefined;
+        const focusCol = context.colIndex;
+
+        if (hidingHeader && context.part === "header") {
+            focusPart = "cell";
+            focusRow = 0;
+        }
+
+        return patchTableContent(context.block, content, {
+            part: focusPart,
+            rowIndex: focusRow,
+            colIndex: focusCol,
+        });
+    }
+
     function init(options) {
         config = options;
         const page = document.getElementById("report-editor-page");
@@ -1546,5 +1628,6 @@
         insertTableColumnAfterCursor,
         deleteTableColumnAtCursor,
         toggleTableBorders,
+        toggleTableHeader,
     };
 })();

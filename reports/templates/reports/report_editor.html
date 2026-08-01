@@ -58,6 +58,7 @@
 <script src="{% versioned_static 'reports/js/report_editor.js' %}" defer></script>
 <script src="{% versioned_static 'reports/js/report_table_insert.js' %}" defer></script>
 <script src="{% versioned_static 'reports/js/report_table_structure.js' %}" defer></script>
+<script src="{% versioned_static 'reports/js/report_table_column_resize.js' %}" defer></script>
 <script src="{% versioned_static 'reports/js/report_image_insert.js' %}" defer></script>
 <script src="{% versioned_static 'reports/js/report_image_resize.js' %}" defer></script>
 {# TODO(produção): remover bloco abaixo (atalho ipsumN) antes do deploy em produção. #}
@@ -81,6 +82,9 @@
         }
         if (window.ReportLineTableStructure) {
             window.ReportLineTableStructure.init();
+        }
+        if (window.ReportLineTableColumnResize) {
+            window.ReportLineTableColumnResize.init();
         }
         if (window.ReportLineImageInsert && window.REPORT_EDITOR_IMAGES) {
             window.ReportLineImageInsert.init(window.REPORT_EDITOR_IMAGES);

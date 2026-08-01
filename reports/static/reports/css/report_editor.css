@@ -225,6 +225,20 @@ body.report-editor-active main {
     opacity: 0.55;
 }
 
+.report-editor-toolbar-table-glyph-header-show::before {
+    content: "";
+    inset: 0.0625rem;
+    border: 1.5px solid currentColor;
+    background: linear-gradient(currentColor, currentColor) 0 0 / 100% 35% no-repeat;
+}
+
+.report-editor-toolbar-table-glyph-header-hide::before {
+    content: "";
+    inset: 0.0625rem;
+    border: 1.5px solid currentColor;
+    background: none;
+}
+
 .report-editor-workspace {
     display: grid;
     grid-template-columns: 15rem minmax(0, 1fr) 17.5rem;
@@ -495,6 +509,52 @@ body.report-editor-active main {
 .report-editor-block-table-wrap {
     margin: 0 0 1rem;
     overflow-x: auto;
+    position: relative;
+}
+
+.report-editor-block-table-wrap.is-column-resizing {
+    user-select: none;
+}
+
+body.report-editor-column-resize-active {
+    cursor: col-resize !important;
+    user-select: none;
+}
+
+.report-editor-table-column-resizers {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 3;
+}
+
+.report-editor-table-column-resizer {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 0.5rem;
+    margin-left: -0.25rem;
+    cursor: col-resize;
+    pointer-events: auto;
+    touch-action: none;
+}
+
+.report-editor-table-column-resizer::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 50%;
+    width: 2px;
+    transform: translateX(-50%);
+    background-color: transparent;
+    transition: background-color 0.15s ease;
+}
+
+.report-editor-block-table-wrap:hover .report-editor-table-column-resizer::after,
+.report-editor-table-column-resizer.is-dragging::after {
+    background-color: var(--bs-primary);
+    opacity: 0.55;
 }
 
 .report-editor-table-cell {
@@ -550,6 +610,10 @@ body.report-editor-active main {
 .report-editor-block-table--hide-borders th,
 .report-editor-block-table--hide-borders td {
     border-color: transparent;
+}
+
+.report-editor-block-table--hide-header thead {
+    display: none;
 }
 
 .report-table-insert-grid-wrap {

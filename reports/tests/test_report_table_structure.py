@@ -71,9 +71,11 @@ class ReportTableStructureTests(TestCase):
     def test_insert_column_after_adds_cells(self):
         """Garante nova coluna vazia após índice informado."""
         content = _sample_table(1, 2)
+        content["column_widths"] = [60, 40]
         updated = insert_column_after(content, 0)
 
         self.assertEqual(updated["headers"], ["H0", "", "H1"])
+        self.assertEqual(updated["column_widths"], [30, 30, 40])
         self.assertEqual(len(updated["rows"][0]), 3)
         self.assertEqual(updated["rows"][0][1], {"type": "text", "text": ""})
 
@@ -90,9 +92,11 @@ class ReportTableStructureTests(TestCase):
     def test_delete_column_removes_cells(self):
         """Garante remoção de coluna e células correspondentes."""
         content = _sample_table(1, 3)
+        content["column_widths"] = [25, 25, 50]
         updated = delete_column(content, 1)
 
         self.assertEqual(updated["headers"], ["H0", "H2"])
+        self.assertEqual(updated["column_widths"], [25, 75])
         self.assertEqual(updated["rows"][0][1]["text"], "R0C2")
 
     def test_delete_column_keeps_minimum(self):

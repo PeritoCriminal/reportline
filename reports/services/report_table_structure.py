@@ -14,6 +14,11 @@ from django.core.exceptions import ValidationError
 
 from reports.models import ReportBlockType
 from reports.services.report_block_content import normalize_block_content
+from reports.services.report_table_column_widths import (
+    merge_column_width,
+    normalize_column_widths,
+    split_column_width,
+)
 
 MAX_TABLE_BODY_ROWS = 19
 MAX_TABLE_COLUMNS = 12
@@ -93,6 +98,7 @@ def insert_column_after(content: dict[str, Any], col_index: int) -> dict[str, An
     if len(headers) >= MAX_TABLE_COLUMNS:
         raise ValidationError(f"A tabela não pode exceder {MAX_TABLE_COLUMNS} colunas.")
 
+    widths = normalize_column_widths(payload.get("column_widths"), len(headers))
     headers.insert(col_index + 1, "")
     new_rows = []
     for row in rows:
@@ -105,6 +111,7 @@ def insert_column_after(content: dict[str, Any], col_index: int) -> dict[str, An
 
     payload["headers"] = headers
     payload["rows"] = new_rows
+    payload["column_widths"] = split_column_width(widths, col_index)
     return _normalize_table(payload)
 
 
@@ -120,10 +127,12 @@ def delete_column(content: dict[str, Any], col_index: int) -> dict[str, Any]:
     if len(headers) <= MIN_TABLE_COLUMNS:
         raise ValidationError("A tabela deve manter ao menos uma coluna.")
 
+    widths = normalize_column_widths(payload.get("column_widths"), len(headers))
     headers.pop(col_index)
     payload["headers"] = headers
     payload["rows"] = [
         [cell for index, cell in enumerate(row) if index != col_index]
         for row in rows
     ]
+    payload["column_widths"] = merge_column_width(widths, col_index)
     return _normalize_table(payload)

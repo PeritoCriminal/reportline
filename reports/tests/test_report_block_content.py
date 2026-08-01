@@ -39,6 +39,7 @@ class ReportBlockContentTests(TestCase):
         self.assertEqual(content["headers"], ["", "", "", ""])
         self.assertEqual(len(content["rows"]), 2)
         self.assertEqual(content["rows"][0], [{"type": "text", "text": ""}] * 4)
+        self.assertEqual(content["column_widths"], [25, 25, 25, 25])
 
     def test_normalize_table_pads_short_rows(self):
         """Garante normalização de linhas menores que o número de colunas."""
@@ -52,6 +53,41 @@ class ReportBlockContentTests(TestCase):
 
         self.assertEqual(normalized["rows"], [[{"type": "text", "text": "1"}, {"type": "text", "text": ""}]])
         self.assertTrue(normalized["show_borders"])
+        self.assertTrue(normalized["show_header"])
+
+    def test_normalize_table_show_header_defaults_to_true(self):
+        """Garante cabeçalho visível por padrão quando o campo não é enviado."""
+        normalized = normalize_block_content(
+            ReportBlockType.TABLE,
+            {"headers": ["A"], "rows": [[{"type": "text", "text": ""}]]},
+        )
+
+        self.assertTrue(normalized["show_header"])
+
+    def test_normalize_table_show_header_can_be_hidden(self):
+        """Garante persistência de tabela com cabeçalho oculto."""
+        normalized = normalize_block_content(
+            ReportBlockType.TABLE,
+            {
+                "headers": ["A"],
+                "rows": [[{"type": "text", "text": ""}]],
+                "show_header": False,
+            },
+        )
+
+        self.assertFalse(normalized["show_header"])
+
+    def test_normalize_table_rejects_invalid_show_header(self):
+        """Garante erro quando show_header não é booleano."""
+        with self.assertRaises(ValidationError):
+            normalize_block_content(
+                ReportBlockType.TABLE,
+                {
+                    "headers": ["A"],
+                    "rows": [[{"type": "text", "text": ""}]],
+                    "show_header": "nao",
+                },
+            )
 
     def test_normalize_table_show_borders_defaults_to_true(self):
         """Garante bordas visíveis por padrão quando o campo não é enviado."""

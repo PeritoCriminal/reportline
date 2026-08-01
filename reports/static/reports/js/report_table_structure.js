@@ -7,6 +7,7 @@
     let tableOptionsToggle = null;
     let deleteRowButton = null;
     let toggleBordersButton = null;
+    let toggleHeaderButton = null;
     let tableToolbarGroup = null;
 
     function resolveTableCellContext() {
@@ -35,6 +36,10 @@
         return block && block.dataset.tableShowBorders !== "false";
     }
 
+    function tableHeaderVisible(block) {
+        return block && block.dataset.tableShowHeader !== "false";
+    }
+
     function updateBorderToggleState(block) {
         if (!toggleBordersButton || !block) {
             return;
@@ -46,6 +51,20 @@
         });
         toggleBordersButton.querySelectorAll("[data-table-border-label]").forEach((label) => {
             label.hidden = label.dataset.tableBorderLabel !== (visible ? "hide" : "show");
+        });
+    }
+
+    function updateHeaderToggleState(block) {
+        if (!toggleHeaderButton || !block) {
+            return;
+        }
+
+        const visible = tableHeaderVisible(block);
+        toggleHeaderButton.querySelectorAll("[data-table-header-glyph]").forEach((glyph) => {
+            glyph.hidden = glyph.dataset.tableHeaderGlyph !== (visible ? "hide" : "show");
+        });
+        toggleHeaderButton.querySelectorAll("[data-table-header-label]").forEach((label) => {
+            label.hidden = label.dataset.tableHeaderLabel !== (visible ? "hide" : "show");
         });
     }
 
@@ -76,6 +95,7 @@
 
         if (context && context.block) {
             updateBorderToggleState(context.block);
+            updateHeaderToggleState(context.block);
         }
     }
 
@@ -115,6 +135,7 @@
         tableOptionsToggle = document.querySelector("[data-report-table-options-toggle]");
         deleteRowButton = document.querySelector("[data-report-table-delete-row]");
         toggleBordersButton = document.querySelector("[data-report-table-toggle-borders]");
+        toggleHeaderButton = document.querySelector("[data-report-table-toggle-header]");
         const page = document.getElementById("report-editor-page");
 
         if (!tableOptionsToggle || !page) {
@@ -154,6 +175,13 @@
                 return Promise.resolve();
             }
             return window.ReportLineEditor.toggleTableBorders();
+        });
+
+        bindStructureAction("[data-report-table-toggle-header]", () => {
+            if (!window.ReportLineEditor || !window.ReportLineEditor.toggleTableHeader) {
+                return Promise.resolve();
+            }
+            return window.ReportLineEditor.toggleTableHeader();
         });
 
         tableOptionsToggle.addEventListener("mousedown", () => {

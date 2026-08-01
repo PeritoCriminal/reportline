@@ -54,11 +54,17 @@ def _enrich_block_content(block_type: str, content: dict[str, Any]) -> dict[str,
         enriched["url"] = default_storage.url(enriched["file"])
     if block_type == ReportBlockType.TABLE:
         from reports.services.report_table_cell_content import enrich_table_body_cell
+        from reports.services.report_table_column_widths import normalize_column_widths
 
+        headers = enriched.get("headers", [])
         enriched["rows"] = [
             [enrich_table_body_cell(cell) for cell in row]
             for row in enriched.get("rows", [])
         ]
+        enriched["column_widths"] = normalize_column_widths(
+            enriched.get("column_widths"),
+            len(headers),
+        )
     return enriched
 
 

@@ -10,6 +10,8 @@
      data-image-height="{{ entry.content.height|default:0 }}"
      {% elif entry.block_type == "table" %}
      data-table-show-borders="{% if entry.content.show_borders == False %}false{% else %}true{% endif %}"
+     data-table-show-header="{% if entry.content.show_header == False %}false{% else %}true{% endif %}"
+     data-table-column-widths="{{ entry.content.column_widths|join:',' }}"
      {% endif %}
      {% if is_caption %}data-is-caption="true"{% endif %}>
     {% if entry.block_type == "heading" %}
@@ -100,8 +102,13 @@
         </figure>
     {% elif entry.block_type == "table" %}
         <div class="report-editor-block-table-wrap">
-            <table class="report-editor-block-table table table-sm mb-0{% if entry.content.show_borders == False %} report-editor-block-table--hide-borders{% endif %}"
+            <table class="report-editor-block-table table table-sm mb-0{% if entry.content.show_borders == False %} report-editor-block-table--hide-borders{% endif %}{% if entry.content.show_header == False %} report-editor-block-table--hide-header{% endif %}"
                    data-field="table">
+                <colgroup>
+                    {% for width in entry.content.column_widths %}
+                        <col style="width: {{ width }}%;">
+                    {% endfor %}
+                </colgroup>
                 <thead>
                     <tr>
                         {% for header in entry.content.headers %}
@@ -135,6 +142,8 @@
                                     {% if cell.type == "image" and cell.file %} class="report-editor-table-cell-has-image"{% endif %}>
                                     {% if autofocus and focus_table_part == "cell" and focus_table_row == row_idx and focus_table_col == col_idx %}
                                         {% include "reports/includes/report_table_body_cell_editable.html" with cell=cell row_index=row_idx col_index=col_idx cell_autofocus=True %}
+                                    {% elif autofocus and not focus_table_part and entry.content.show_header == False and row_idx == 0 and col_idx == 0 %}
+                                        {% include "reports/includes/report_table_body_cell_editable.html" with cell=cell row_index=row_idx col_index=col_idx cell_autofocus=True %}
                                     {% else %}
                                         {% include "reports/includes/report_table_body_cell_editable.html" with cell=cell row_index=row_idx col_index=col_idx cell_autofocus=False %}
                                     {% endif %}
@@ -145,6 +154,7 @@
                     {% endfor %}
                 </tbody>
             </table>
+            <div class="report-editor-table-column-resizers" aria-hidden="true"></div>
         </div>
     {% else %}
         <p class="report-editor-block-static text-muted small">{{ entry.block_type_label }}</p>
