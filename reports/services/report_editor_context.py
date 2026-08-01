@@ -13,6 +13,10 @@ from typing import Any
 from uuid import UUID
 
 from reports.models import Report, ReportBlockType, ReportNode
+from reports.services.report_heading_numbering import (
+    build_heading_number_map,
+    build_heading_number_map_for_report,
+)
 
 
 @dataclass
@@ -24,6 +28,7 @@ class ReportOutlineEntry:
     title_level: int
     depth: int
     report_parent_id: UUID | None
+    number: str = ""
     children: list[ReportOutlineEntry] = field(default_factory=list)
 
 
@@ -36,6 +41,7 @@ class ReportBodyEntry:
     block_type_label: str
     title_level: int
     content: dict[str, Any]
+    heading_number: str = ""
 
 
 def build_report_editor_context(report: Report) -> dict[str, Any]:
@@ -49,10 +55,12 @@ def build_report_editor_context(report: Report) -> dict[str, Any]:
         report.nodes.select_related("block").order_by("position", "created_at")
     )
     nodes_by_parent = _group_nodes_by_parent(nodes)
+    heading_numbers = build_heading_number_map(nodes_by_parent)
 
     return {
-        "outline_tree": _build_outline_tree(nodes_by_parent),
-        "body_entries": _build_body_entries(nodes_by_parent),
+        "outline_tree": _build_outline_tree(nodes_by_parent, heading_numbers=heading_numbers),
+        "body_entries": _build_body_entries(nodes_by_parent, heading_numbers=heading_numbers),
+        "heading_numbers": heading_numbers,
     }
 
 
@@ -72,6 +80,8 @@ def _build_outline_tree(
     nodes_by_parent: dict[UUID | None, list[ReportNode]],
     parent_id: UUID | None = None,
     depth: int = 0,
+    *,
+    heading_numbers: dict[UUID, str],
 ) -> list[ReportOutlineEntry]:
     """
     Constrói sumário em árvore incluindo apenas blocos ``heading``.
@@ -91,16 +101,23 @@ def _build_outline_tree(
                     title_level=block.title_level,
                     depth=depth,
                     report_parent_id=node.parent_id,
+                    number=heading_numbers.get(node.pk, ""),
                     children=_build_outline_tree(
                         nodes_by_parent,
                         node.pk,
                         depth + 1,
+                        heading_numbers=heading_numbers,
                     ),
                 )
             )
         else:
             entries.extend(
-                _build_outline_tree(nodes_by_parent, node.pk, depth)
+                _build_outline_tree(
+                    nodes_by_parent,
+                    node.pk,
+                    depth,
+                    heading_numbers=heading_numbers,
+                )
             )
 
     return entries
@@ -109,6 +126,8 @@ def _build_outline_tree(
 def _build_body_entries(
     nodes_by_parent: dict[UUID | None, list[ReportNode]],
     parent_id: UUID | None = None,
+    *,
+    heading_numbers: dict[UUID, str],
 ) -> list[ReportBodyEntry]:
     """Percorre a árvore em profundidade-primeiro produzindo o corpo linear."""
     entries: list[ReportBodyEntry] = []
@@ -122,23 +141,43 @@ def _build_body_entries(
                 block_type_label=block.get_block_type_display(),
                 title_level=block.title_level,
                 content=block.content or {},
+                heading_number=heading_numbers.get(node.pk, ""),
             )
         )
-        entries.extend(_build_body_entries(nodes_by_parent, node.pk))
+        entries.extend(
+            _build_body_entries(
+                nodes_by_parent,
+                node.pk,
+                heading_numbers=heading_numbers,
+            )
+        )
 
     return entries
 
 
-def _body_entry_from_node(node: ReportNode) -> ReportBodyEntry:
+def _body_entry_from_node(
+    node: ReportNode,
+    *,
+    heading_numbers: dict[UUID, str] | None = None,
+) -> ReportBodyEntry:
     """Converte nó persistido em entrada de corpo para templates do editor."""
     block = node.block
+    numbers = heading_numbers
+    if numbers is None:
+        numbers = build_heading_number_map_for_node(node)
     return ReportBodyEntry(
         node_id=node.pk,
         block_type=block.block_type,
         block_type_label=block.get_block_type_display(),
         title_level=block.title_level,
         content=block.content or {},
+        heading_number=numbers.get(node.pk, ""),
     )
+
+
+def build_heading_number_map_for_node(node: ReportNode) -> dict[UUID, str]:
+    """Recalcula numeração de títulos a partir do relatório do nó informado."""
+    return build_heading_number_map_for_report(node.report)
 
 
 def render_outline_tree_html(report: Report, request) -> str:
@@ -151,6 +190,23 @@ def render_outline_tree_html(report: Report, request) -> str:
         context,
         request=request,
     )
+
+
+def render_outline_refresh_payload(report: Report, request) -> dict[str, str | dict[str, str]]:
+    """Monta HTML do sumário e mapa de numeração para atualização assíncrona."""
+    context = build_report_editor_context(report)
+    from django.template.loader import render_to_string
+
+    html = render_to_string(
+        "reports/includes/report_outline_tree.html",
+        context,
+        request=request,
+    )
+    heading_numbers = {
+        str(node_id): number
+        for node_id, number in context["heading_numbers"].items()
+    }
+    return {"html": html, "heading_numbers": heading_numbers}
 
 
 def render_editable_block_html(

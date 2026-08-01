@@ -5,14 +5,25 @@
      data-title-level="{{ entry.title_level }}"
      {% if is_caption %}data-is-caption="true"{% endif %}>
     {% if entry.block_type == "heading" %}
-        <div class="report-editor-block-editable report-editor-block-heading"
-             contenteditable="true"
-             role="heading"
-             aria-level="{{ entry.title_level|add:1 }}"
-             data-level="{{ entry.title_level }}"
-             data-field="text"
-             data-placeholder="Título do relatório"
-             {% if autofocus %}data-autofocus="true"{% endif %}>{{ entry.content.text|default:"" }}</div>
+        <div class="report-editor-block-heading-wrap d-flex align-items-baseline gap-1">
+            {% if entry.heading_number %}
+            <span class="report-editor-heading-number flex-shrink-0 user-select-none"
+                  data-heading-number="1"
+                  aria-hidden="true">{{ entry.heading_number }}.</span>
+            {% else %}
+            <span class="report-editor-heading-number flex-shrink-0 user-select-none"
+                  data-heading-number="1"
+                  aria-hidden="true"></span>
+            {% endif %}
+            <div class="report-editor-block-editable report-editor-block-heading flex-grow-1 min-w-0"
+                 contenteditable="true"
+                 role="heading"
+                 aria-level="{{ entry.title_level|add:1 }}"
+                 data-level="{{ entry.title_level }}"
+                 data-field="text"
+                 data-placeholder="Título do relatório"
+                 {% if autofocus %}data-autofocus="true"{% endif %}>{{ entry.content.text|default:"" }}</div>
+        </div>
     {% elif entry.block_type == "paragraph" %}
         <p class="report-editor-block-editable report-editor-block-paragraph"
            contenteditable="true"

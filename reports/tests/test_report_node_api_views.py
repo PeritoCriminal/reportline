@@ -86,6 +86,53 @@ class ReportNodeApiViewTests(TestCase):
         self.assertIn("html", data)
         self.assertEqual(self.report.nodes.count(), 2)
 
+    def test_post_heading_accepts_title_level(self):
+        """Garante criação de título com nível hierárquico informado."""
+        response = self._post_node(
+            {
+                "after_node_id": str(self.node.pk),
+                "block_type": ReportBlockType.HEADING,
+                "title_level": 2,
+            }
+        )
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertEqual(payload["block_type"], ReportBlockType.HEADING)
+        self.assertEqual(payload["title_level"], 2)
+        node = ReportNode.objects.get(pk=payload["node_id"])
+        self.assertEqual(node.block.title_level, 2)
+
+    def test_patch_converts_paragraph_to_heading_with_html(self):
+        """Garante conversão de parágrafo em título via PATCH com HTML estrutural."""
+        paragraph_block = ReportBlock.objects.create(
+            block_type=ReportBlockType.PARAGRAPH,
+            content={"text": "Texto convertido"},
+        )
+        paragraph_node = ReportNode.objects.create(
+            report=self.report,
+            block=paragraph_block,
+            position=Decimal("2"),
+        )
+
+        response = self._patch_node(
+            paragraph_node,
+            {
+                "content": {"text": "Texto convertido"},
+                "block_type": ReportBlockType.HEADING,
+                "title_level": 1,
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertEqual(payload["block_type"], ReportBlockType.HEADING)
+        self.assertEqual(payload["title_level"], 1)
+        self.assertIn("html", payload)
+        self.assertIn("report-editor-block-heading", payload["html"])
+        paragraph_node.block.refresh_from_db()
+        self.assertEqual(paragraph_node.block.block_type, ReportBlockType.HEADING)
+
     def test_non_author_post_receives_404(self):
         """Garante 404 para usuário que não é autor do relatório."""
         response = self._post_node(

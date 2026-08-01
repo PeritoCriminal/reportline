@@ -182,3 +182,33 @@ class ReportTreeServiceTests(TestCase):
         """Garante erro ao tentar reordenar com um único título."""
         with self.assertRaises(ValidationError):
             reorder_heading_siblings(self.report, None, [self.root.pk])
+
+    def test_reorder_heading_siblings_rejects_heading_from_other_parent(self):
+        """Garante erro ao tentar reordenar título de outro pai no mesmo payload."""
+        parent_block = ReportBlock.objects.create(
+            block_type=ReportBlockType.HEADING,
+            content={"text": "Seção"},
+        )
+        parent_node = ReportNode.objects.create(
+            report=self.report,
+            block=parent_block,
+            position=Decimal("2"),
+        )
+        child_block = ReportBlock.objects.create(
+            block_type=ReportBlockType.HEADING,
+            content={"text": "Filha"},
+            title_level=1,
+        )
+        child_node = ReportNode.objects.create(
+            report=self.report,
+            parent=parent_node,
+            block=child_block,
+            position=Decimal("1"),
+        )
+
+        with self.assertRaises(ValidationError):
+            reorder_heading_siblings(
+                self.report,
+                None,
+                [self.root.pk, child_node.pk],
+            )

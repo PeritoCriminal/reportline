@@ -120,24 +120,29 @@ class ReportNodeDetailView(ReportAuthorMixin, View):
             if content is None:
                 raise ValidationError("Campo content é obrigatório.")
 
+            block_type = payload.get("block_type")
+            title_level = payload.get("title_level")
+            structure_changed = block_type is not None or title_level is not None
+
             node = update_node_block(
                 node,
                 content=content,
-                block_type=payload.get("block_type"),
-                title_level=payload.get("title_level"),
+                block_type=block_type,
+                title_level=title_level,
             )
         except ValidationError as exc:
             return _validation_error_response(exc)
 
         block = node.block
-        return JsonResponse(
-            {
-                "node_id": str(node.pk),
-                "block_type": block.block_type,
-                "title_level": block.title_level,
-                "content": block.content,
-            }
-        )
+        response = {
+            "node_id": str(node.pk),
+            "block_type": block.block_type,
+            "title_level": block.title_level,
+            "content": block.content,
+        }
+        if structure_changed:
+            response["html"] = render_editable_block_html(node, request, autofocus=True)
+        return JsonResponse(response)
 
     def delete(self, request, pk, node_id):
         """Remove nó vazio do relatório."""

@@ -1,7 +1,12 @@
 <div id="report-block-{{ entry.node_id }}" class="report-editor-block" data-block-type="{{ entry.block_type }}">
     {% if entry.block_type == "heading" %}
-        <h2 class="report-editor-block-heading" data-level="{{ entry.title_level }}">
-            {{ entry.content.text|default:"Título sem texto" }}
+        <h2 class="report-editor-block-heading-wrap d-flex align-items-baseline gap-1" data-level="{{ entry.title_level }}">
+            {% if entry.heading_number %}
+            <span class="report-editor-heading-number flex-shrink-0">{{ entry.heading_number }}.</span>
+            {% endif %}
+            <span class="report-editor-block-heading flex-grow-1 min-w-0">
+                {{ entry.content.text|default:"Título sem texto" }}
+            </span>
         </h2>
     {% elif entry.block_type == "paragraph" %}
         <p class="report-editor-block-paragraph">

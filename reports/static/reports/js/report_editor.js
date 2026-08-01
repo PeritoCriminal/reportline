@@ -9,6 +9,7 @@
 
     const LIST_TYPES = new Set(["ordered_list", "unordered_list"]);
     const TEXT_BLOCK_TYPES = new Set(["heading", "paragraph", "link"]);
+    const HEADING_CONVERTIBLE_TYPES = new Set(["heading", "paragraph"]);
     const DEBOUNCE_MS = 1500;
 
     let config = {};
@@ -63,6 +64,26 @@
         preRange.selectNodeContents(element);
         preRange.setEnd(range.startContainer, range.startOffset);
         return preRange.toString().length;
+    }
+
+    function setCaretOffset(element, offset) {
+        element.focus();
+        const selection = window.getSelection();
+        if (!selection) {
+            return;
+        }
+        const range = document.createRange();
+        const textNode = element.firstChild;
+        if (!textNode) {
+            range.selectNodeContents(element);
+            range.collapse(true);
+        } else {
+            const safeOffset = Math.min(Math.max(offset, 0), textNode.textContent.length);
+            range.setStart(textNode, safeOffset);
+            range.collapse(true);
+        }
+        selection.removeAllRanges();
+        selection.addRange(range);
     }
 
     function getActiveBlock() {
@@ -167,7 +188,9 @@
             label.textContent = text.trim() || "Título sem texto";
             const link = label.closest(".report-editor-outline-link");
             if (link) {
-                link.setAttribute("title", label.textContent);
+                const number = link.querySelector(".report-editor-outline-number");
+                const prefix = number ? `${number.textContent.trim()} ` : "";
+                link.setAttribute("title", `${prefix}${label.textContent}`.trim());
             }
         }
     }
@@ -246,11 +269,55 @@
         return newBlock;
     }
 
+    function replaceBlockFromHtml(nodeId, html) {
+        const current = document.getElementById(`report-block-${nodeId}`);
+        if (!current) {
+            return null;
+        }
+        current.insertAdjacentHTML("afterend", html);
+        const replacement = current.nextElementSibling;
+        current.remove();
+        return replacement;
+    }
+
+    async function convertBlockToHeading(block, editable, titleLevel) {
+        clearSaveTimer(block.dataset.nodeId);
+        const field = editable || getTextField(block);
+        const text = field ? field.innerText : "";
+        const nodeId = block.dataset.nodeId;
+        const caret = field ? getCaretOffset(field) : text.length;
+
+        const data = await apiRequest(updateNodeUrl(nodeId), "PATCH", {
+            content: { text },
+            block_type: "heading",
+            title_level: titleLevel,
+        });
+
+        let targetBlock = block;
+        if (data.html) {
+            targetBlock = replaceBlockFromHtml(nodeId, data.html) || block;
+        } else {
+            block.dataset.blockType = "heading";
+            block.dataset.titleLevel = String(titleLevel);
+        }
+
+        const headingField = targetBlock.querySelector('[data-field="text"]');
+        if (headingField) {
+            setCaretOffset(headingField, caret);
+        }
+
+        await refreshOutlineTree();
+        return targetBlock;
+    }
+
     async function createSiblingBlock(referenceBlock, blockType, options = {}) {
         const payload = {
             block_type: blockType || undefined,
             content: options.content,
         };
+        if (options.titleLevel !== undefined) {
+            payload.title_level = options.titleLevel;
+        }
         if (options.insertion === "before") {
             payload.before_node_id = referenceBlock.dataset.nodeId;
         } else {
@@ -329,18 +396,26 @@
         placeCaretAtEnd(newItem);
     }
 
+    function siblingInsertOptions(options, extra = {}) {
+        const merged = { ...extra };
+        if (options.titleLevel !== undefined) {
+            merged.titleLevel = options.titleLevel;
+        }
+        return merged;
+    }
+
     async function insertBlockAtCaret(block, editable, newBlockType, options = {}) {
         clearSaveTimer(block.dataset.nodeId);
 
         if (LIST_TYPES.has(block.dataset.blockType)) {
             await saveBlock(block);
-            await createSiblingBlock(block, newBlockType);
+            await createSiblingBlock(block, newBlockType, siblingInsertOptions(options));
             return;
         }
 
         if (block.dataset.blockType === "image" || block.dataset.blockType === "table") {
             await saveBlock(block);
-            await createSiblingBlock(block, newBlockType);
+            await createSiblingBlock(block, newBlockType, siblingInsertOptions(options));
             return;
         }
 
@@ -351,10 +426,14 @@
             const atEnd = caret >= fullText.length;
 
             if (atStart) {
-                await createSiblingBlock(block, newBlockType, {
-                    insertion: "before",
-                    content: { text: "" },
-                });
+                await createSiblingBlock(
+                    block,
+                    newBlockType,
+                    siblingInsertOptions(options, {
+                        insertion: "before",
+                        content: { text: "" },
+                    })
+                );
                 if (options.keepFocusInPlace) {
                     placeCaretAtStart(editable);
                 }
@@ -367,17 +446,21 @@
                 setTextFieldContent(block, beforeText);
                 await saveBlock(block);
                 editable.innerText = beforeText;
-                await createSiblingBlock(block, newBlockType, {
-                    insertion: "after",
-                    content: { text: afterText },
-                    caretAtStart: true,
-                });
+                await createSiblingBlock(
+                    block,
+                    newBlockType,
+                    siblingInsertOptions(options, {
+                        insertion: "after",
+                        content: { text: afterText },
+                        caretAtStart: true,
+                    })
+                );
                 return;
             }
         }
 
         await saveBlock(block);
-        await createSiblingBlock(block, newBlockType);
+        await createSiblingBlock(block, newBlockType, siblingInsertOptions(options));
     }
 
     async function handleTextBlockEnter(block, editable) {
@@ -549,12 +632,38 @@
             }
 
             const blockType = button.dataset.insertBlockType;
+            const titleLevelRaw = button.dataset.titleLevel;
+            const titleLevel = titleLevelRaw !== undefined && titleLevelRaw !== ""
+                ? Number.parseInt(titleLevelRaw, 10)
+                : 0;
             const context = resolveInsertContext();
             if (!context || !context.block) {
                 return;
             }
 
-            insertBlockAtCaret(context.block, context.editable, blockType).catch(console.error);
+            if (
+                blockType === "heading"
+                && HEADING_CONVERTIBLE_TYPES.has(context.block.dataset.blockType)
+            ) {
+                convertBlockToHeading(
+                    context.block,
+                    context.editable,
+                    titleLevel
+                ).catch(console.error);
+                return;
+            }
+
+            const insertOptions = {};
+            if (titleLevelRaw !== undefined && titleLevelRaw !== "") {
+                insertOptions.titleLevel = titleLevel;
+            }
+
+            insertBlockAtCaret(
+                context.block,
+                context.editable,
+                blockType,
+                insertOptions
+            ).catch(console.error);
         });
     }
 

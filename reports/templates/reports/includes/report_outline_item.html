@@ -2,7 +2,10 @@
 <li class="report-editor-outline-item{% if reorderable %} report-editor-outline-dnd-item{% endif %}"
     role="treeitem"
     aria-level="{{ entry.depth|add:1 }}"
-    {% if reorderable %}data-outline-node-id="{{ entry.node_id }}"{% endif %}>
+    {% if reorderable %}
+    data-outline-node-id="{{ entry.node_id }}"
+    data-report-parent-id="{{ entry.report_parent_id|default:'' }}"
+    {% endif %}>
     <div class="report-editor-outline-row d-flex align-items-center gap-1 min-w-0">
         {% if reorderable %}
         <span class="report-editor-outline-drag-handle flex-shrink-0"
@@ -13,7 +16,10 @@
         {% endif %}
         <a class="report-editor-outline-link flex-grow-1 min-w-0 text-truncate"
            href="#report-block-{{ entry.node_id }}"
-           title="{{ entry.label }}">
+           title="{% if entry.number %}{{ entry.number }}. {% endif %}{{ entry.label }}">
+            {% if entry.number %}
+            <span class="report-editor-outline-number text-nowrap user-select-none">{{ entry.number }}.</span>
+            {% endif %}
             <span class="report-editor-outline-label text-truncate">{{ entry.label }}</span>
         </a>
         {% if entry.children %}

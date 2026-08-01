@@ -59,6 +59,14 @@
     function persistSiblingOrder(listElement, cfg) {
         var parentRaw = listElement.getAttribute("data-node-parent-id");
         var parentNodeId = parentRaw === null || parentRaw === "" ? null : parentRaw;
+        var items = listElement.querySelectorAll(":scope > .report-editor-outline-dnd-item");
+        for (var i = 0; i < items.length; i++) {
+            var itemParent = items[i].getAttribute("data-report-parent-id") || "";
+            if (itemParent !== (parentRaw || "")) {
+                window.location.reload();
+                return;
+            }
+        }
         postJson(cfg.reorderNodesUrl, {
             parent_node_id: parentNodeId,
             ordered_node_ids: orderedNodeIdsFromList(listElement),
@@ -67,6 +75,10 @@
             .catch(function () {
                 window.location.reload();
             });
+    }
+
+    function blockCrossParentMove(event) {
+        return event.from === event.to;
     }
 
     function initSortable(listElement, cfg) {
@@ -82,9 +94,14 @@
             draggable: "> .report-editor-outline-dnd-item",
             handle: ".report-editor-outline-drag-handle",
             animation: 150,
+            revertOnSpill: true,
             ghostClass: "report-editor-outline-dnd-ghost",
             dragClass: "report-editor-outline-dnd-drag",
+            onMove: blockCrossParentMove,
             onEnd: function (event) {
+                if (event.from !== event.to) {
+                    return;
+                }
                 if (event.oldIndex === event.newIndex) {
                     return;
                 }

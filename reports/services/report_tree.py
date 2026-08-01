@@ -208,6 +208,13 @@ def reorder_heading_siblings(
         raise ValidationError("São necessários ao menos dois títulos para reordenar.")
 
     heading_by_id = {node.pk: node for node in headings}
+    for node_id in ordered_heading_ids:
+        node = heading_by_id[node_id]
+        if node.parent_id != parent_id:
+            raise ValidationError(
+                "Não é permitido mover títulos para fora do grupo pai informado."
+            )
+
     new_headings = [heading_by_id[node_id] for node_id in ordered_heading_ids]
 
     heading_indices = [

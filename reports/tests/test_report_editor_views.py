@@ -78,6 +78,9 @@ class ReportEditorViewTests(TestCase):
         self.assertContains(response, "Relatório pericial")
         self.assertContains(response, "Sumário")
         self.assertContains(response, "Histórico")
+        self.assertContains(response, "report-editor-toolbar-heading-group")
+        self.assertContains(response, "Título 1")
+        self.assertContains(response, "Título 4")
         self.assertContains(response, "Descrição dos fatos.")
         self.assertContains(response, 'data-block-type="heading"')
         self.assertContains(response, "contenteditable")
@@ -113,6 +116,7 @@ class ReportEditorViewTests(TestCase):
         self.assertEqual(response.status_code, 200)
         payload = response.json()
         self.assertIn("html", payload)
+        self.assertIn("heading_numbers", payload)
         self.assertIn("Histórico", payload["html"])
         self.assertIn("report-editor-outline", payload["html"])
 

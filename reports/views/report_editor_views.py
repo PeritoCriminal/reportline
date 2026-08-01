@@ -13,7 +13,7 @@ from reports.models import Report
 from reports.services.report_editor_bootstrap import ensure_editor_bootstrap
 from reports.services.report_editor_context import (
     build_report_editor_context,
-    render_outline_tree_html,
+    render_outline_refresh_payload,
 )
 from reports.views.report_node_api_views import ReportAuthorMixin
 
@@ -56,8 +56,8 @@ class ReportEditorOutlineView(ReportAuthorMixin, View):
     def get(self, request, pk):
         """Serializa partial do sumário após alterações no documento."""
         report = self.get_report()
-        html = render_outline_tree_html(report, request)
-        return JsonResponse({"html": html})
+        payload = render_outline_refresh_payload(report, request)
+        return JsonResponse(payload)
 
     def http_method_not_allowed(self, request, *args, **kwargs):
         """Restringe métodos aceitos neste endpoint."""

@@ -17,6 +17,23 @@
         }
     }
 
+    function applyHeadingNumbers(headingNumbers) {
+        if (!headingNumbers) {
+            return;
+        }
+        Object.keys(headingNumbers).forEach(function (nodeId) {
+            var number = headingNumbers[nodeId];
+            var block = document.getElementById("report-block-" + nodeId);
+            if (!block) {
+                return;
+            }
+            var badge = block.querySelector("[data-heading-number]");
+            if (badge) {
+                badge.textContent = number ? number + "." : "";
+            }
+        });
+    }
+
     async function refreshOutline() {
         var cfg = window.REPORT_EDITOR_OUTLINE || {};
         var root = getOutlineRoot();
@@ -39,6 +56,7 @@
 
         root.innerHTML = data.html;
         mountOutlineInteractions(root);
+        applyHeadingNumbers(data.heading_numbers);
     }
 
     document.addEventListener("DOMContentLoaded", function () {
@@ -50,5 +68,6 @@
 
     window.ReportLineOutline = {
         refresh: refreshOutline,
+        applyHeadingNumbers: applyHeadingNumbers,
     };
 })();

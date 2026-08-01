@@ -3,10 +3,58 @@ Barra de ferramentas do editor: título, status e inserção de blocos.
 {% endcomment %}
 <div class="report-editor-toolbar" role="toolbar" aria-label="Ferramentas do editor">
     <div class="report-editor-toolbar-blocks">
-        <button type="button" class="btn btn-outline-secondary btn-toolbar-block"
-                data-insert-block-type="heading" title="Título" aria-label="Inserir título">
-            <i class="bi bi-type-h1" aria-hidden="true"></i>
-        </button>
+        <div class="btn-group report-editor-toolbar-heading-group">
+            <button type="button"
+                    class="btn btn-outline-secondary btn-toolbar-block btn-toolbar-heading-main"
+                    data-insert-block-type="heading"
+                    data-title-level="0"
+                    title="Aplicar título nível 1"
+                    aria-label="Aplicar título nível 1">
+                <span class="report-editor-toolbar-heading-letter" aria-hidden="true">T</span>
+            </button>
+            <button type="button"
+                    class="btn btn-outline-secondary btn-toolbar-block btn-toolbar-heading-toggle dropdown-toggle dropdown-toggle-split"
+                    data-bs-toggle="dropdown"
+                    aria-expanded="false"
+                    title="Escolher nível do título"
+                    aria-label="Escolher nível do título">
+                <span class="visually-hidden">Escolher nível do título</span>
+            </button>
+            <ul class="dropdown-menu">
+                <li>
+                    <button type="button"
+                            class="dropdown-item"
+                            data-insert-block-type="heading"
+                            data-title-level="0">
+                        Título 1
+                    </button>
+                </li>
+                <li>
+                    <button type="button"
+                            class="dropdown-item"
+                            data-insert-block-type="heading"
+                            data-title-level="1">
+                        Título 2
+                    </button>
+                </li>
+                <li>
+                    <button type="button"
+                            class="dropdown-item"
+                            data-insert-block-type="heading"
+                            data-title-level="2">
+                        Título 3
+                    </button>
+                </li>
+                <li>
+                    <button type="button"
+                            class="dropdown-item"
+                            data-insert-block-type="heading"
+                            data-title-level="3">
+                        Título 4
+                    </button>
+                </li>
+            </ul>
+        </div>
         <button type="button" class="btn btn-outline-secondary btn-toolbar-block"
                 data-insert-block-type="paragraph" title="Parágrafo" aria-label="Inserir parágrafo">
             <i class="bi bi-text-paragraph" aria-hidden="true"></i>
