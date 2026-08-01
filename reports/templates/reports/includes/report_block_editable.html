@@ -21,6 +21,9 @@
      {% if entry.block_type != "table" and entry.block_type != "image" %}
      data-text-align="{{ entry.text_align|default:'justify' }}"
      {% endif %}
+     {% if entry.block_type == "paragraph" %}
+     data-indent-level="{{ entry.indent_level|default:0 }}"
+     {% endif %}
      {% if entry.block_type == "heading" and not entry.heading_number %}data-is-main-title="true"{% endif %}
      {% if is_caption %}data-is-caption="true"{% endif %}>
     {% if entry.block_type == "heading" %}
@@ -43,6 +46,7 @@
         <p class="report-editor-block-editable report-editor-block-paragraph"
            contenteditable="true"
            data-field="text"
+           data-first-line-indent="{% if is_caption %}false{% elif entry.first_line_indent != False %}true{% else %}false{% endif %}"
            data-placeholder="{% if is_caption %}Legenda da imagem{% else %}Digite o parágrafo…{% endif %}"
            {% if autofocus %}data-autofocus="true"{% endif %}>{{ entry.content.text|default:"" }}</p>
     {% elif entry.block_type == "ordered_list" %}

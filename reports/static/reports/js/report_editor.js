@@ -23,6 +23,7 @@
     let lastEditorContext = null;
     let lastTableCellContext = null;
     let lastImageSelection = null;
+    let lastParagraphContext = null;
 
     function getCsrfToken() {
         const match = document.cookie.match(/(?:^|;\s*)csrftoken=([^;]+)/);
@@ -742,6 +743,36 @@
         );
     }
 
+    function getParagraphElement(block) {
+        if (!block) {
+            return null;
+        }
+        return block.querySelector(".report-editor-block-paragraph");
+    }
+
+    function hasParagraphFirstLineIndent(block) {
+        const paragraph = getParagraphElement(block);
+        if (!paragraph) {
+            return true;
+        }
+        return paragraph.dataset.firstLineIndent !== "false";
+    }
+
+    function paragraphLayoutFromReference(referenceBlock, options = {}) {
+        const layout = {};
+        if (options.indentLevel !== undefined) {
+            layout.indentLevel = options.indentLevel;
+        } else if (referenceBlock.dataset.blockType === "paragraph" && !options.isCaption) {
+            layout.indentLevel = getParagraphIndentLevel(referenceBlock);
+        }
+        if (options.firstLineIndent !== undefined) {
+            layout.firstLineIndent = options.firstLineIndent;
+        } else if (referenceBlock.dataset.blockType === "paragraph" && !options.isCaption) {
+            layout.firstLineIndent = hasParagraphFirstLineIndent(referenceBlock);
+        }
+        return layout;
+    }
+
     async function createSiblingBlock(referenceBlock, blockType, options = {}) {
         const payload = {
             block_type: blockType || undefined,
@@ -757,6 +788,16 @@
             payload.before_node_id = referenceBlock.dataset.nodeId;
         } else {
             payload.after_node_id = referenceBlock.dataset.nodeId;
+        }
+
+        if (blockType === "paragraph") {
+            const layout = paragraphLayoutFromReference(referenceBlock, options);
+            if (layout.indentLevel !== undefined) {
+                payload.indent_level = layout.indentLevel;
+            }
+            if (layout.firstLineIndent !== undefined) {
+                payload.first_line_indent = layout.firstLineIndent;
+            }
         }
 
         const data = await apiRequest(config.createNodeUrl, "POST", payload);
@@ -1599,6 +1640,145 @@
         });
     }
 
+    const MAX_PARAGRAPH_INDENT_LEVEL = 5;
+
+    function isParagraphToolbarControl(element) {
+        return Boolean(
+            element
+            && element.closest
+            && (
+                element.closest(".report-editor-toolbar-paragraph-group")
+                || element.closest(".report-editor-toolbar-paragraph-menu")
+            )
+        );
+    }
+
+    function resolveParagraphContextFromActiveElement() {
+        const active = document.activeElement;
+        if (!active || !active.closest) {
+            return null;
+        }
+
+        const editable = active.closest(".report-editor-block-editable");
+        if (!editable) {
+            return null;
+        }
+
+        const block = editable.closest(".report-editor-block");
+        if (!block || block.dataset.blockType !== "paragraph") {
+            return null;
+        }
+
+        if (block.dataset.isCaption === "true") {
+            return null;
+        }
+
+        return { block, editable };
+    }
+
+    function rememberParagraphContext(context) {
+        if (context && context.block) {
+            lastParagraphContext = context;
+        }
+    }
+
+    function clearParagraphContext() {
+        lastParagraphContext = null;
+    }
+
+    function resolveParagraphContext() {
+        const fromActive = resolveParagraphContextFromActiveElement();
+        if (fromActive) {
+            rememberParagraphContext(fromActive);
+            return fromActive;
+        }
+
+        if (
+            lastParagraphContext
+            && document.contains(lastParagraphContext.block)
+            && isParagraphToolbarControl(document.activeElement)
+        ) {
+            return lastParagraphContext;
+        }
+
+        return null;
+    }
+
+    function getParagraphIndentLevel(block) {
+        const level = Number.parseInt(block.dataset.indentLevel || "0", 10);
+        if (Number.isNaN(level) || level < 0) {
+            return 0;
+        }
+        return Math.min(MAX_PARAGRAPH_INDENT_LEVEL, level);
+    }
+
+    function applyParagraphIndentVisual(block, layout) {
+        if (layout.indent_level !== undefined) {
+            block.dataset.indentLevel = String(layout.indent_level);
+        }
+        if (layout.first_line_indent !== undefined) {
+            const paragraph = getParagraphElement(block);
+            if (paragraph) {
+                paragraph.dataset.firstLineIndent = layout.first_line_indent ? "true" : "false";
+            }
+        }
+    }
+
+    async function patchParagraphLayout(block, layout) {
+        const payload = {};
+        if (layout.indent_level !== undefined) {
+            payload.indent_level = layout.indent_level;
+        }
+        if (layout.first_line_indent !== undefined) {
+            payload.first_line_indent = layout.first_line_indent;
+        }
+
+        const data = await apiRequest(updateNodeUrl(block.dataset.nodeId), "PATCH", payload);
+        applyParagraphIndentVisual(block, {
+            indent_level: data.indent_level,
+            first_line_indent: data.first_line_indent,
+        });
+        return data;
+    }
+
+    async function increaseParagraphIndent() {
+        const context = resolveParagraphContext();
+        if (!context) {
+            return;
+        }
+
+        const current = getParagraphIndentLevel(context.block);
+        if (current >= MAX_PARAGRAPH_INDENT_LEVEL) {
+            return;
+        }
+
+        await patchParagraphLayout(context.block, { indent_level: current + 1 });
+    }
+
+    async function decreaseParagraphIndent() {
+        const context = resolveParagraphContext();
+        if (!context) {
+            return;
+        }
+
+        const current = getParagraphIndentLevel(context.block);
+        if (current <= 0) {
+            return;
+        }
+
+        await patchParagraphLayout(context.block, { indent_level: current - 1 });
+    }
+
+    async function toggleParagraphFirstLineIndent() {
+        const context = resolveParagraphContext();
+        if (!context) {
+            return;
+        }
+
+        const current = hasParagraphFirstLineIndent(context.block);
+        await patchParagraphLayout(context.block, { first_line_indent: !current });
+    }
+
     function bindImageDeleteShortcut() {
         document.addEventListener("keydown", (event) => {
             if (event.key !== "Backspace" && event.key !== "Delete") {
@@ -1700,7 +1880,8 @@
                 event.target.closest("[data-insert-block-type]")
                 || event.target.closest("[data-report-text-align]")
                 || event.target.closest("[data-report-image-align]")
-                || event.target.closest("[data-report-image-options-toggle]")
+                || event.target.closest("[data-report-paragraph-indent]")
+                || event.target.closest("[data-report-paragraph-first-line-indent]")
             ) {
                 event.preventDefault();
             }
@@ -2159,5 +2340,11 @@
         setImageAlign,
         applyImageBlockAlignVisual,
         applyTableCellImageAlignVisual,
+        resolveParagraphContext,
+        rememberParagraphContext,
+        clearParagraphContext,
+        increaseParagraphIndent,
+        decreaseParagraphIndent,
+        toggleParagraphFirstLineIndent,
     };
 })();

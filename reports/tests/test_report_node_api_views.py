@@ -268,6 +268,79 @@ class ReportNodeApiViewTests(TestCase):
         self.assertEqual(paragraph_block.text_align, "center")
         self.assertEqual(response.json()["text_align"], "center")
 
+    def test_patch_indent_level_without_content(self):
+        """Garante atualização isolada do nível de recuo via PATCH."""
+        paragraph_block = ReportBlock.objects.create(
+            block_type=ReportBlockType.PARAGRAPH,
+            content={"text": "Corpo"},
+        )
+        paragraph_node = ReportNode.objects.create(
+            report=self.report,
+            block=paragraph_block,
+            position=Decimal("5"),
+        )
+
+        response = self._patch_node(paragraph_node, {"indent_level": 2})
+
+        self.assertEqual(response.status_code, 200)
+        paragraph_block.refresh_from_db()
+        self.assertEqual(paragraph_block.indent_level, 2)
+        self.assertEqual(response.json()["indent_level"], 2)
+
+    def test_patch_first_line_indent_without_content(self):
+        """Garante alternância do recuo de primeira linha via PATCH."""
+        paragraph_block = ReportBlock.objects.create(
+            block_type=ReportBlockType.PARAGRAPH,
+            content={"text": "Corpo"},
+            first_line_indent=True,
+        )
+        paragraph_node = ReportNode.objects.create(
+            report=self.report,
+            block=paragraph_block,
+            position=Decimal("6"),
+        )
+
+        response = self._patch_node(paragraph_node, {"first_line_indent": False})
+
+        self.assertEqual(response.status_code, 200)
+        paragraph_block.refresh_from_db()
+        self.assertFalse(paragraph_block.first_line_indent)
+
+    def test_post_after_heading_applies_paragraph_indent_defaults(self):
+        """Garante parágrafo novo com recuo de primeira linha ligado por padrão."""
+        response = self._post_node({"after_node_id": str(self.node.pk)})
+
+        self.assertEqual(response.status_code, 200)
+        node = ReportNode.objects.get(pk=response.json()["node_id"])
+        self.assertEqual(node.block.indent_level, 0)
+        self.assertTrue(node.block.first_line_indent)
+
+    def test_patch_indent_rejected_for_caption_paragraph(self):
+        """Garante que legendas não aceitam alteração de recuo."""
+        image_block = ReportBlock.objects.create(
+            block_type=ReportBlockType.IMAGE,
+            content={"alt": "Foto", "file": ""},
+        )
+        image_node = ReportNode.objects.create(
+            report=self.report,
+            block=image_block,
+            position=Decimal("7"),
+        )
+        caption_block = ReportBlock.objects.create(
+            block_type=ReportBlockType.PARAGRAPH,
+            content={"text": "Legenda"},
+            first_line_indent=False,
+        )
+        caption_node = ReportNode.objects.create(
+            report=self.report,
+            block=caption_block,
+            position=Decimal("8"),
+        )
+
+        response = self._patch_node(caption_node, {"indent_level": 1})
+
+        self.assertEqual(response.status_code, 400)
+
     def test_post_before_node_inserts_sibling(self):
         """Garante inserção de irmão antes do nó de referência."""
         paragraph_block = ReportBlock.objects.create(

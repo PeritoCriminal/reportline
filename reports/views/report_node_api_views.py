@@ -120,14 +120,23 @@ class ReportNodeDetailView(ReportAuthorMixin, View):
             block_type = payload.get("block_type")
             title_level = payload.get("title_level")
             text_align = payload.get("text_align")
+            indent_level = payload.get("indent_level")
+            first_line_indent = payload.get("first_line_indent")
             refresh_html = bool(payload.get("refresh_html"))
             focus_table_part = payload.get("focus_table_part")
             focus_table_row = payload.get("focus_table_row")
             focus_table_col = payload.get("focus_table_col")
             structure_changed = block_type is not None or title_level is not None
 
-            if content is None and text_align is None:
-                raise ValidationError("Informe content ou text_align.")
+            layout_patch = (
+                text_align is not None
+                or indent_level is not None
+                or first_line_indent is not None
+            )
+            if content is None and not layout_patch:
+                raise ValidationError(
+                    "Informe content, text_align, indent_level ou first_line_indent."
+                )
 
             node = update_node_block(
                 node,
@@ -135,6 +144,8 @@ class ReportNodeDetailView(ReportAuthorMixin, View):
                 block_type=block_type,
                 title_level=title_level,
                 text_align=text_align,
+                indent_level=indent_level,
+                first_line_indent=first_line_indent,
             )
         except ValidationError as exc:
             return _validation_error_response(exc)
@@ -146,6 +157,8 @@ class ReportNodeDetailView(ReportAuthorMixin, View):
             "title_level": block.title_level,
             "content": block.content,
             "text_align": block.text_align,
+            "indent_level": block.indent_level,
+            "first_line_indent": block.first_line_indent,
         }
         if structure_changed or refresh_html:
             focus_kwargs = {}
@@ -217,6 +230,8 @@ class ReportNodeCreateView(ReportAuthorMixin, View):
                 and reference_node.block.block_type == ReportBlockType.IMAGE,
             )
             caption_flag = bool(is_caption) and block_type == ReportBlockType.PARAGRAPH
+            indent_level = payload.get("indent_level")
+            first_line_indent = payload.get("first_line_indent")
 
             if before_node_id:
                 node = insert_sibling_before(
@@ -226,6 +241,8 @@ class ReportNodeCreateView(ReportAuthorMixin, View):
                     content=payload.get("content"),
                     title_level=payload.get("title_level"),
                     is_caption=caption_flag,
+                    indent_level=indent_level,
+                    first_line_indent=first_line_indent,
                 )
             else:
                 node = insert_sibling_after(
@@ -235,6 +252,8 @@ class ReportNodeCreateView(ReportAuthorMixin, View):
                     content=payload.get("content"),
                     title_level=payload.get("title_level"),
                     is_caption=caption_flag,
+                    indent_level=indent_level,
+                    first_line_indent=first_line_indent,
                 )
         except ValidationError as exc:
             return _validation_error_response(exc)
@@ -254,6 +273,8 @@ class ReportNodeCreateView(ReportAuthorMixin, View):
                 "content": block.content,
                 "html": html,
                 "text_align": block.text_align,
+                "indent_level": block.indent_level,
+                "first_line_indent": block.first_line_indent,
                 "is_caption": is_caption and block_type == ReportBlockType.PARAGRAPH,
                 "insertion": "before" if before_node_id else "after",
             }

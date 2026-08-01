@@ -33,7 +33,7 @@ class ReportBlockAdmin(admin.ModelAdmin):
                     "page_break_before",
                     "keep_with_previous",
                     "keep_with_next",
-                    "indent_paragraph",
+                    "indent_level",
                     "first_line_indent",
                     "line_spacing",
                     "space_before",

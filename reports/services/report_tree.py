@@ -56,6 +56,8 @@ def update_node_block(
     block_type: str | None = None,
     title_level: int | None = None,
     text_align: str | None = None,
+    indent_level: int | None = None,
+    first_line_indent: bool | None = None,
 ) -> ReportNode:
     """Atualiza conteúdo e metadados opcionais do bloco associado ao nó."""
     block = node.block
@@ -72,12 +74,13 @@ def update_node_block(
         block.title_level = title_level
     if text_align is not None:
         from reports.services.report_block_alignment import normalize_text_align
+        from reports.services.report_editor_context import is_caption_paragraph_node
 
         block.text_align = normalize_text_align(
             text_align,
             default=default_text_align_for_block(
                 target_type,
-                is_caption=False,
+                is_caption=is_caption_paragraph_node(node),
                 is_main_title=(
                     target_type == ReportBlockType.HEADING
                     and node.block.block_type == ReportBlockType.HEADING
@@ -86,6 +89,14 @@ def update_node_block(
             ),
         )
 
+    from reports.services.report_block_indent import apply_paragraph_indent_patch
+
+    indent_fields = apply_paragraph_indent_patch(
+        node,
+        indent_level=indent_level,
+        first_line_indent=first_line_indent,
+    )
+
     update_fields = ["updated_at"]
     if content is not None or block_type is not None:
         update_fields.extend(["block_type", "content"])
@@ -93,8 +104,30 @@ def update_node_block(
         update_fields.append("title_level")
     if text_align is not None:
         update_fields.append("text_align")
+    update_fields.extend(indent_fields)
 
-    block.save(update_fields=update_fields)
+    if block_type is not None and target_type == ReportBlockType.PARAGRAPH:
+        from reports.services.report_editor_context import is_caption_paragraph_node
+        from reports.services.report_block_indent import (
+            default_first_line_indent_for_block,
+            default_indent_level_for_block,
+        )
+
+        is_caption = is_caption_paragraph_node(node)
+        if indent_level is None:
+            block.indent_level = default_indent_level_for_block(
+                target_type,
+                is_caption=is_caption,
+            )
+            update_fields.append("indent_level")
+        if first_line_indent is None:
+            block.first_line_indent = default_first_line_indent_for_block(
+                target_type,
+                is_caption=is_caption,
+            )
+            update_fields.append("first_line_indent")
+
+    block.save(update_fields=list(dict.fromkeys(update_fields)))
 
     if content is not None:
         from reports.services.report_block_image_cleanup import delete_removed_block_images
@@ -132,6 +165,8 @@ def insert_sibling_before(
     content: dict[str, Any] | None = None,
     title_level: int | None = None,
     is_caption: bool = False,
+    indent_level: int | None = None,
+    first_line_indent: bool | None = None,
 ) -> ReportNode:
     """Insere nó irmão imediatamente antes de ``before_node`` na mesma profundidade."""
     if before_node.report_id != report.pk:
@@ -152,6 +187,15 @@ def insert_sibling_before(
     if is_main_title:
         demote_previous_main_title(report, before_node)
 
+    from reports.services.report_block_indent import resolve_indent_on_create
+
+    resolved_indent_level, resolved_first_line_indent = resolve_indent_on_create(
+        block_type,
+        is_caption=is_caption,
+        indent_level=indent_level,
+        first_line_indent=first_line_indent,
+    )
+
     block = ReportBlock.objects.create(
         block_type=block_type,
         content=normalized,
@@ -161,6 +205,8 @@ def insert_sibling_before(
             is_caption=is_caption,
             is_main_title=is_main_title,
         ),
+        indent_level=resolved_indent_level,
+        first_line_indent=resolved_first_line_indent,
     )
     position = _fractional_position_before(report, before_node.parent_id, before_node)
     return ReportNode.objects.create(
@@ -206,6 +252,8 @@ def insert_sibling_after(
     content: dict[str, Any] | None = None,
     title_level: int | None = None,
     is_caption: bool = False,
+    indent_level: int | None = None,
+    first_line_indent: bool | None = None,
 ) -> ReportNode:
     """
     Insere nó irmão imediatamente após ``after_node`` na mesma profundidade.
@@ -226,6 +274,15 @@ def insert_sibling_after(
         and is_main_title_heading_insertion(report, after_node=after_node)
     )
 
+    from reports.services.report_block_indent import resolve_indent_on_create
+
+    resolved_indent_level, resolved_first_line_indent = resolve_indent_on_create(
+        block_type,
+        is_caption=is_caption,
+        indent_level=indent_level,
+        first_line_indent=first_line_indent,
+    )
+
     block = ReportBlock.objects.create(
         block_type=block_type,
         content=normalized,
@@ -235,6 +292,8 @@ def insert_sibling_after(
             is_caption=is_caption,
             is_main_title=is_main_title,
         ),
+        indent_level=resolved_indent_level,
+        first_line_indent=resolved_first_line_indent,
     )
     position = _fractional_position_after(report, after_node.parent_id, after_node)
     return ReportNode.objects.create(

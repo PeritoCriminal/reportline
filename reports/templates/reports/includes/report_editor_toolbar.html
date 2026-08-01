@@ -58,13 +58,52 @@ Botões de formatação ainda sem comportamento — apenas layout.
                     </li>
                 </ul>
             </div>
-            <button type="button"
-                    class="btn btn-outline-secondary btn-toolbar-block"
-                    data-insert-block-type="paragraph"
-                    title="Parágrafo"
-                    aria-label="Inserir parágrafo">
-                <i class="bi bi-text-paragraph" aria-hidden="true"></i>
-            </button>
+            <div class="btn-group report-editor-toolbar-paragraph-group">
+                <button type="button"
+                        class="btn btn-outline-secondary btn-toolbar-block btn-toolbar-paragraph-main"
+                        data-insert-block-type="paragraph"
+                        title="Parágrafo"
+                        aria-label="Inserir parágrafo">
+                    <i class="bi bi-text-paragraph" aria-hidden="true"></i>
+                </button>
+                <button type="button"
+                        class="btn btn-outline-secondary btn-toolbar-block btn-toolbar-paragraph-toggle dropdown-toggle dropdown-toggle-split"
+                        data-bs-toggle="dropdown"
+                        data-report-paragraph-options-toggle
+                        aria-expanded="false"
+                        title="Opções do parágrafo"
+                        aria-label="Opções do parágrafo"
+                        disabled>
+                    <span class="visually-hidden">Opções do parágrafo</span>
+                </button>
+                <ul class="dropdown-menu report-editor-toolbar-paragraph-menu">
+                    <li>
+                        <button type="button"
+                                class="dropdown-item d-flex align-items-center gap-2"
+                                data-report-paragraph-indent="increase">
+                            <i class="bi bi-text-indent-left" aria-hidden="true"></i>
+                            Aumentar recuo
+                        </button>
+                    </li>
+                    <li>
+                        <button type="button"
+                                class="dropdown-item d-flex align-items-center gap-2"
+                                data-report-paragraph-indent="decrease">
+                            <i class="bi bi-text-indent-right" aria-hidden="true"></i>
+                            Diminuir recuo
+                        </button>
+                    </li>
+                    <li><hr class="dropdown-divider"></li>
+                    <li>
+                        <button type="button"
+                                class="dropdown-item d-flex align-items-center gap-2"
+                                data-report-paragraph-first-line-indent>
+                            <i class="bi bi-check2 report-editor-paragraph-menu-check" aria-hidden="true"></i>
+                            Recuo da primeira linha
+                        </button>
+                    </li>
+                </ul>
+            </div>
             <button type="button"
                     class="btn btn-outline-secondary btn-toolbar-block"
                     data-insert-block-type="ordered_list"
@@ -279,27 +318,7 @@ Botões de formatação ainda sem comportamento — apenas layout.
 
         <div class="report-editor-toolbar-divider" aria-hidden="true"></div>
 
-        {# 3 — Recuo #}
-        <div class="report-editor-toolbar-group" role="group" aria-label="Recuo">
-            <button type="button"
-                    class="btn btn-outline-secondary btn-toolbar-block"
-                    disabled
-                    title="Aumentar recuo"
-                    aria-label="Aumentar recuo">
-                <i class="bi bi-text-indent-right" aria-hidden="true"></i>
-            </button>
-            <button type="button"
-                    class="btn btn-outline-secondary btn-toolbar-block"
-                    disabled
-                    title="Diminuir recuo"
-                    aria-label="Diminuir recuo">
-                <i class="bi bi-text-indent-left" aria-hidden="true"></i>
-            </button>
-        </div>
-
-        <div class="report-editor-toolbar-divider" aria-hidden="true"></div>
-
-        {# 4 — Formatação inline #}
+        {# 3 — Formatação inline #}
         <div class="report-editor-toolbar-group" role="group" aria-label="Formatação de texto">
             <button type="button"
                     class="btn btn-outline-secondary btn-toolbar-block"

@@ -89,12 +89,14 @@ class ReportBlock(BaseModel):
         verbose_name="Manter com o posterior",
         help_text="Evita separação deste bloco do bloco imediatamente posterior.",
     )
-    indent_paragraph = models.BooleanField(
-        default=False,
-        verbose_name="Identar parágrafo",
+    indent_level = models.PositiveSmallIntegerField(
+        default=0,
+        validators=[MaxValueValidator(5)],
+        verbose_name="Nível de recuo",
+        help_text="Recuo progressivo do bloco (0 = sem recuo; máximo 5).",
     )
     first_line_indent = models.BooleanField(
-        default=False,
+        default=True,
         verbose_name="Recuar primeira linha",
     )
     line_spacing = models.CharField(

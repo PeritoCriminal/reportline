@@ -44,6 +44,8 @@ class ReportBodyEntry:
     heading_number: str = ""
     is_caption: bool = False
     text_align: str = "justify"
+    indent_level: int = 0
+    first_line_indent: bool = True
 
 
 def _enrich_block_content(block_type: str, content: dict[str, Any]) -> dict[str, Any]:
@@ -188,6 +190,15 @@ def _is_caption_paragraph(
     return siblings[index - 1].block.block_type == ReportBlockType.IMAGE
 
 
+def is_caption_paragraph_node(node: ReportNode) -> bool:
+    """Indica se o nó é parágrafo legenda imediatamente após imagem."""
+    nodes = list(
+        node.report.nodes.select_related("block").order_by("position", "created_at")
+    )
+    nodes_by_parent = _group_nodes_by_parent(nodes)
+    return _is_caption_paragraph(node, nodes_by_parent)
+
+
 def _build_body_entries(
     nodes_by_parent: dict[UUID | None, list[ReportNode]],
     parent_id: UUID | None = None,
@@ -209,6 +220,8 @@ def _build_body_entries(
                 heading_number=heading_numbers.get(node.pk, ""),
                 is_caption=_is_caption_paragraph(node, nodes_by_parent),
                 text_align=block.text_align,
+                indent_level=block.indent_level,
+                first_line_indent=block.first_line_indent,
             )
         )
         entries.extend(
@@ -240,6 +253,8 @@ def _body_entry_from_node(
         content=_enrich_block_content(block.block_type, block.content or {}),
         heading_number=numbers.get(node.pk, ""),
         text_align=block.text_align,
+        indent_level=block.indent_level,
+        first_line_indent=block.first_line_indent,
     )
 
 

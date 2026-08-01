@@ -1,0 +1,120 @@
+"""
+Recuo de parágrafos no editor e na renderização do laudo.
+
+Define níveis de recuo de bloco (0–5), recuo de primeira linha conforme
+padrão tipográfico em português e validação por tipo de bloco.
+"""
+
+from __future__ import annotations
+
+from django.core.exceptions import ValidationError
+
+from reports.models import ReportBlockType, ReportNode
+
+MAX_INDENT_LEVEL = 5
+
+
+def normalize_indent_level(value, *, default: int = 0) -> int:
+    """Valida nível de recuo de bloco ou retorna o padrão informado."""
+    if value in (None, ""):
+        return default
+    try:
+        level = int(value)
+    except (TypeError, ValueError) as exc:
+        raise ValidationError("Nível de recuo inválido.") from exc
+    if level < 0 or level > MAX_INDENT_LEVEL:
+        raise ValidationError(f"O recuo deve estar entre 0 e {MAX_INDENT_LEVEL}.")
+    return level
+
+
+def default_indent_level_for_block(
+    block_type: str,
+    *,
+    is_caption: bool = False,
+) -> int:
+    """Parágrafos de corpo iniciam sem recuo de bloco; demais tipos também."""
+    if block_type == ReportBlockType.PARAGRAPH and not is_caption:
+        return 0
+    return 0
+
+
+def default_first_line_indent_for_block(
+    block_type: str,
+    *,
+    is_caption: bool = False,
+) -> bool:
+    """Parágrafos de corpo usam recuo de primeira linha por padrão no laudo."""
+    return block_type == ReportBlockType.PARAGRAPH and not is_caption
+
+
+def is_caption_paragraph_node(node: ReportNode) -> bool:
+    """Indica parágrafo imediatamente após bloco de imagem (legenda)."""
+    from reports.services.report_editor_context import is_caption_paragraph_node as _is_caption
+
+    return _is_caption(node)
+
+
+def resolve_indent_on_create(
+    block_type: str,
+    *,
+    is_caption: bool = False,
+    indent_level: int | None = None,
+    first_line_indent: bool | None = None,
+) -> tuple[int, bool]:
+    """Resolve nível e recuo de 1ª linha ao criar bloco, com herança opcional."""
+    level = (
+        normalize_indent_level(indent_level)
+        if indent_level is not None
+        else default_indent_level_for_block(block_type, is_caption=is_caption)
+    )
+    first_line = (
+        bool(first_line_indent)
+        if first_line_indent is not None
+        else default_first_line_indent_for_block(block_type, is_caption=is_caption)
+    )
+    return level, first_line
+
+
+def validate_paragraph_indent_patch(
+    node: ReportNode,
+    *,
+    indent_level: int | None,
+    first_line_indent: bool | None,
+) -> None:
+    """Garante que alterações de recuo se apliquem somente a parágrafos de corpo."""
+    if indent_level is None and first_line_indent is None:
+        return
+
+    block = node.block
+    if block.block_type != ReportBlockType.PARAGRAPH:
+        raise ValidationError("Recuo aplica-se somente a parágrafos.")
+
+    if is_caption_paragraph_node(node):
+        raise ValidationError("Legendas de imagem não aceitam recuo.")
+
+
+def apply_paragraph_indent_patch(
+    node: ReportNode,
+    *,
+    indent_level: int | None,
+    first_line_indent: bool | None,
+) -> list[str]:
+    """Atualiza campos de recuo do bloco e retorna campos alterados."""
+    validate_paragraph_indent_patch(
+        node,
+        indent_level=indent_level,
+        first_line_indent=first_line_indent,
+    )
+
+    block = node.block
+    update_fields: list[str] = []
+
+    if indent_level is not None:
+        block.indent_level = normalize_indent_level(indent_level)
+        update_fields.append("indent_level")
+
+    if first_line_indent is not None:
+        block.first_line_indent = bool(first_line_indent)
+        update_fields.append("first_line_indent")
+
+    return update_fields

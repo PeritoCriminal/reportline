@@ -38,8 +38,8 @@ class ReportBlockModelTests(TestCase):
         self.assertFalse(block.page_break_before)
         self.assertFalse(block.keep_with_previous)
         self.assertFalse(block.keep_with_next)
-        self.assertFalse(block.indent_paragraph)
-        self.assertFalse(block.first_line_indent)
+        self.assertEqual(block.indent_level, 0)
+        self.assertTrue(block.first_line_indent)
         self.assertEqual(block.line_spacing, ReportBlockLineSpacing.NORMAL)
         self.assertEqual(block.space_before, 0)
         self.assertEqual(block.space_after, 0)
@@ -79,7 +79,7 @@ class ReportBlockModelTests(TestCase):
             block_type=ReportBlockType.HEADING,
             content={"text": "Subseção."},
             title_level=2,
-            indent_paragraph=True,
+            indent_level=2,
             first_line_indent=True,
             line_spacing=ReportBlockLineSpacing.RELAXED,
             space_before=6,
@@ -87,6 +87,6 @@ class ReportBlockModelTests(TestCase):
         )
 
         self.assertEqual(block.title_level, 2)
-        self.assertTrue(block.indent_paragraph)
+        self.assertEqual(block.indent_level, 2)
         self.assertEqual(block.line_spacing, ReportBlockLineSpacing.RELAXED)
         self.assertEqual(block.space_after, 12)
