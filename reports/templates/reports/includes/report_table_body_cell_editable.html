@@ -5,14 +5,27 @@
          data-image-id="{{ cell.image_id|default:'' }}"
          data-image-width="{{ cell.width|default:0 }}"
          data-image-height="{{ cell.height|default:0 }}">
-        {% if cell.url %}
-            <img src="{{ cell.url }}"
-                 alt="{{ cell.alt|default:'' }}"
-                 class="report-editor-table-cell-img"
-                 width="{{ cell.width }}"
-                 height="{{ cell.height }}"
-                 draggable="false">
-        {% endif %}
+        <div class="report-editor-table-cell-image-frame">
+            {% if cell.url %}
+                <img src="{{ cell.url }}"
+                     alt="{{ cell.alt|default:'' }}"
+                     class="report-editor-table-cell-img"
+                     width="{{ cell.width }}"
+                     height="{{ cell.height }}"
+                     {% if cell.width and cell.height %}
+                     style="width: {{ cell.width }}px; height: {{ cell.height }}px;"
+                     {% endif %}
+                     draggable="false">
+                <div class="report-editor-image-resize-handles report-editor-table-cell-image-handles"
+                     hidden
+                     aria-hidden="true">
+                    <span class="report-editor-image-handle" data-handle="nw"></span>
+                    <span class="report-editor-image-handle" data-handle="ne"></span>
+                    <span class="report-editor-image-handle" data-handle="sw"></span>
+                    <span class="report-editor-image-handle" data-handle="se"></span>
+                </div>
+            {% endif %}
+        </div>
     </div>
 {% else %}
     <div class="report-editor-block-editable report-editor-table-cell"

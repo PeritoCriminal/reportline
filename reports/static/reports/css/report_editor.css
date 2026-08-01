@@ -570,22 +570,63 @@ body.report-editor-column-resize-active {
     line-height: 0;
 }
 
+.report-editor-block[data-is-caption="true"] {
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.report-editor-block[data-is-caption="true"] .report-editor-block-paragraph {
+    text-align: center;
+    font-size: 0.875rem;
+    color: var(--report-page-muted);
+    margin-bottom: 1rem;
+}
+
 .report-editor-table-cell-image {
-    display: block;
-    width: 100%;
+    display: inline-block;
+    max-width: 100%;
     margin: 0;
     padding: 0;
     line-height: 0;
+    vertical-align: top;
+}
+
+.report-editor-table-cell-image-frame {
+    position: relative;
+    display: inline-block;
+    max-width: 100%;
+    line-height: 0;
+}
+
+.report-editor-table-cell-image.is-image-selected .report-editor-table-cell-image-frame {
+    outline: 2px solid var(--bs-primary);
+    outline-offset: 2px;
+    border-radius: 0.25rem;
 }
 
 .report-editor-table-cell-img {
     display: block;
-    width: 100%;
+    max-width: 100%;
+    width: auto;
     height: auto;
     margin: 0;
     user-select: none;
     -webkit-user-drag: none;
     vertical-align: top;
+}
+
+.report-editor-table-cell-image-handles {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+}
+
+.report-editor-table-cell-image.is-image-selected .report-editor-table-cell-image-handles {
+    pointer-events: auto;
+}
+
+.report-editor-table-cell-image.is-resizing .report-editor-table-cell-img {
+    pointer-events: none;
 }
 
 .report-editor-table-cell:empty::before {
@@ -691,6 +732,11 @@ body.report-editor-column-resize-active {
     height: auto;
     user-select: none;
     -webkit-user-drag: none;
+}
+
+.report-editor-block-image-frame .report-editor-block-image-img[style*="width"] {
+    max-width: none;
+    max-height: none;
 }
 
 .report-editor-block.is-image-selected .report-editor-block-image-frame {

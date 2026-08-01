@@ -1,7 +1,8 @@
 /**
  * Redimensionamento interativo de imagens no editor via alças nos cantos.
  *
- * Atualiza dimensões de exibição no JSON do bloco (sem reprocessar o arquivo).
+ * Suporta blocos de imagem fora de tabela e imagens dentro de células.
+ * Atualiza dimensões de exibição no JSON (sem reprocessar o arquivo).
  */
 (function () {
     "use strict";
@@ -10,35 +11,94 @@
     const MIN_IMAGE_SIDE_PX = 48;
 
     let pageElement = null;
-    let selectedBlock = null;
+    let selectedTarget = null;
     let activeDrag = null;
 
     function clamp(value, min, max) {
         return Math.min(Math.max(value, min), max);
     }
 
-    function getImageBlock(element) {
-        return element ? element.closest(".report-editor-block[data-block-type=\"image\"]") : null;
+    function resolveResizeTarget(element) {
+        if (!element) {
+            return null;
+        }
+
+        const block = element.closest(".report-editor-block[data-block-type=\"image\"]");
+        if (block) {
+            return {
+                type: "block",
+                root: block,
+                frameSelector: ".report-editor-block-image-frame",
+                imgSelector: ".report-editor-block-image-img",
+                resizeWrapSelector: ".report-editor-block-image",
+            };
+        }
+
+        const cellImage = element.closest(".report-editor-table-cell-image");
+        if (cellImage) {
+            return {
+                type: "table-cell",
+                root: cellImage,
+                frameSelector: ".report-editor-table-cell-image-frame",
+                imgSelector: ".report-editor-table-cell-img",
+                resizeWrapSelector: ".report-editor-table-cell-image",
+                tableBlock: cellImage.closest(".report-editor-block[data-block-type=\"table\"]"),
+            };
+        }
+
+        return null;
     }
 
-    function getAspectRatio(block) {
-        const naturalWidth = Number(block.dataset.naturalWidth || block.dataset.imageWidth || 0);
-        const naturalHeight = Number(block.dataset.naturalHeight || block.dataset.imageHeight || 0);
-        if (naturalWidth > 0 && naturalHeight > 0) {
-            return naturalWidth / naturalHeight;
+    function getNaturalDimensions(target) {
+        const root = target.root;
+        let width = Number.parseInt(root.dataset.naturalWidth || "0", 10);
+        let height = Number.parseInt(root.dataset.naturalHeight || "0", 10);
+
+        if (width > 0 && height > 0) {
+            return { width, height };
         }
+
+        const img = root.querySelector(target.imgSelector);
+        if (img && img.naturalWidth > 0 && img.naturalHeight > 0) {
+            root.dataset.naturalWidth = String(img.naturalWidth);
+            root.dataset.naturalHeight = String(img.naturalHeight);
+            return { width: img.naturalWidth, height: img.naturalHeight };
+        }
+
+        return { width: 0, height: 0 };
+    }
+
+    function getAspectRatio(target) {
+        const { width, height } = getNaturalDimensions(target);
+        if (width > 0 && height > 0) {
+            return width / height;
+        }
+
+        const current = getCurrentSize(target);
+        if (current.width > 0 && current.height > 0) {
+            return current.width / current.height;
+        }
+
         return 1;
     }
 
-    function getBounds(block) {
-        const naturalWidth = Number(block.dataset.naturalWidth || block.dataset.imageWidth || 0);
-        const naturalHeight = Number(block.dataset.naturalHeight || block.dataset.imageHeight || 0);
+    function getCellMaxWidth(target) {
+        const td = target.root.closest("td");
+        if (!td) {
+            return maxImageSidePx;
+        }
+        return Math.max(MIN_IMAGE_SIDE_PX, td.clientWidth);
+    }
+
+    function getBounds(target) {
+        const { width: naturalWidth, height: naturalHeight } = getNaturalDimensions(target);
         let maxWidth = naturalWidth;
         let maxHeight = naturalHeight;
 
         if (maxWidth <= 0 || maxHeight <= 0) {
-            maxWidth = maxImageSidePx;
-            maxHeight = maxImageSidePx;
+            const current = getCurrentSize(target);
+            maxWidth = current.width || maxImageSidePx;
+            maxHeight = current.height || maxImageSidePx;
         }
 
         const longest = Math.max(maxWidth, maxHeight);
@@ -48,7 +108,14 @@
             maxHeight = Math.round(maxHeight * scale);
         }
 
-        const aspectRatio = maxWidth / maxHeight;
+        if (target.type === "table-cell") {
+            maxWidth = Math.min(maxWidth, getCellMaxWidth(target));
+            maxHeight = Math.round(
+                maxWidth * (maxHeight / Math.max(1, naturalHeight || maxHeight))
+            );
+        }
+
+        const aspectRatio = maxWidth / Math.max(1, maxHeight);
         const minWidth = aspectRatio >= 1
             ? MIN_IMAGE_SIDE_PX * aspectRatio
             : MIN_IMAGE_SIDE_PX;
@@ -64,14 +131,14 @@
         };
     }
 
-    function getCurrentSize(block) {
-        const img = block.querySelector(".report-editor-block-image-img");
+    function getCurrentSize(target) {
+        const img = target.root.querySelector(target.imgSelector);
         if (!img) {
             return { width: 0, height: 0 };
         }
 
-        const width = Number.parseInt(block.dataset.imageWidth || img.getAttribute("width") || "0", 10);
-        const height = Number.parseInt(block.dataset.imageHeight || img.getAttribute("height") || "0", 10);
+        const width = Number.parseInt(target.root.dataset.imageWidth || img.getAttribute("width") || "0", 10);
+        const height = Number.parseInt(target.root.dataset.imageHeight || img.getAttribute("height") || "0", 10);
         if (width > 0 && height > 0) {
             return { width, height };
         }
@@ -82,23 +149,28 @@
         };
     }
 
-    function applyDisplaySize(block, width, height) {
-        const img = block.querySelector(".report-editor-block-image-img");
+    function applyDisplaySize(target, width, height) {
+        const root = target.root;
+        const img = root.querySelector(target.imgSelector);
         if (!img) {
             return;
         }
 
-        block.dataset.imageWidth = String(width);
-        block.dataset.imageHeight = String(height);
+        root.dataset.imageWidth = String(width);
+        root.dataset.imageHeight = String(height);
         img.setAttribute("width", String(width));
         img.setAttribute("height", String(height));
         img.style.width = `${width}px`;
         img.style.height = `${height}px`;
+
+        if (target.type === "block") {
+            syncCaptionWidth(target.root);
+        }
     }
 
-    function normalizeSize(block, width, height) {
-        const aspectRatio = getAspectRatio(block);
-        const bounds = getBounds(block);
+    function normalizeSize(target, width, height) {
+        const aspectRatio = getAspectRatio(target);
+        const bounds = getBounds(target);
         let nextWidth = width;
         let nextHeight = height;
 
@@ -131,60 +203,83 @@
         };
     }
 
-    function syncNaturalDimensions(block, img) {
+    function syncNaturalDimensions(target, img) {
         if (!img.naturalWidth || !img.naturalHeight) {
             return;
         }
 
-        block.dataset.naturalWidth = String(img.naturalWidth);
-        block.dataset.naturalHeight = String(img.naturalHeight);
+        if (!target.root.dataset.naturalWidth || !target.root.dataset.naturalHeight) {
+            target.root.dataset.naturalWidth = String(img.naturalWidth);
+            target.root.dataset.naturalHeight = String(img.naturalHeight);
+        }
 
-        const storedWidth = Number.parseInt(block.dataset.imageWidth || "0", 10);
-        const storedHeight = Number.parseInt(block.dataset.imageHeight || "0", 10);
+        const storedWidth = Number.parseInt(target.root.dataset.imageWidth || "0", 10);
+        const storedHeight = Number.parseInt(target.root.dataset.imageHeight || "0", 10);
         if (storedWidth > 0 && storedHeight > 0) {
-            applyDisplaySize(block, storedWidth, storedHeight);
+            applyDisplaySize(target, storedWidth, storedHeight);
             return;
         }
 
-        const normalized = normalizeSize(block, img.naturalWidth, img.naturalHeight);
-        applyDisplaySize(block, normalized.width, normalized.height);
+        const normalized = normalizeSize(target, img.naturalWidth, img.naturalHeight);
+        applyDisplaySize(target, normalized.width, normalized.height);
     }
 
-    function showHandles(block) {
-        const handles = block.querySelector(".report-editor-image-resize-handles");
+    function syncCaptionWidth(imageBlock) {
+        const captionBlock = imageBlock.nextElementSibling;
+        if (!captionBlock || captionBlock.dataset.isCaption !== "true") {
+            return;
+        }
+
+        const frame = imageBlock.querySelector(".report-editor-block-image-frame");
+        const width = frame ? frame.offsetWidth : 0;
+        if (width <= 0) {
+            return;
+        }
+
+        captionBlock.style.width = `${width}px`;
+        captionBlock.style.marginLeft = "auto";
+        captionBlock.style.marginRight = "auto";
+    }
+
+    function scanCaptionWidths(root) {
+        root.querySelectorAll(".report-editor-block[data-block-type=\"image\"]").forEach(syncCaptionWidth);
+    }
+
+    function showHandles(target) {
+        const handles = target.root.querySelector(".report-editor-image-resize-handles");
         if (handles) {
             handles.hidden = false;
         }
     }
 
-    function hideHandles(block) {
-        const handles = block.querySelector(".report-editor-image-resize-handles");
+    function hideHandles(target) {
+        const handles = target.root.querySelector(".report-editor-image-resize-handles");
         if (handles) {
             handles.hidden = true;
         }
     }
 
-    function selectImageBlock(block) {
-        if (selectedBlock === block) {
+    function selectTarget(target) {
+        if (selectedTarget && selectedTarget.root === target.root) {
             return;
         }
-        deselectImageBlock();
-        selectedBlock = block;
-        block.classList.add("is-image-selected");
-        showHandles(block);
+        deselectTarget();
+        selectedTarget = target;
+        target.root.classList.add("is-image-selected");
+        showHandles(target);
     }
 
-    function deselectImageBlock() {
-        if (!selectedBlock) {
+    function deselectTarget() {
+        if (!selectedTarget) {
             return;
         }
-        selectedBlock.classList.remove("is-image-selected");
-        hideHandles(selectedBlock);
-        selectedBlock = null;
+        selectedTarget.root.classList.remove("is-image-selected");
+        hideHandles(selectedTarget);
+        selectedTarget = null;
     }
 
-    function getAnchorPoint(block, handleName) {
-        const frame = block.querySelector(".report-editor-block-image-frame");
+    function getAnchorPoint(target, handleName) {
+        const frame = target.root.querySelector(target.frameSelector);
         if (!frame) {
             return { x: 0, y: 0 };
         }
@@ -203,8 +298,8 @@
         }
     }
 
-    function sizeFromPointer(block, handleName, pointerX, pointerY, aspectRatio) {
-        const anchor = getAnchorPoint(block, handleName);
+    function sizeFromPointer(target, handleName, pointerX, pointerY, aspectRatio) {
+        const anchor = getAnchorPoint(target, handleName);
         let width = Math.abs(pointerX - anchor.x);
         let height = Math.abs(pointerY - anchor.y);
 
@@ -214,25 +309,24 @@
             height = width / aspectRatio;
         }
 
-        return normalizeSize(block, width, height);
+        return normalizeSize(target, width, height);
     }
 
-    function startDrag(event, block, handleName) {
+    function startDrag(event, target, handleName) {
         event.preventDefault();
         event.stopPropagation();
 
-        selectImageBlock(block);
+        selectTarget(target);
 
-        const aspectRatio = getAspectRatio(block);
-        const imageWrap = block.querySelector(".report-editor-block-image");
-        if (imageWrap) {
-            imageWrap.classList.add("is-resizing");
-        }
+        const aspectRatio = getAspectRatio(target);
+        const resizeWrap = target.root.querySelector(target.resizeWrapSelector) || target.root;
+        resizeWrap.classList.add("is-resizing");
 
         activeDrag = {
-            block,
+            target,
             handleName,
             aspectRatio,
+            resizeWrap,
             pointerId: event.pointerId,
         };
 
@@ -253,13 +347,13 @@
         }
 
         const nextSize = sizeFromPointer(
-            activeDrag.block,
+            activeDrag.target,
             activeDrag.handleName,
             event.clientX,
             event.clientY,
             activeDrag.aspectRatio
         );
-        applyDisplaySize(activeDrag.block, nextSize.width, nextSize.height);
+        applyDisplaySize(activeDrag.target, nextSize.width, nextSize.height);
     }
 
     async function endDrag(event) {
@@ -267,35 +361,46 @@
             return;
         }
 
-        const block = activeDrag.block;
-        const imageWrap = block.querySelector(".report-editor-block-image");
-        if (imageWrap) {
-            imageWrap.classList.remove("is-resizing");
-        }
+        const { target, resizeWrap } = activeDrag;
+        resizeWrap.classList.remove("is-resizing");
 
         clearDragListeners();
         activeDrag = null;
 
-        if (window.ReportLineEditor && window.ReportLineEditor.saveBlock) {
-            try {
-                await window.ReportLineEditor.saveBlock(block);
-            } catch (error) {
-                console.error(error);
-            }
+        if (!window.ReportLineEditor || !window.ReportLineEditor.saveBlock) {
+            return;
+        }
+
+        const blockToSave = target.type === "table-cell"
+            ? target.tableBlock
+            : target.root;
+
+        if (!blockToSave) {
+            return;
+        }
+
+        try {
+            await window.ReportLineEditor.saveBlock(blockToSave);
+        } catch (error) {
+            console.error(error);
         }
     }
 
-    function prepareImageBlock(block) {
-        const img = block.querySelector(".report-editor-block-image-img");
-        if (!img || img.dataset.resizeBound === "true") {
-            if (img && img.complete) {
-                syncNaturalDimensions(block, img);
+    function prepareResizeTarget(target) {
+        const img = target.root.querySelector(target.imgSelector);
+        if (!img) {
+            return;
+        }
+
+        if (img.dataset.resizeBound === "true") {
+            if (img.complete) {
+                syncNaturalDimensions(target, img);
             }
             return;
         }
 
         img.dataset.resizeBound = "true";
-        const onReady = () => syncNaturalDimensions(block, img);
+        const onReady = () => syncNaturalDimensions(target, img);
         if (img.complete) {
             onReady();
         } else {
@@ -303,25 +408,30 @@
         }
     }
 
-    function scanImageBlocks(root) {
-        root.querySelectorAll(".report-editor-block[data-block-type=\"image\"]").forEach(prepareImageBlock);
+    function scanResizeTargets(root) {
+        root.querySelectorAll(".report-editor-block[data-block-type=\"image\"]").forEach((element) => {
+            prepareResizeTarget(resolveResizeTarget(element));
+        });
+        root.querySelectorAll(".report-editor-table-cell-image").forEach((element) => {
+            prepareResizeTarget(resolveResizeTarget(element));
+        });
+        scanCaptionWidths(root);
     }
 
     function bindPage(page) {
         page.addEventListener("click", (event) => {
-            const handle = event.target.closest(".report-editor-image-handle");
-            if (handle) {
+            if (event.target.closest(".report-editor-image-handle")) {
                 return;
             }
 
-            const block = getImageBlock(event.target);
-            if (block && event.target.closest(".report-editor-block-image-img")) {
-                selectImageBlock(block);
+            const target = resolveResizeTarget(event.target);
+            if (target && event.target.closest(target.imgSelector)) {
+                selectTarget(target);
                 return;
             }
 
-            if (!event.target.closest(".report-editor-block[data-block-type=\"image\"]")) {
-                deselectImageBlock();
+            if (!resolveResizeTarget(event.target)) {
+                deselectTarget();
             }
         });
 
@@ -331,12 +441,12 @@
                 return;
             }
 
-            const block = getImageBlock(handle);
-            if (!block) {
+            const target = resolveResizeTarget(handle);
+            if (!target) {
                 return;
             }
 
-            startDrag(event, block, handle.dataset.handle || "se");
+            startDrag(event, target, handle.dataset.handle || "se");
         });
 
         const observer = new MutationObserver((mutations) => {
@@ -345,17 +455,13 @@
                     if (!(node instanceof Element)) {
                         return;
                     }
-                    if (node.matches(".report-editor-block[data-block-type=\"image\"]")) {
-                        prepareImageBlock(node);
-                    } else {
-                        scanImageBlocks(node);
-                    }
+                    scanResizeTargets(node);
                 });
             });
         });
 
         observer.observe(page, { childList: true, subtree: true });
-        scanImageBlocks(page);
+        scanResizeTargets(page);
     }
 
     function init(options) {
@@ -369,5 +475,8 @@
         bindPage(pageElement);
     }
 
-    window.ReportLineImageResize = { init };
+    window.ReportLineImageResize = {
+        init,
+        syncCaptionWidth,
+    };
 })();

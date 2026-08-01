@@ -398,21 +398,30 @@
         }
     }
 
+    function syncCaptionWidthForImageBlock(imageBlock) {
+        if (
+            window.ReportLineImageResize
+            && window.ReportLineImageResize.syncCaptionWidth
+        ) {
+            window.ReportLineImageResize.syncCaptionWidth(imageBlock);
+        }
+    }
+
     async function ensureCaptionParagraphAfterImage(imageBlock) {
         const nextBlock = imageBlock.nextElementSibling;
-        if (
-            nextBlock
-            && nextBlock.classList.contains("report-editor-block")
-            && nextBlock.dataset.blockType === "paragraph"
-        ) {
+        if (nextBlock && nextBlock.dataset.isCaption === "true") {
             focusCaptionParagraph(nextBlock);
+            syncCaptionWidthForImageBlock(imageBlock);
             return nextBlock;
         }
 
-        return createSiblingBlock(imageBlock, "paragraph", {
+        const captionBlock = await createSiblingBlock(imageBlock, "paragraph", {
             content: { text: "" },
             isCaption: true,
+            caretAtStart: true,
         });
+        syncCaptionWidthForImageBlock(imageBlock);
+        return captionBlock;
     }
 
     function getListItems(block) {
@@ -947,12 +956,23 @@
                  data-image-id="${imagePayload.image_id || ""}"
                  data-image-width="${displayWidth}"
                  data-image-height="${displayHeight}">
-                <img src="${safeUrl}"
-                     alt="${imagePayload.alt || ""}"
-                     class="report-editor-table-cell-img"
-                     width="${displayWidth}"
-                     height="${displayHeight}"
-                     draggable="false">
+                <div class="report-editor-table-cell-image-frame">
+                    <img src="${safeUrl}"
+                         alt="${imagePayload.alt || ""}"
+                         class="report-editor-table-cell-img"
+                         width="${displayWidth}"
+                         height="${displayHeight}"
+                         style="width: ${displayWidth}px; height: ${displayHeight}px;"
+                         draggable="false">
+                    <div class="report-editor-image-resize-handles report-editor-table-cell-image-handles"
+                         hidden
+                         aria-hidden="true">
+                        <span class="report-editor-image-handle" data-handle="nw"></span>
+                        <span class="report-editor-image-handle" data-handle="ne"></span>
+                        <span class="report-editor-image-handle" data-handle="sw"></span>
+                        <span class="report-editor-image-handle" data-handle="se"></span>
+                    </div>
+                </div>
             </div>
         `;
     }
