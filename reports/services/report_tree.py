@@ -19,6 +19,12 @@ from reports.services.report_block_content import (
     default_content_for_block_type,
     normalize_block_content,
 )
+from reports.services.report_block_alignment import (
+    default_text_align_for_block,
+    demote_previous_main_title,
+    is_main_title_heading_insertion,
+    is_main_title_heading_node,
+)
 from reports.services.report_block_sequence import default_title_level_for_block_type
 
 
@@ -46,24 +52,54 @@ def _fractional_position_after(
 def update_node_block(
     node: ReportNode,
     *,
-    content: dict[str, Any],
+    content: dict[str, Any] | None = None,
     block_type: str | None = None,
     title_level: int | None = None,
+    text_align: str | None = None,
 ) -> ReportNode:
     """Atualiza conteúdo e metadados opcionais do bloco associado ao nó."""
     block = node.block
     target_type = block_type or block.block_type
     old_content = block.content
 
-    block.block_type = target_type
-    block.content = normalize_block_content(target_type, content)
+    if content is not None:
+        block.block_type = target_type
+        block.content = normalize_block_content(target_type, content)
+    elif block_type is not None:
+        block.block_type = target_type
+
     if title_level is not None:
         block.title_level = title_level
-    block.save(update_fields=["block_type", "content", "title_level", "updated_at"])
+    if text_align is not None:
+        from reports.services.report_block_alignment import normalize_text_align
 
-    from reports.services.report_block_image_cleanup import delete_removed_block_images
+        block.text_align = normalize_text_align(
+            text_align,
+            default=default_text_align_for_block(
+                target_type,
+                is_caption=False,
+                is_main_title=(
+                    target_type == ReportBlockType.HEADING
+                    and node.block.block_type == ReportBlockType.HEADING
+                    and is_main_title_heading_node(node.report, node)
+                ),
+            ),
+        )
 
-    delete_removed_block_images(target_type, old_content, block.content)
+    update_fields = ["updated_at"]
+    if content is not None or block_type is not None:
+        update_fields.extend(["block_type", "content"])
+    if title_level is not None:
+        update_fields.append("title_level")
+    if text_align is not None:
+        update_fields.append("text_align")
+
+    block.save(update_fields=update_fields)
+
+    if content is not None:
+        from reports.services.report_block_image_cleanup import delete_removed_block_images
+
+        delete_removed_block_images(target_type, old_content, block.content)
     return node
 
 
@@ -95,6 +131,7 @@ def insert_sibling_before(
     block_type: str,
     content: dict[str, Any] | None = None,
     title_level: int | None = None,
+    is_caption: bool = False,
 ) -> ReportNode:
     """Insere nó irmão imediatamente antes de ``before_node`` na mesma profundidade."""
     if before_node.report_id != report.pk:
@@ -108,10 +145,22 @@ def insert_sibling_before(
         else default_title_level_for_block_type(block_type)
     )
 
+    is_main_title = (
+        block_type == ReportBlockType.HEADING
+        and is_main_title_heading_insertion(report, before_node=before_node)
+    )
+    if is_main_title:
+        demote_previous_main_title(report, before_node)
+
     block = ReportBlock.objects.create(
         block_type=block_type,
         content=normalized,
         title_level=level,
+        text_align=default_text_align_for_block(
+            block_type,
+            is_caption=is_caption,
+            is_main_title=is_main_title,
+        ),
     )
     position = _fractional_position_before(report, before_node.parent_id, before_node)
     return ReportNode.objects.create(
@@ -131,6 +180,11 @@ def delete_node(node: ReportNode) -> None:
     """
     if node.report.nodes.count() <= 1:
         raise ValidationError("Não é possível excluir o único bloco do relatório.")
+
+    from reports.services.report_block_image_cleanup import delete_block_images
+
+    block = node.block
+    delete_block_images(block.block_type, block.content)
     node.delete()
 
 
@@ -151,6 +205,7 @@ def insert_sibling_after(
     block_type: str,
     content: dict[str, Any] | None = None,
     title_level: int | None = None,
+    is_caption: bool = False,
 ) -> ReportNode:
     """
     Insere nó irmão imediatamente após ``after_node`` na mesma profundidade.
@@ -166,10 +221,20 @@ def insert_sibling_after(
         else default_title_level_for_block_type(block_type)
     )
 
+    is_main_title = (
+        block_type == ReportBlockType.HEADING
+        and is_main_title_heading_insertion(report, after_node=after_node)
+    )
+
     block = ReportBlock.objects.create(
         block_type=block_type,
         content=normalized,
         title_level=level,
+        text_align=default_text_align_for_block(
+            block_type,
+            is_caption=is_caption,
+            is_main_title=is_main_title,
+        ),
     )
     position = _fractional_position_after(report, after_node.parent_id, after_node)
     return ReportNode.objects.create(

@@ -117,22 +117,24 @@ class ReportNodeDetailView(ReportAuthorMixin, View):
                 )
 
             content = payload.get("content")
-            if content is None:
-                raise ValidationError("Campo content é obrigatório.")
-
             block_type = payload.get("block_type")
             title_level = payload.get("title_level")
+            text_align = payload.get("text_align")
             refresh_html = bool(payload.get("refresh_html"))
             focus_table_part = payload.get("focus_table_part")
             focus_table_row = payload.get("focus_table_row")
             focus_table_col = payload.get("focus_table_col")
             structure_changed = block_type is not None or title_level is not None
 
+            if content is None and text_align is None:
+                raise ValidationError("Informe content ou text_align.")
+
             node = update_node_block(
                 node,
                 content=content,
                 block_type=block_type,
                 title_level=title_level,
+                text_align=text_align,
             )
         except ValidationError as exc:
             return _validation_error_response(exc)
@@ -143,6 +145,7 @@ class ReportNodeDetailView(ReportAuthorMixin, View):
             "block_type": block.block_type,
             "title_level": block.title_level,
             "content": block.content,
+            "text_align": block.text_align,
         }
         if structure_changed or refresh_html:
             focus_kwargs = {}
@@ -213,6 +216,7 @@ class ReportNodeCreateView(ReportAuthorMixin, View):
                 after_node_id
                 and reference_node.block.block_type == ReportBlockType.IMAGE,
             )
+            caption_flag = bool(is_caption) and block_type == ReportBlockType.PARAGRAPH
 
             if before_node_id:
                 node = insert_sibling_before(
@@ -221,6 +225,7 @@ class ReportNodeCreateView(ReportAuthorMixin, View):
                     block_type=block_type,
                     content=payload.get("content"),
                     title_level=payload.get("title_level"),
+                    is_caption=caption_flag,
                 )
             else:
                 node = insert_sibling_after(
@@ -229,6 +234,7 @@ class ReportNodeCreateView(ReportAuthorMixin, View):
                     block_type=block_type,
                     content=payload.get("content"),
                     title_level=payload.get("title_level"),
+                    is_caption=caption_flag,
                 )
         except ValidationError as exc:
             return _validation_error_response(exc)
@@ -247,6 +253,7 @@ class ReportNodeCreateView(ReportAuthorMixin, View):
                 "title_level": block.title_level,
                 "content": block.content,
                 "html": html,
+                "text_align": block.text_align,
                 "is_caption": is_caption and block_type == ReportBlockType.PARAGRAPH,
                 "insertion": "before" if before_node_id else "after",
             }

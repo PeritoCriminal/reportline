@@ -36,9 +36,15 @@ class ReportBlockContentTests(TestCase):
         """Garante payload com cabeçalho e linhas conforme dimensões escolhidas."""
         content = build_empty_table_content(3, 4)
 
-        self.assertEqual(content["headers"], ["", "", "", ""])
+        self.assertEqual(
+            content["headers"],
+            [{"text": "", "align": "left"}] * 4,
+        )
         self.assertEqual(len(content["rows"]), 2)
-        self.assertEqual(content["rows"][0], [{"type": "text", "text": ""}] * 4)
+        self.assertEqual(
+            content["rows"][0],
+            [{"type": "text", "text": "", "align": "left"}] * 4,
+        )
         self.assertEqual(content["column_widths"], [25, 25, 25, 25])
 
     def test_normalize_table_pads_short_rows(self):
@@ -51,7 +57,13 @@ class ReportBlockContentTests(TestCase):
             },
         )
 
-        self.assertEqual(normalized["rows"], [[{"type": "text", "text": "1"}, {"type": "text", "text": ""}]])
+        self.assertEqual(
+            normalized["rows"],
+            [[
+                {"type": "text", "text": "1", "align": "left"},
+                {"type": "text", "text": "", "align": "left"},
+            ]],
+        )
         self.assertTrue(normalized["show_borders"])
         self.assertTrue(normalized["show_header"])
 

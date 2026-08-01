@@ -43,6 +43,7 @@ class ReportBodyEntry:
     content: dict[str, Any]
     heading_number: str = ""
     is_caption: bool = False
+    text_align: str = "justify"
 
 
 def _enrich_block_content(block_type: str, content: dict[str, Any]) -> dict[str, Any]:
@@ -53,10 +54,11 @@ def _enrich_block_content(block_type: str, content: dict[str, Any]) -> dict[str,
 
         enriched["url"] = default_storage.url(enriched["file"])
     if block_type == ReportBlockType.TABLE:
-        from reports.services.report_table_cell_content import enrich_table_body_cell
+        from reports.services.report_table_cell_content import enrich_table_body_cell, enrich_table_header_cell
         from reports.services.report_table_column_widths import normalize_column_widths
 
         headers = enriched.get("headers", [])
+        enriched["headers"] = [enrich_table_header_cell(header) for header in headers]
         enriched["rows"] = [
             [enrich_table_body_cell(cell) for cell in row]
             for row in enriched.get("rows", [])
@@ -206,6 +208,7 @@ def _build_body_entries(
                 content=_enrich_block_content(block.block_type, block.content or {}),
                 heading_number=heading_numbers.get(node.pk, ""),
                 is_caption=_is_caption_paragraph(node, nodes_by_parent),
+                text_align=block.text_align,
             )
         )
         entries.extend(
@@ -236,6 +239,7 @@ def _body_entry_from_node(
         title_level=block.title_level,
         content=_enrich_block_content(block.block_type, block.content or {}),
         heading_number=numbers.get(node.pk, ""),
+        text_align=block.text_align,
     )
 
 

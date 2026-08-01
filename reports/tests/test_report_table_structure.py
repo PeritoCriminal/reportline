@@ -15,12 +15,24 @@ from reports.services.report_table_structure import (
 )
 
 
+def _empty_cell(text: str = "") -> dict:
+    """Monta célula de texto normalizada para testes."""
+    return {"type": "text", "text": text, "align": "left"}
+
+
+def _header(text: str) -> dict:
+    """Monta cabeçalho normalizado para testes."""
+    return {"text": text, "align": "left"}
+
+
 def _sample_table(rows: int = 2, cols: int = 2) -> dict:
     """Monta tabela mínima para testes."""
-    cell = {"type": "text", "text": ""}
     return {
-        "headers": [f"H{i}" for i in range(cols)],
-        "rows": [[{**cell, "text": f"R{row}C{col}"} for col in range(cols)] for row in range(rows)],
+        "headers": [_header(f"H{i}") for i in range(cols)],
+        "rows": [
+            [_empty_cell(f"R{row}C{col}") for col in range(cols)]
+            for row in range(rows)
+        ],
     }
 
 
@@ -33,7 +45,7 @@ class ReportTableStructureTests(TestCase):
         updated = insert_row_after(content, 0)
 
         self.assertEqual(len(updated["rows"]), 3)
-        self.assertEqual(updated["rows"][1], [{"type": "text", "text": ""}] * 2)
+        self.assertEqual(updated["rows"][1], [_empty_cell()] * 2)
 
     def test_insert_row_from_header_uses_first_body_row(self):
         """Garante inserção abaixo do cabeçalho via índice -1."""
@@ -41,13 +53,13 @@ class ReportTableStructureTests(TestCase):
         updated = insert_row_after(content, -1)
 
         self.assertEqual(len(updated["rows"]), 2)
-        self.assertEqual(updated["rows"][0], [{"type": "text", "text": ""}] * 2)
+        self.assertEqual(updated["rows"][0], [_empty_cell()] * 2)
 
     def test_insert_row_respects_maximum(self):
         """Garante erro ao exceder limite de linhas de corpo."""
         content = {
-            "headers": ["A"],
-            "rows": [[{"type": "text", "text": ""}]] * MAX_TABLE_BODY_ROWS,
+            "headers": [_header("A")],
+            "rows": [[_empty_cell()]] * MAX_TABLE_BODY_ROWS,
         }
 
         with self.assertRaises(ValidationError):
@@ -74,16 +86,19 @@ class ReportTableStructureTests(TestCase):
         content["column_widths"] = [60, 40]
         updated = insert_column_after(content, 0)
 
-        self.assertEqual(updated["headers"], ["H0", "", "H1"])
+        self.assertEqual(
+            updated["headers"],
+            [_header("H0"), _header(""), _header("H1")],
+        )
         self.assertEqual(updated["column_widths"], [30, 30, 40])
         self.assertEqual(len(updated["rows"][0]), 3)
-        self.assertEqual(updated["rows"][0][1], {"type": "text", "text": ""})
+        self.assertEqual(updated["rows"][0][1], _empty_cell())
 
     def test_insert_column_respects_maximum(self):
         """Garante erro ao exceder limite de colunas."""
         content = {
-            "headers": [""] * MAX_TABLE_COLUMNS,
-            "rows": [[{"type": "text", "text": ""}] * MAX_TABLE_COLUMNS],
+            "headers": [_header("")] * MAX_TABLE_COLUMNS,
+            "rows": [[_empty_cell()] * MAX_TABLE_COLUMNS],
         }
 
         with self.assertRaises(ValidationError):
@@ -95,7 +110,7 @@ class ReportTableStructureTests(TestCase):
         content["column_widths"] = [25, 25, 50]
         updated = delete_column(content, 1)
 
-        self.assertEqual(updated["headers"], ["H0", "H2"])
+        self.assertEqual(updated["headers"], [_header("H0"), _header("H2")])
         self.assertEqual(updated["column_widths"], [25, 75])
         self.assertEqual(updated["rows"][0][1]["text"], "R0C2")
 
@@ -109,9 +124,9 @@ class ReportTableStructureTests(TestCase):
     def test_delete_column_cleans_image_cell_reference(self):
         """Garante que coluna com imagem pode ser removida na normalização."""
         content = {
-            "headers": ["A", "B"],
+            "headers": [_header("A"), _header("B")],
             "rows": [[
-                {"type": "text", "text": ""},
+                _empty_cell(),
                 {
                     "type": "image",
                     "alt": "",
@@ -119,6 +134,7 @@ class ReportTableStructureTests(TestCase):
                     "image_id": "img-1",
                     "width": 100,
                     "height": 50,
+                    "align": "center",
                 },
             ]],
         }

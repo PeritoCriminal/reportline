@@ -34,6 +34,15 @@ class ReportBlockLineSpacing(models.TextChoices):
     RELAXED = "relaxed", "Aumentar espaçamento entre linhas"
 
 
+class ReportBlockTextAlign(models.TextChoices):
+    """Alinhamento horizontal do conteúdo do bloco na renderização."""
+
+    LEFT = "left", "Esquerda"
+    CENTER = "center", "Centro"
+    RIGHT = "right", "Direita"
+    JUSTIFY = "justify", "Justificado"
+
+
 class ReportBlock(BaseModel):
     """
     Bloco de conteúdo tipado associado a um nó de relatório.
@@ -93,6 +102,12 @@ class ReportBlock(BaseModel):
         choices=ReportBlockLineSpacing.choices,
         default=ReportBlockLineSpacing.NORMAL,
         verbose_name="Espaçamento entre linhas",
+    )
+    text_align = models.CharField(
+        max_length=10,
+        choices=ReportBlockTextAlign.choices,
+        default=ReportBlockTextAlign.JUSTIFY,
+        verbose_name="Alinhamento do texto",
     )
     space_before = models.PositiveSmallIntegerField(
         default=0,

@@ -4,7 +4,9 @@
          data-file="{{ cell.file }}"
          data-image-id="{{ cell.image_id|default:'' }}"
          data-image-width="{{ cell.width|default:0 }}"
-         data-image-height="{{ cell.height|default:0 }}">
+         data-image-height="{{ cell.height|default:0 }}"
+         data-text-align="{{ cell.align|default:'center' }}"
+         style="text-align: {{ cell.align|default:'center' }};">
         <div class="report-editor-table-cell-image-frame">
             {% if cell.url %}
                 <img src="{{ cell.url }}"
@@ -33,6 +35,7 @@
          data-table-part="cell"
          data-row-index="{{ row_index }}"
          data-col-index="{{ col_index }}"
+         data-text-align="{{ cell.align|default:'left' }}"
          data-placeholder="Célula"
          {% if cell_autofocus %}data-autofocus="true"{% endif %}>{% if cell.type == "text" %}{{ cell.text|default:"" }}{% else %}{{ cell|default:"" }}{% endif %}</div>
 {% endif %}

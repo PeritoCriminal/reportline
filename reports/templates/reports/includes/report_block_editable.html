@@ -13,6 +13,8 @@
      data-table-show-header="{% if entry.content.show_header == False %}false{% else %}true{% endif %}"
      data-table-column-widths="{{ entry.content.column_widths|join:',' }}"
      {% endif %}
+     data-text-align="{{ entry.text_align|default:'justify' }}"
+     {% if entry.block_type == "heading" and not entry.heading_number %}data-is-main-title="true"{% endif %}
      {% if is_caption %}data-is-caption="true"{% endif %}>
     {% if entry.block_type == "heading" %}
         <div class="report-editor-block-heading-wrap d-flex align-items-baseline gap-1">
@@ -117,8 +119,9 @@
                                      contenteditable="true"
                                      data-table-part="header"
                                      data-col-index="{{ forloop.counter0 }}"
+                                     data-text-align="{{ header.align|default:'left' }}"
                                      data-placeholder="Coluna {{ forloop.counter }}"
-                                     {% if autofocus and focus_table_part == "header" and focus_table_col == forloop.counter0 %}data-autofocus="true"{% elif autofocus and not focus_table_part and forloop.first %}data-autofocus="true"{% endif %}>{{ header }}</div>
+                                     {% if autofocus and focus_table_part == "header" and focus_table_col == forloop.counter0 %}data-autofocus="true"{% elif autofocus and not focus_table_part and forloop.first %}data-autofocus="true"{% endif %}>{{ header.text|default:"" }}</div>
                             </th>
                         {% empty %}
                             <th scope="col">
@@ -126,6 +129,7 @@
                                      contenteditable="true"
                                      data-table-part="header"
                                      data-col-index="0"
+                                     data-text-align="left"
                                      data-placeholder="Coluna 1"
                                      {% if autofocus %}data-autofocus="true"{% endif %}></div>
                             </th>

@@ -243,6 +243,30 @@ class ReportNodeApiViewTests(TestCase):
         data = response.json()
         self.assertEqual(data["block_type"], ReportBlockType.PARAGRAPH)
         self.assertTrue(data["is_caption"])
+        self.assertEqual(data["text_align"], "center")
+
+    def test_patch_text_align_without_content(self):
+        """Garante atualização isolada de alinhamento via PATCH."""
+        paragraph_block = ReportBlock.objects.create(
+            block_type=ReportBlockType.PARAGRAPH,
+            content={"text": "Corpo"},
+            text_align="justify",
+        )
+        paragraph_node = ReportNode.objects.create(
+            report=self.report,
+            block=paragraph_block,
+            position=Decimal("4"),
+        )
+
+        response = self._patch_node(
+            paragraph_node,
+            {"text_align": "center"},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        paragraph_block.refresh_from_db()
+        self.assertEqual(paragraph_block.text_align, "center")
+        self.assertEqual(response.json()["text_align"], "center")
 
     def test_post_before_node_inserts_sibling(self):
         """Garante inserção de irmão antes do nó de referência."""

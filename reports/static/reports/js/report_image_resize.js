@@ -266,6 +266,10 @@
         deselectTarget();
         selectedTarget = target;
         target.root.classList.add("is-image-selected");
+        if (!target.root.hasAttribute("tabindex")) {
+            target.root.tabIndex = -1;
+        }
+        target.root.focus({ preventScroll: true });
         showHandles(target);
     }
 
@@ -425,7 +429,13 @@
             }
 
             const target = resolveResizeTarget(event.target);
-            if (target && event.target.closest(target.imgSelector)) {
+            if (
+                target
+                && (
+                    event.target.closest(target.imgSelector)
+                    || event.target.closest(target.frameSelector)
+                )
+            ) {
                 selectTarget(target);
                 return;
             }
@@ -478,5 +488,7 @@
     window.ReportLineImageResize = {
         init,
         syncCaptionWidth,
+        getSelectedTarget: () => selectedTarget,
+        deselectTarget,
     };
 })();

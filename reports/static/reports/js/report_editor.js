@@ -16,6 +16,7 @@
         "unordered_list",
     ]);
     const DEBOUNCE_MS = 1500;
+    const TEXT_ALIGN_VALUES = new Set(["left", "center", "right", "justify"]);
 
     let config = {};
     const saveTimers = new Map();
@@ -166,7 +167,10 @@
         if (blockType === "table") {
             const headers = Array.from(
                 block.querySelectorAll('[data-table-part="header"]')
-            ).map((cell) => cell.innerText);
+            ).map((cell) => ({
+                text: cell.innerText,
+                align: cell.dataset.textAlign || "left",
+            }));
             const rows = Array.from(block.querySelectorAll("tbody tr")).map((rowElement) =>
                 Array.from(rowElement.querySelectorAll("td")).map((cellElement) => {
                     const imageWrapper = cellElement.querySelector('[data-cell-type="image"]');
@@ -179,12 +183,14 @@
                             image_id: imageWrapper.dataset.imageId || "",
                             width: Number.parseInt(imageWrapper.dataset.imageWidth || "0", 10) || 0,
                             height: Number.parseInt(imageWrapper.dataset.imageHeight || "0", 10) || 0,
+                            align: imageWrapper.dataset.textAlign || "center",
                         };
                     }
                     const textCell = cellElement.querySelector('[data-table-part="cell"]');
                     return {
                         type: "text",
                         text: textCell ? textCell.innerText : "",
+                        align: textCell ? (textCell.dataset.textAlign || "left") : "left",
                     };
                 })
             );
@@ -367,14 +373,22 @@
         return next;
     }
 
+    function emptyTableBodyCell() {
+        return { type: "text", text: "", align: "left" };
+    }
+
+    function emptyTableHeaderCell() {
+        return { text: "", align: "left" };
+    }
+
     function buildTableContent(rowCount, columnCount) {
         const rows = Math.max(1, Math.min(rowCount, 20));
         const cols = Math.max(1, Math.min(columnCount, 12));
         return {
-            headers: Array(cols).fill(""),
+            headers: Array.from({ length: cols }, () => emptyTableHeaderCell()),
             rows: Array(Math.max(0, rows - 1))
                 .fill(null)
-                .map(() => Array(cols).fill("")),
+                .map(() => Array.from({ length: cols }, () => emptyTableBodyCell())),
             show_borders: true,
             show_header: true,
             column_widths: equalTableColumnWidths(cols),
@@ -542,6 +556,13 @@
         const payload = {
             content,
             block_type: targetBlockType,
+            text_align: defaultTextAlignForBlock(
+                targetBlockType,
+                {
+                    isMainTitle: targetBlockType === "heading" && isMainTitleHeading(block),
+                    isCaption: block.dataset.isCaption === "true",
+                }
+            ),
         };
         if (targetBlockType === "heading" && options.titleLevel !== undefined) {
             payload.title_level = options.titleLevel;
@@ -556,6 +577,9 @@
             block.dataset.blockType = targetBlockType;
             if (targetBlockType === "heading" && options.titleLevel !== undefined) {
                 block.dataset.titleLevel = String(options.titleLevel);
+            }
+            if (data.text_align) {
+                block.dataset.textAlign = data.text_align;
             }
         }
 
@@ -589,6 +613,13 @@
         const payload = {
             content,
             block_type: targetBlockType,
+            text_align: defaultTextAlignForBlock(
+                targetBlockType,
+                {
+                    isMainTitle: targetBlockType === "heading" && isMainTitleHeading(block),
+                    isCaption: block.dataset.isCaption === "true",
+                }
+            ),
         };
         if (targetBlockType === "heading" && options.titleLevel !== undefined) {
             payload.title_level = options.titleLevel;
@@ -955,7 +986,9 @@
                  data-file="${imagePayload.file || ""}"
                  data-image-id="${imagePayload.image_id || ""}"
                  data-image-width="${displayWidth}"
-                 data-image-height="${displayHeight}">
+                 data-image-height="${displayHeight}"
+                 data-text-align="center"
+                 style="text-align: center;">
                 <div class="report-editor-table-cell-image-frame">
                     <img src="${safeUrl}"
                          alt="${imagePayload.alt || ""}"
@@ -1121,6 +1154,85 @@
         await createSiblingBlock(block, "paragraph");
     }
 
+    async function deleteBlockById(block) {
+        const nodeId = block.dataset.nodeId;
+        clearSaveTimer(nodeId);
+        await apiRequest(updateNodeUrl(nodeId), "DELETE");
+        block.remove();
+    }
+
+    async function clearTableCellImage(selectedTarget) {
+        const tableBlock = selectedTarget.tableBlock;
+        const cellImage = selectedTarget.root;
+        const cellContainer = cellImage.closest("td");
+        if (!tableBlock || !cellContainer) {
+            return;
+        }
+
+        if (window.ReportLineImageResize && window.ReportLineImageResize.deselectTarget) {
+            window.ReportLineImageResize.deselectTarget();
+        }
+
+        const rowIndex = cellContainer.dataset.rowIndex || "0";
+        const colIndex = cellContainer.dataset.colIndex || "0";
+        cellContainer.classList.remove("report-editor-table-cell-has-image");
+        cellContainer.innerHTML = `
+            <div class="report-editor-block-editable report-editor-table-cell"
+                 contenteditable="true"
+                 data-table-part="cell"
+                 data-row-index="${rowIndex}"
+                 data-col-index="${colIndex}"
+                 data-text-align="left"
+                 data-placeholder="Célula"></div>
+        `;
+        clearSaveTimer(tableBlock.dataset.nodeId);
+        await saveBlock(tableBlock);
+        const textCell = cellContainer.querySelector('[data-table-part="cell"]');
+        if (textCell) {
+            placeCaretAtEnd(textCell);
+            rememberEditorContext(tableBlock, textCell);
+        }
+    }
+
+    async function deleteSelectedImage() {
+        if (!window.ReportLineImageResize || !window.ReportLineImageResize.getSelectedTarget) {
+            return false;
+        }
+
+        const selectedTarget = window.ReportLineImageResize.getSelectedTarget();
+        if (!selectedTarget) {
+            return false;
+        }
+
+        if (selectedTarget.type === "table-cell") {
+            await clearTableCellImage(selectedTarget);
+            return true;
+        }
+
+        const imageBlock = selectedTarget.root;
+        if (window.ReportLineImageResize.deselectTarget) {
+            window.ReportLineImageResize.deselectTarget();
+        }
+
+        const captionBlock = imageBlock.nextElementSibling;
+        const hasCaption = captionBlock && captionBlock.dataset.isCaption === "true";
+        const previousBlock = imageBlock.previousElementSibling;
+
+        if (hasCaption) {
+            await deleteBlockById(captionBlock);
+        }
+        await deleteBlockById(imageBlock);
+
+        if (previousBlock && previousBlock.classList.contains("report-editor-block")) {
+            const editable = previousBlock.querySelector(".report-editor-block-editable");
+            if (editable) {
+                placeCaretAtEnd(editable);
+                rememberEditorContext(previousBlock, editable);
+            }
+        }
+        return true;
+    }
+
     async function deleteEmptyBlock(block) {
         const nodeId = block.dataset.nodeId;
         clearSaveTimer(nodeId);
@@ -1185,10 +1297,184 @@
         await deleteEmptyBlock(block);
     }
 
+    function isMainTitleHeading(block) {
+        if (!block) {
+            return false;
+        }
+        if (block.dataset.blockType !== "heading") {
+            const page = document.getElementById("report-editor-page");
+            return !page || !page.querySelector('.report-editor-block[data-block-type="heading"]');
+        }
+        return block.dataset.isMainTitle === "true";
+    }
+
+    function defaultTextAlignForBlock(blockType, options = {}) {
+        const isCaption = Boolean(options.isCaption);
+        const isMainTitle = Boolean(options.isMainTitle);
+
+        if (blockType === "heading") {
+            return isMainTitle ? "center" : "left";
+        }
+        if (blockType === "paragraph") {
+            return isCaption ? "center" : "justify";
+        }
+        if (LIST_TYPES.has(blockType)) {
+            return "left";
+        }
+        if (blockType === "image") {
+            return "center";
+        }
+        if (blockType === "link") {
+            return "justify";
+        }
+        return "left";
+    }
+
+    function applyTextAlignToBlock(block, align) {
+        if (!TEXT_ALIGN_VALUES.has(align)) {
+            return;
+        }
+        block.dataset.textAlign = align;
+    }
+
+    function applyTextAlignToTableTarget(target, align) {
+        if (!TEXT_ALIGN_VALUES.has(align) || !target) {
+            return;
+        }
+        target.dataset.textAlign = align;
+        target.style.textAlign = align;
+    }
+
+    function resolveAlignmentContext() {
+        if (window.ReportLineImageResize && window.ReportLineImageResize.getSelectedTarget) {
+            const selectedTarget = window.ReportLineImageResize.getSelectedTarget();
+            if (selectedTarget && selectedTarget.type === "block") {
+                return { kind: "block", block: selectedTarget.root };
+            }
+            if (selectedTarget && selectedTarget.type === "table-cell") {
+                return {
+                    kind: "table-cell-image",
+                    block: selectedTarget.tableBlock,
+                    target: selectedTarget.root,
+                };
+            }
+        }
+
+        const active = document.activeElement;
+        if (active && active.closest) {
+            const tableCell = active.closest(".report-editor-table-cell[data-table-part]");
+            if (tableCell) {
+                const block = tableCell.closest('.report-editor-block[data-block-type="table"]');
+                if (block) {
+                    return { kind: "table-cell", block, target: tableCell };
+                }
+            }
+
+            const block = active.closest(".report-editor-block");
+            if (block) {
+                return { kind: "block", block };
+            }
+        }
+
+        const insertContext = resolveInsertContext();
+        if (insertContext && insertContext.block) {
+            if (insertContext.block.dataset.blockType === "table" && insertContext.editable) {
+                const tablePart = insertContext.editable.dataset.tablePart;
+                if (tablePart === "header" || tablePart === "cell") {
+                    return {
+                        kind: "table-cell",
+                        block: insertContext.block,
+                        target: insertContext.editable,
+                    };
+                }
+            }
+            return { kind: "block", block: insertContext.block };
+        }
+
+        return null;
+    }
+
+    function getCurrentTextAlign(context) {
+        if (!context) {
+            return null;
+        }
+        if (context.kind === "table-cell" || context.kind === "table-cell-image") {
+            return context.target.dataset.textAlign
+                || (context.kind === "table-cell-image" ? "center" : "left");
+        }
+        return context.block.dataset.textAlign || "justify";
+    }
+
+    function updateAlignmentToolbar(activeAlign) {
+        document.querySelectorAll("[data-report-text-align]").forEach((button) => {
+            const isActive = button.dataset.reportTextAlign === activeAlign;
+            button.classList.toggle("active", isActive);
+            button.setAttribute("aria-pressed", isActive ? "true" : "false");
+        });
+    }
+
+    function refreshAlignmentToolbarState() {
+        updateAlignmentToolbar(getCurrentTextAlign(resolveAlignmentContext()));
+    }
+
+    async function setTextAlign(align) {
+        if (!TEXT_ALIGN_VALUES.has(align)) {
+            return;
+        }
+
+        const context = resolveAlignmentContext();
+        if (!context) {
+            return;
+        }
+
+        if (context.kind === "table-cell" || context.kind === "table-cell-image") {
+            applyTextAlignToTableTarget(context.target, align);
+            clearSaveTimer(context.block.dataset.nodeId);
+            await saveBlock(context.block);
+            updateAlignmentToolbar(align);
+            return;
+        }
+
+        applyTextAlignToBlock(context.block, align);
+        clearSaveTimer(context.block.dataset.nodeId);
+        await apiRequest(updateNodeUrl(context.block.dataset.nodeId), "PATCH", {
+            text_align: align,
+        });
+        updateAlignmentToolbar(align);
+    }
+
+    function bindImageDeleteShortcut() {
+        document.addEventListener("keydown", (event) => {
+            if (event.key !== "Backspace" && event.key !== "Delete") {
+                return;
+            }
+            if (
+                !window.ReportLineImageResize
+                || !window.ReportLineImageResize.getSelectedTarget
+                || !window.ReportLineImageResize.getSelectedTarget()
+            ) {
+                return;
+            }
+            event.preventDefault();
+            event.stopPropagation();
+            deleteSelectedImage().catch(console.error);
+        }, true);
+    }
+
     function bindEditorEvents(page) {
+        bindImageDeleteShortcut();
+
         page.addEventListener("keydown", (event) => {
             const editable = event.target.closest(".report-editor-block-editable");
             if (!editable) {
+                return;
+            }
+
+            if (
+                window.ReportLineImageResize
+                && window.ReportLineImageResize.getSelectedTarget
+                && window.ReportLineImageResize.getSelectedTarget()
+            ) {
                 return;
             }
 
@@ -1236,7 +1522,12 @@
                 if (editable && block.contains(editable)) {
                     rememberEditorContext(block, editable);
                 }
+                refreshAlignmentToolbarState();
             }
+        });
+
+        page.addEventListener("click", () => {
+            refreshAlignmentToolbarState();
         });
 
         page.addEventListener("focusout", (event) => {
@@ -1249,12 +1540,21 @@
 
     function bindToolbar(toolbar) {
         toolbar.addEventListener("mousedown", (event) => {
-            if (event.target.closest("[data-insert-block-type]")) {
+            if (
+                event.target.closest("[data-insert-block-type]")
+                || event.target.closest("[data-report-text-align]")
+            ) {
                 event.preventDefault();
             }
         });
 
         toolbar.addEventListener("click", (event) => {
+            const alignButton = event.target.closest("[data-report-text-align]");
+            if (alignButton) {
+                setTextAlign(alignButton.dataset.reportTextAlign).catch(console.error);
+                return;
+            }
+
             const button = event.target.closest("[data-insert-block-type]");
             if (!button) {
                 return;
@@ -1313,6 +1613,8 @@
                 insertOptions
             ).catch(console.error);
         });
+
+        refreshAlignmentToolbarState();
     }
 
     function focusInitialBlock(page) {
@@ -1325,13 +1627,14 @@
     const MAX_TABLE_BODY_ROWS = 19;
     const MAX_TABLE_COLUMNS = 12;
 
-    function emptyTableBodyCell() {
-        return { type: "text", text: "" };
-    }
-
     function cloneTableContent(content) {
         return {
-            headers: [...content.headers],
+            headers: content.headers.map((header) => {
+                if (header && typeof header === "object") {
+                    return { ...header };
+                }
+                return { text: String(header ?? ""), align: "left" };
+            }),
             rows: content.rows.map((row) => row.map((cell) => {
                 if (cell && typeof cell === "object") {
                     return { ...cell };

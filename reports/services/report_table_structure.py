@@ -28,7 +28,7 @@ MIN_TABLE_COLUMNS = 1
 
 def _empty_body_cell() -> dict[str, str]:
     """Retorna célula de corpo vazia normalizada."""
-    return {"type": "text", "text": ""}
+    return {"type": "text", "text": "", "align": "left"}
 
 
 def _column_count(content: dict[str, Any]) -> int:

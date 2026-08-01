@@ -39,11 +39,15 @@ def build_empty_table_content(row_count: int, column_count: int) -> dict[str, An
     """
     rows = max(1, min(int(row_count), 20))
     cols = max(1, min(int(column_count), 12))
-    empty_cell = {"type": "text", "text": ""}
+    empty_cell = {
+        "type": "text",
+        "text": "",
+        "align": "left",
+    }
     from reports.services.report_table_column_widths import equal_column_widths
 
     return {
-        "headers": [""] * cols,
+        "headers": [{"text": "", "align": "left"} for _ in range(cols)],
         "rows": [[empty_cell.copy() for _ in range(cols)] for _ in range(rows - 1)],
         "show_borders": True,
         "show_header": True,
@@ -99,7 +103,7 @@ def normalize_block_content(block_type: str, content: Any) -> dict[str, Any]:
                 raise ValidationError("Cada linha da tabela deve ser uma lista.")
             cells = [normalize_table_body_cell(cell) for cell in row][:column_count]
             while len(cells) < column_count:
-                cells.append({"type": "text", "text": ""})
+                cells.append({"type": "text", "text": "", "align": "left"})
             normalized_rows.append(cells)
 
         show_borders = content.get("show_borders", True)

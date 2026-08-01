@@ -19,13 +19,16 @@ class ReportTableCellContentTests(TestCase):
 
     def test_normalize_header_accepts_string(self):
         """Garante compatibilidade com cabeçalhos em string."""
-        self.assertEqual(normalize_table_header_cell("Coluna A"), "Coluna A")
+        self.assertEqual(
+            normalize_table_header_cell("Coluna A"),
+            {"text": "Coluna A", "align": "left"},
+        )
 
     def test_normalize_body_cell_legacy_string(self):
         """Garante compatibilidade com células legadas em string."""
         self.assertEqual(
             normalize_table_body_cell("Texto"),
-            {"type": "text", "text": "Texto"},
+            {"type": "text", "text": "Texto", "align": "left"},
         )
 
     def test_normalize_body_cell_image(self):
