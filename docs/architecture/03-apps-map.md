@@ -160,7 +160,7 @@ Documentação completa: [05-profiles.md](./05-profiles.md).
 |---|---|
 | **Responsabilidade** | Relatórios modulares (`Report`), árvore de nós (`ReportNode`) e blocos genéricos (`ReportBlock`) |
 | **Models** | `Report`, `ReportNode`, `ReportBlock` |
-| **URLs (usuário)** | `reports:list`, `reports:new`, `reports:edit`, `reports:node_create`, `reports:node_update` |
+| **URLs (usuário)** | `reports:list`, `reports:new`, `reports:edit`, `reports:outline`, `reports:image_upload`, `reports:node_create`, `reports:node_update`, `reports:node_reorder` |
 | **Hub na home** | Cards em `templates/index.html` (autenticado) |
 | **Depende de** | `accounts`, `common` |
 | **Integrações futuras** | APIs externas (IA, voz) via variáveis de ambiente — ver [ADR-0005](../decisions/0005-external-api-credentials.md) |
@@ -172,6 +172,7 @@ reports/
     report.py
     report_node.py
     report_block.py
+    report_image.py
   admin/
     report_admin.py
     report_block_admin.py
@@ -182,6 +183,7 @@ reports/
     report_list_views.py
     report_create_views.py
     report_editor_views.py
+    report_image_api_views.py
     report_node_api_views.py
   services/
     author_snapshot.py
@@ -189,35 +191,29 @@ reports/
     report_editor_bootstrap.py
     report_editor_context.py
     report_block_content.py
+    report_block_image_cleanup.py
     report_block_sequence.py
+    report_heading_numbering.py
+    report_image_processing.py
+    report_image_upload.py
+    report_table_cell_content.py
+    report_table_column_widths.py
+    report_table_structure.py
     report_tree.py
-  signals.py
-  tests/
-    test_report_models.py
-    test_report_block.py
-    test_report_creation.py
-    test_report_create_views.py
-    test_report_list_views.py
-    test_report_editor_bootstrap.py
-    test_report_editor_context.py
-    test_report_editor_views.py
-    test_report_block_content.py
-    test_report_tree.py
-    test_report_node_api_views.py
-  migrations/
-    0001_initial.py
+  static/reports/
+    css/report_editor.css
+    js/                         # editor, tabelas, imagens, sumário
   templates/reports/
     report_list.html
     report_form.html
     report_editor.html
     includes/
-  static/reports/
-    css/report_editor.css
-    js/report_editor.js
-  urls.py                       # /reports/, /reports/new/, /reports/<pk>/edit/, API nodes
+  tests/                        # ver 07-reports.md — Testes
+  migrations/
+  urls.py                       # /reports/, API JSON do editor
 ```
 
-Documentação completa: [07-reports.md](./07-reports.md).
+Documentação completa (editor, payloads, API): [07-reports.md](./07-reports.md).
 
 ---
 

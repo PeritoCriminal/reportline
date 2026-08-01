@@ -13,7 +13,7 @@ tipados. Base para laudos periciais e outros documentos produzidos no ReportLine
 |---|---|
 | **Problema** | Documentos periciais exigem seções aninhadas, tipos de conteúdo distintos e formatação consistente |
 | **Solução** | `Report` + árvore `ReportNode` + bloco genérico `ReportBlock` 1:1 por nó |
-| **Fora do escopo (fase atual)** | Exclusão/merge de blocos (Backspace), mover nós na árvore, edição interativa de tabela/link, upload de imagem, renderização PDF, templates de laudo pericial específicos |
+| **Fora do escopo (fase atual)** | Edição interativa de link, renderização PDF/HTML, painel de propriedades do bloco (layout/paginação), templates de laudo pericial específicos, publicação/arquivamento na UI |
 | **Consumidor futuro** | Camada de laudo pericial (mapeia papéis semânticos → blocos genéricos) |
 
 ---
@@ -27,6 +27,9 @@ tipados. Base para laudos periciais e outros documentos produzidos no ReportLine
 | **3 — Criação** | `/reports/new/`, serviço `create_report`, redirect ao editor |
 | **4 — Editor interativo** | Blocos `contenteditable`, Enter/Shift+Enter, autosave, API JSON, bootstrap H1 |
 | **5 — Hub do usuário** | `/reports/` (listagem), cards na página inicial (`index`) |
+| **6 — Toolbar e conversão** | Split buttons (título), conversão in-place, inserção em listas, numeração de títulos |
+| **7 — Sumário interativo** | Drag-and-drop de títulos, refresh parcial do outline, accordion |
+| **8 — Tabelas e imagens** | Inserção de tabela/imagem, estrutura de linhas/colunas, bordas/cabeçalho opcionais, larguras de coluna, resize de imagem, células com imagem |
 
 ---
 
@@ -43,48 +46,81 @@ reports/
 ├── models/
 │   ├── report.py
 │   ├── report_node.py
-│   └── report_block.py
+│   ├── report_block.py
+│   └── report_image.py
 ├── services/
 │   ├── author_snapshot.py
+│   ├── report_block_content.py
+│   ├── report_block_image_cleanup.py
+│   ├── report_block_sequence.py
 │   ├── report_creation.py
 │   ├── report_editor_bootstrap.py
 │   ├── report_editor_context.py
-│   ├── report_block_content.py
-│   ├── report_block_sequence.py
+│   ├── report_heading_numbering.py
+│   ├── report_image_processing.py
+│   ├── report_image_upload.py
+│   ├── report_table_cell_content.py
+│   ├── report_table_column_widths.py
+│   ├── report_table_structure.py
 │   └── report_tree.py
 ├── signals.py
 ├── static/reports/
 │   ├── css/report_editor.css
-│   └── js/report_editor.js
+│   └── js/
+│       ├── report_editor.js
+│       ├── report_editor_dev_ipsum.js
+│       ├── report_image_insert.js
+│       ├── report_image_resize.js
+│       ├── report_outline_accordion.js
+│       ├── report_outline_dnd.js
+│       ├── report_outline_sync.js
+│       ├── report_table_column_resize.js
+│       ├── report_table_insert.js
+│       └── report_table_structure.js
 ├── templates/reports/
 │   ├── report_form.html
 │   ├── report_list.html
 │   ├── report_editor.html
 │   └── includes/
 │       ├── report_block_editable.html
+│       ├── report_block_preview.html
 │       ├── report_editor_toolbar.html
 │       ├── report_outline_tree.html
 │       ├── report_outline_item.html
-│       └── report_page_body.html
+│       ├── report_page_body.html
+│       ├── report_table_body_cell_editable.html
+│       └── report_table_insert_modal.html
+├── templatetags/
+│   └── report_outline.py
 ├── tests/
 │   ├── test_report_models.py
 │   ├── test_report_block.py
+│   ├── test_report_block_content.py
 │   ├── test_report_creation.py
 │   ├── test_report_create_views.py
 │   ├── test_report_list_views.py
 │   ├── test_report_editor_bootstrap.py
 │   ├── test_report_editor_context.py
 │   ├── test_report_editor_views.py
-│   ├── test_report_block_content.py
-│   ├── test_report_tree.py
-│   └── test_report_node_api_views.py
+│   ├── test_report_heading_numbering.py
+│   ├── test_report_image_cleanup.py
+│   ├── test_report_image_processing.py
+│   ├── test_report_image_upload_api.py
+│   ├── test_report_node_api_views.py
+│   ├── test_report_outline_tags.py
+│   ├── test_report_table_cell_content.py
+│   ├── test_report_table_column_widths.py
+│   ├── test_report_table_structure.py
+│   └── test_report_tree.py
 ├── migrations/
-│   └── 0001_initial.py
+│   ├── 0001_initial.py
+│   └── 0002_report_image.py
 ├── urls.py
 └── views/
     ├── report_create_views.py
-    ├── report_list_views.py
     ├── report_editor_views.py
+    ├── report_image_api_views.py
+    ├── report_list_views.py
     └── report_node_api_views.py
 ```
 
@@ -109,8 +145,12 @@ reports/
 | `GET /reports/` | `reports:list` | `ReportListView` | Listagem dos relatórios do autor |
 | `GET/POST /reports/new/` | `reports:new` | `ReportCreateView` | Formulário de título; cria rascunho e redireciona ao editor |
 | `GET /reports/<uuid:pk>/edit/` | `reports:edit` | `ReportEditorView` | Editor visual (somente autor) |
-| `POST /reports/<uuid:pk>/nodes/` | `reports:node_create` | `ReportNodeCreateView` | Insere nó irmão após bloco atual (JSON) |
-| `PATCH /reports/<uuid:pk>/nodes/<uuid:node_id>/` | `reports:node_update` | `ReportNodeDetailView` | Atualiza conteúdo do bloco ou estende lista (JSON) |
+| `GET /reports/<uuid:pk>/outline/` | `reports:outline` | `ReportEditorOutlineView` | HTML parcial do sumário (JSON) |
+| `POST /reports/<uuid:pk>/images/upload/` | `reports:image_upload` | `ReportImageUploadView` | Upload multipart de imagem (JSON) |
+| `POST /reports/<uuid:pk>/nodes/` | `reports:node_create` | `ReportNodeCreateView` | Insere nó irmão antes/depois de bloco (JSON) |
+| `POST /reports/<uuid:pk>/nodes/reorder/` | `reports:node_reorder` | `ReportNodeReorderView` | Reordena títulos irmãos no sumário (JSON) |
+| `PATCH /reports/<uuid:pk>/nodes/<uuid:node_id>/` | `reports:node_update` | `ReportNodeDetailView` | Atualiza conteúdo ou tipo do bloco (JSON) |
+| `DELETE /reports/<uuid:pk>/nodes/<uuid:node_id>/` | `reports:node_update` | `ReportNodeDetailView` | Remove nó vazio (JSON) |
 
 ### Fluxo pós-login
 
@@ -158,15 +198,39 @@ flowchart LR
 - **Template:** `reports/report_editor.html`
 - **Bootstrap:** `ensure_editor_bootstrap()` em `get_object()` quando árvore vazia
 - **Permissão:** queryset restrito ao autor — demais usuários recebem 404
-- **Contexto:** `outline_tree`, `body_entries`, `autofocus_node_id`
-- **JS:** `report_editor.js` inicializado via `extra_js`
+- **Contexto:** `outline_tree`, `body_entries`, `autofocus_node_id`, `max_image_side_px`
+- **JS:** módulos em `static/reports/js/` inicializados via `extra_js` (ver seção Interface)
 
-### `ReportNodeCreateView` / `ReportNodeDetailView`
+### `ReportEditorOutlineView`
+
+- **GET:** retorna JSON com HTML atualizado do sumário (`render_outline_refresh_payload`)
+- **Uso:** sincronização client-side após reorder ou mudanças estruturais
+
+### `ReportImageUploadView`
+
+- **POST:** `multipart/form-data` com campo `image`
+- **Resposta:** `image_id`, `file`, `url`, `width`, `height`, `alt`
+- **Processamento:** redimensionamento via `report_image_processing` (lado máximo configurável)
+
+### `ReportNodeCreateView` / `ReportNodeDetailView` / `ReportNodeReorderView`
 
 - **Formato:** JSON (`JsonResponse`)
 - **Autorização:** relatório deve pertencer ao usuário autenticado
-- **POST:** cria irmão após `after_node_id`; retorna HTML renderizado do novo bloco
-- **PATCH:** atualiza `content`; suporta `append_list_item` para listas
+- **POST `node_create`:** cria irmão com `after_node_id` ou `before_node_id`; retorna HTML do novo bloco
+- **PATCH `node_update`:** atualiza `content`; suporta conversão de tipo (`block_type`, `title_level`), listas (`append_list_item`, `update_list_items`) e refresh parcial de tabela (`refresh_html`, `focus_table_part`, `focus_table_row`, `focus_table_col`)
+- **DELETE `node_update`:** remove nó vazio via `delete_node`
+- **POST `node_reorder`:** body `{ parent_node_id, ordered_node_ids }` — apenas títulos irmãos
+
+#### Campos relevantes do PATCH
+
+| Campo | Uso |
+|---|---|
+| `content` | Payload JSON do bloco (obrigatório na atualização normal) |
+| `block_type` / `title_level` | Conversão in-place (ex.: parágrafo → título) |
+| `refresh_html` | Re-renderiza partial HTML do bloco (mutações estruturais de tabela) |
+| `focus_table_part` | `"header"` ou `"cell"` — foco após refresh |
+| `focus_table_row` / `focus_table_col` | Índices 0-based para foco em célula |
+| `append_list_item` / `update_list_items` | Operações em listas ordenadas/marcadores |
 
 ---
 
@@ -180,7 +244,14 @@ flowchart LR
 | Contexto do editor | `report_editor_context.py` | Sumário + corpo; `render_editable_block_html()` |
 | Conteúdo | `report_block_content.py` | Normalização/validação de `content` por tipo |
 | Sequência | `report_block_sequence.py` | Próximo tipo de bloco após Enter |
-| Árvore | `report_tree.py` | `update_node_block`, `insert_sibling_after`, `append_list_item` |
+| Árvore | `report_tree.py` | CRUD de nós, listas, reorder, exclusão |
+| Numeração | `report_heading_numbering.py` | Numeração hierárquica de títulos no sumário |
+| Células de tabela | `report_table_cell_content.py` | Normalização texto/imagem por célula |
+| Estrutura de tabela | `report_table_structure.py` | Inserir/excluir linhas e colunas |
+| Larguras de coluna | `report_table_column_widths.py` | Percentuais, split/merge, resize adjacente |
+| Upload de imagem | `report_image_upload.py` | Persistência de `ReportImage` |
+| Processamento | `report_image_processing.py` | Redimensionamento e validação de arquivo |
+| Limpeza de imagens | `report_block_image_cleanup.py` | Remove arquivos órfãos após mutação |
 
 ### Regras de Enter (editor)
 
@@ -194,9 +265,11 @@ flowchart LR
 
 **Shift+Enter:** quebra de linha dentro do mesmo bloco (`\n` no JSON).
 
-**Autosave:** debounce (~1,5 s) em `input` + save garantido no Enter.
+**Backspace:** remove bloco vazio ou item de lista vazio no início; delega a `delete_node` via DELETE na API.
 
-**Toolbar:** insere bloco do tipo escolhido após o nó focado (via POST).
+**Autosave:** debounce (~1,5 s) em `input` + save garantido no Enter e após resize de imagem/coluna.
+
+**Toolbar:** insere ou converte blocos conforme contexto do cursor; título e tabela usam split button (ação principal + menu).
 
 ---
 
@@ -207,16 +280,43 @@ Layout de três colunas com toolbar superior. Navbar global permanece visível;
 
 | Região | Estado |
 |---|---|
-| Toolbar | Ativa — 7 tipos `ReportBlockType` |
-| Sumário | Títulos em árvore; atualização client-side ao salvar heading |
+| Toolbar | Ativa — tipos de bloco, formatação (visual/reservada), ações do documento |
+| Sumário | Títulos em árvore numerada; drag-and-drop de reorder; refresh via API |
 | Corpo | Blocos editáveis; painel central ocupa toda a coluna |
 | Propriedades | Reservada (layout/paginação futura) |
+
+### Toolbar — blocos
+
+| Controle | Comportamento |
+|---|---|
+| Título (split) | Botão principal aplica H1; menu escolhe níveis 1–4 |
+| Parágrafo / listas | Insere ou converte bloco in-place conforme cursor |
+| Tabela (split) | Botão principal abre modal de dimensões; seta (visível em célula) abre menu estrutural |
+| Imagem | Upload via modal; insere bloco ou célula de tabela conforme cursor |
+
+### Toolbar — menu da tabela (cursor em célula)
+
+| Opção | Efeito |
+|---|---|
+| Inserir linha abaixo | Nova linha vazia após a linha do cursor |
+| Excluir linha | Remove linha do corpo (mínimo 1 linha) |
+| Mostrar/ocultar linhas | Toggle `show_borders` (bordas da grade) |
+| Mostrar/ocultar cabeçalho | Toggle `show_header` (textos preservados no JSON) |
+| Inserir coluna à direita | Nova coluna; divide largura da coluna atual |
+| Excluir coluna | Remove coluna; largura somada ao vizinho |
+
+### Redimensionamento interativo
+
+| Elemento | Interação |
+|---|---|
+| Colunas da tabela | Arraste na borda entre colunas; persiste `column_widths` (percentuais, soma 100) |
+| Imagem (bloco ou célula) | Alças nos cantos; persiste `width`/`height` de exibição |
 
 **Visual:** variáveis CSS `--report-page-*` por tema (claro/escuro); folha sem borda externa.
 
 **Responsividade:** abaixo de **992px**, toolbar e laterais ocultas; só o corpo central.
 
-**Assets:** `static/reports/css/report_editor.css`, `static/reports/js/report_editor.js`
+**Assets JS:** `report_editor.js` (núcleo), `report_table_insert.js`, `report_table_structure.js`, `report_table_column_resize.js`, `report_image_insert.js`, `report_image_resize.js`, `report_outline_*.js`
 
 ---
 
@@ -283,10 +383,63 @@ Bloco genérico de conteúdo. Herda `BaseModel`.
 | `link` | Link | `{"text": "Rótulo", "url": "https://..."}` |
 | `ordered_list` | Lista numerada | `{"items": ["A", "B"]}` |
 | `unordered_list` | Lista com marcadores | `{"items": ["A", "B"]}` |
-| `table` | Tabela | `{"headers": [...], "rows": [...]}` |
-| `image` | Imagem | `{"alt": "...", "file": "..."}` |
+| `table` | Tabela | Ver [payload de tabela](#payload-de-tabela) |
+| `image` | Imagem | Ver [payload de imagem](#payload-de-imagem) |
+
+#### Payload de tabela
+
+```json
+{
+  "headers": ["Coluna A", "Coluna B"],
+  "rows": [
+    [
+      {"type": "text", "text": "Célula 1"},
+      {"type": "image", "alt": "", "file": "reports/…/foto.jpg", "image_id": "uuid", "width": 200, "height": 150}
+    ]
+  ],
+  "show_borders": true,
+  "show_header": true,
+  "column_widths": [50, 50]
+}
+```
+
+| Campo | Tipo | Descrição |
+|---|---|---|
+| `headers` | `string[]` | Texto do cabeçalho (uma entrada por coluna) |
+| `rows` | `cell[][]` | Linhas do corpo; célula = `{type:"text", text}` ou `{type:"image", …}` |
+| `show_borders` | `bool` | Exibe bordas da grade (padrão `true`) |
+| `show_header` | `bool` | Exibe `<thead>` no editor/pré-visualização (padrão `true`) |
+| `column_widths` | `int[]` | Percentuais inteiros por coluna, soma 100 (padrão: divisão igual) |
+
+Limites do editor: até **12 colunas**, **19 linhas de corpo** (cabeçalho não conta em `rows`).
+
+#### Payload de imagem
+
+```json
+{
+  "alt": "Figura 1",
+  "file": "reports/<report_id>/<image_id>.jpg",
+  "image_id": "uuid",
+  "width": 454,
+  "height": 300
+}
+```
+
+`width`/`height` são dimensões de **exibição** no documento; o arquivo original é redimensionado no upload (lado máximo configurável).
 
 Opções de layout aplicam-se a **todos** os tipos; interpretação completa na renderização futura (PDF/HTML).
+
+### `ReportImage`
+
+Arquivo de imagem vinculado a um relatório. Herda `BaseModel`.
+
+| Campo | Tipo | Descrição |
+|---|---|---|
+| `report` | FK → `Report` | Relatório dono do arquivo |
+| `image` | ImageField | Arquivo persistido em storage |
+| `original_width` / `original_height` | PositiveIntegerField | Dimensões após processamento no upload |
+
+Referenciado em blocos `image` e células `type: "image"` via `image_id` e `file` no JSON do bloco.
 
 ---
 
@@ -296,6 +449,7 @@ Opções de layout aplicam-se a **todos** os tipos; interpretação completa na 
 erDiagram
     CustomUser ||--o{ Report : "author (1:N, SET_NULL)"
     Report ||--o{ ReportNode : "nodes (1:N)"
+    Report ||--o{ ReportImage : "images (1:N)"
     ReportNode ||--|| ReportBlock : "block (1:1)"
     ReportNode ||--o{ ReportNode : "parent → children"
 
@@ -362,9 +516,17 @@ Models registrados no Django Admin (complementar à UI web):
 | `test_report_editor_bootstrap.py` | H1 inicial em relatório vazio |
 | `test_report_editor_context.py` | Sumário e ordem do corpo |
 | `test_report_editor_views.py` | Editor, bootstrap, layout |
-| `test_report_block_content.py` | Normalização e sequência de blocos |
-| `test_report_tree.py` | Inserção, atualização, listas |
-| `test_report_node_api_views.py` | API PATCH/POST |
+| `test_report_heading_numbering.py` | Numeração hierárquica de títulos |
+| `test_report_block_content.py` | Normalização de payloads por tipo |
+| `test_report_table_cell_content.py` | Células texto/imagem |
+| `test_report_table_structure.py` | Linhas/colunas estruturais |
+| `test_report_table_column_widths.py` | Percentuais e resize |
+| `test_report_image_processing.py` | Redimensionamento de arquivo |
+| `test_report_image_upload_api.py` | API de upload |
+| `test_report_image_cleanup.py` | Remoção de imagens órfãs |
+| `test_report_tree.py` | Inserção, atualização, listas, exclusão |
+| `test_report_node_api_views.py` | API PATCH/POST/DELETE |
+| `test_report_outline_tags.py` | Template tags do sumário |
 
 Executar: `python manage.py test reports`
 
@@ -378,10 +540,12 @@ Executar: `python manage.py test reports`
 - [x] CBV de edição visual (`/reports/<pk>/edit/`)
 - [x] Editor interativo (Enter, autosave, toolbar, API JSON)
 - [x] Hub na página inicial (cards pós-login)
-- [ ] Excluir/merge de blocos vazios (Backspace)
-- [ ] Mover/reordenar nós na árvore (drag-and-drop ou comandos)
-- [ ] Edição interativa de link e tabela
-- [ ] Upload de imagem
+- [x] Conversão in-place e toolbar com split buttons
+- [x] Sumário com numeração e reorder (drag-and-drop)
+- [x] Tabelas interativas (inserção, estrutura, bordas, cabeçalho, larguras)
+- [x] Imagens (upload, resize, inserção em bloco e célula de tabela)
+- [x] Exclusão de bloco/nó vazio (Backspace)
+- [ ] Edição interativa de link
 - [ ] Painel de propriedades do bloco (layout e paginação)
 - [ ] Publicação/arquivamento na UI
 - [ ] Camada de laudo pericial (mapeamento semântico → blocos)
