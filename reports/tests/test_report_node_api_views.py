@@ -86,6 +86,32 @@ class ReportNodeApiViewTests(TestCase):
         self.assertIn("html", data)
         self.assertEqual(self.report.nodes.count(), 2)
 
+    def test_post_horizontal_rule_after_paragraph(self):
+        """Garante criação de linha horizontal como bloco dedicado."""
+        paragraph = ReportBlock.objects.create(
+            block_type=ReportBlockType.PARAGRAPH,
+            content={"text": "Corpo"},
+        )
+        paragraph_node = ReportNode.objects.create(
+            report=self.report,
+            block=paragraph,
+            position=Decimal("2"),
+        )
+
+        response = self._post_node(
+            {
+                "after_node_id": str(paragraph_node.pk),
+                "block_type": ReportBlockType.HORIZONTAL_RULE,
+            }
+        )
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertEqual(payload["block_type"], ReportBlockType.HORIZONTAL_RULE)
+        self.assertIn("report-editor-block-horizontal-rule", payload["html"])
+        node = ReportNode.objects.get(pk=payload["node_id"])
+        self.assertEqual(node.block.content, {})
+
     def test_post_heading_accepts_title_level(self):
         """Garante criação de título com nível hierárquico informado."""
         response = self._post_node(

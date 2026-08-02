@@ -24,6 +24,7 @@ class ReportBlockType(models.TextChoices):
     UNORDERED_LIST = "unordered_list", "Lista com marcadores"
     TABLE = "table", "Tabela"
     IMAGE = "image", "Imagem"
+    HORIZONTAL_RULE = "horizontal_rule", "Linha horizontal"
 
 
 class ReportBlockLineSpacing(models.TextChoices):

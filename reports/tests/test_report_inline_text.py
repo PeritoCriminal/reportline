@@ -17,13 +17,20 @@ class ReportInlineTextTests(TestCase):
         self.assertEqual(sanitize_inline_text_html("Laudo pericial"), "Laudo pericial")
 
     def test_allowed_formatting_tags_preserved(self):
-        """Garante preservação de negrito, itálico, sublinhado e riscado."""
-        html = "<strong>N</strong><em>I</em><u>S</u><s>R</s>"
+        """Garante preservação de negrito, itálico, sublinhado, riscado, sobrescrito e subscrito."""
+        html = "<strong>N</strong><em>I</em><u>S</u><s>R</s><sup>SO</sup><sub>SB</sub>"
         sanitized = sanitize_inline_text_html(html)
         self.assertIn("<strong>N</strong>", sanitized)
         self.assertIn("<em>I</em>", sanitized)
         self.assertIn("<u>S</u>", sanitized)
         self.assertIn("<s>R</s>", sanitized)
+        self.assertIn("<sup>SO</sup>", sanitized)
+        self.assertIn("<sub>SB</sub>", sanitized)
+
+    def test_superscript_and_subscript_in_header_text(self):
+        """Garante sobrescrito e subscrito em células de cabeçalho/rodapé."""
+        result = sanitize_header_text_html("H<sub>2</sub>O e m<sup>2</sup>")
+        self.assertEqual(result, "H<sub>2</sub>O e m<sup>2</sup>")
 
     def test_script_tags_removed(self):
         """Garante remoção de scripts maliciosos mantendo texto visível."""

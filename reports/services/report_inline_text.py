@@ -1,7 +1,7 @@
 """
 Sanitização de HTML inline para campos de texto editáveis.
 
-Permite negrito, itálico, sublinhado, riscado e links inline nos blocos
+Permite negrito, itálico, sublinhado, riscado, sobrescrito, subscrito e links inline nos blocos
 do laudo, eliminando tags e atributos não permitidos antes da persistência.
 """
 
@@ -10,7 +10,7 @@ from __future__ import annotations
 from html import escape
 from html.parser import HTMLParser
 
-ALLOWED_INLINE_TAGS = frozenset({"strong", "em", "u", "s", "a"})
+ALLOWED_INLINE_TAGS = frozenset({"strong", "em", "u", "s", "a", "sup", "sub"})
 ALLOWED_LINK_PREFIXES = ("http://", "https://", "mailto:")
 BLOCKED_LINK_PREFIXES = ("javascript:", "data:", "vbscript:")
 TAG_ALIASES = {

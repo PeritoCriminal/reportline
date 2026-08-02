@@ -114,6 +114,8 @@
                 {% endif %}
             </div>
         </figure>
+    {% elif entry.block_type == "horizontal_rule" %}
+        <hr class="report-editor-block-horizontal-rule" aria-label="Linha horizontal">
     {% elif entry.block_type == "table" %}
         <div class="report-editor-block-table-wrap">
             <table class="report-editor-block-table table table-sm mb-0{% if entry.content.show_borders == False %} report-editor-block-table--hide-borders{% endif %}{% if entry.content.show_header == False %} report-editor-block-table--hide-header{% endif %}"

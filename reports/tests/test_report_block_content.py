@@ -178,6 +178,28 @@ class ReportBlockContentTests(TestCase):
         self.assertEqual(normalized["width"], 200)
         self.assertEqual(normalized["height"], 150)
 
+    def test_default_content_for_horizontal_rule_is_empty(self):
+        """Garante payload vazio para linha horizontal."""
+        self.assertEqual(
+            default_content_for_block_type(ReportBlockType.HORIZONTAL_RULE),
+            {},
+        )
+
+    def test_normalize_horizontal_rule_rejects_content(self):
+        """Garante que linha horizontal não aceita campos de conteúdo."""
+        with self.assertRaises(ValidationError):
+            normalize_block_content(
+                ReportBlockType.HORIZONTAL_RULE,
+                {"text": "invalido"},
+            )
+
+    def test_normalize_horizontal_rule_accepts_empty_payload(self):
+        """Garante persistência de linha horizontal com JSON vazio."""
+        self.assertEqual(
+            normalize_block_content(ReportBlockType.HORIZONTAL_RULE, {}),
+            {},
+        )
+
 
 class ReportBlockSequenceTests(TestCase):
     """Testes de sequência de blocos após Enter."""

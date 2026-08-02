@@ -103,6 +103,8 @@ def default_text_align_for_block(
         return "justify"
     if block_type == ReportBlockType.TABLE:
         return "left"
+    if block_type == ReportBlockType.HORIZONTAL_RULE:
+        return "center"
     return "left"
 
 

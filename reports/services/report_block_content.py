@@ -29,6 +29,8 @@ def default_content_for_block_type(block_type: str) -> dict[str, Any]:
         return {"headers": [], "rows": [], "show_borders": True, "show_header": True, "column_widths": [], "display_width": 100}
     if block_type == ReportBlockType.IMAGE:
         return {"alt": "", "file": "", "image_id": "", "width": 0, "height": 0}
+    if block_type == ReportBlockType.HORIZONTAL_RULE:
+        return {}
     raise ValidationError("Tipo de bloco não suportado.")
 
 
@@ -128,6 +130,13 @@ def normalize_block_content(block_type: str, content: Any) -> dict[str, Any]:
             "column_widths": column_widths,
             "display_width": display_width,
         }
+
+    if block_type == ReportBlockType.HORIZONTAL_RULE:
+        if content:
+            unexpected = [key for key in content if key]
+            if unexpected:
+                raise ValidationError("Linha horizontal não aceita conteúdo.")
+        return {}
 
     if block_type == ReportBlockType.IMAGE:
         alt = content.get("alt", "")

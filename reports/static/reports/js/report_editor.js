@@ -150,6 +150,30 @@
         };
     }
 
+    function getLastLinePlainTextFromHtml(html) {
+        const helpers = getInlineTextHelpers();
+        return helpers ? helpers.getLastLinePlainTextFromHtml(html) : "";
+    }
+
+    function removeLastLineFromHtml(html) {
+        const helpers = getInlineTextHelpers();
+        return helpers ? helpers.removeLastLineFromHtml(html) : html;
+    }
+
+    function isEmptyHtml(html) {
+        const helpers = getInlineTextHelpers();
+        if (helpers) {
+            return helpers.isEmptyHtml(html);
+        }
+        return !html || !html.trim();
+    }
+
+    const HORIZONTAL_RULE_LINE_PATTERN = /^_{3,}$/;
+
+    function isHorizontalRuleShortcutLine(lineText) {
+        return HORIZONTAL_RULE_LINE_PATTERN.test(lineText || "");
+    }
+
     function getActiveBlock() {
         const context = resolveInsertContext();
         return context ? context.block : null;
@@ -1226,7 +1250,50 @@
         );
     }
 
+    async function tryInsertHorizontalRuleFromParagraphEnter(block, editable) {
+        if (block.dataset.blockType !== "paragraph") {
+            return false;
+        }
+
+        const { beforeHtml, afterHtml } = splitEditableAtCaret(editable);
+        const lastLine = getLastLinePlainTextFromHtml(beforeHtml);
+        if (!isHorizontalRuleShortcutLine(lastLine)) {
+            return false;
+        }
+
+        clearSaveTimer(block.dataset.nodeId);
+        const trimmedBeforeHtml = removeLastLineFromHtml(beforeHtml);
+        const paragraphEmptied = isEmptyHtml(trimmedBeforeHtml);
+
+        if (paragraphEmptied) {
+            const hrBlock = await createSiblingBlock(block, "horizontal_rule", {});
+            await deleteBlockById(block);
+            await createSiblingBlock(hrBlock, "paragraph", {
+                content: { text: afterHtml || "" },
+                caretAtStart: true,
+            });
+            return true;
+        }
+
+        setTextFieldContent(block, trimmedBeforeHtml);
+        await saveBlock(block);
+
+        const hrBlock = await createSiblingBlock(block, "horizontal_rule", {});
+        await createSiblingBlock(hrBlock, "paragraph", {
+            content: { text: afterHtml || "" },
+            caretAtStart: true,
+        });
+        return true;
+    }
+
     async function handleTextBlockEnter(block, editable) {
+        if (block.dataset.blockType === "paragraph") {
+            const inserted = await tryInsertHorizontalRuleFromParagraphEnter(block, editable);
+            if (inserted) {
+                return;
+            }
+        }
+
         const blockType = block.dataset.blockType;
         const newBlockType = blockType === "heading"
             ? "paragraph"

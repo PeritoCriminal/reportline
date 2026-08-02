@@ -1,5 +1,6 @@
 /**
- * Formatação inline de texto selecionado (negrito, itálico, sublinhado, riscado).
+ * Formatação inline de texto selecionado (negrito, itálico, sublinhado, riscado,
+ * sobrescrito e subscrito).
  */
 (function () {
     "use strict";
@@ -9,6 +10,8 @@
         italic: "italic",
         underline: "underline",
         strikethrough: "strikeThrough",
+        superscript: "superscript",
+        subscript: "subscript",
     };
 
     const FORMAT_SHORTCUTS = {
@@ -16,6 +19,8 @@
         i: "italic",
         u: "underline",
     };
+
+    const FORMATS_REQUIRING_SELECTION = new Set(["superscript", "subscript"]);
 
     let formatToolbarGroup = null;
     let lastFormatContext = null;
@@ -129,6 +134,31 @@
         return null;
     }
 
+    function getCurrentSelectionRange() {
+        const selection = window.getSelection();
+        if (!selection || selection.rangeCount === 0) {
+            return null;
+        }
+        return selection.getRangeAt(0);
+    }
+
+    function hasMeaningfulSelection(context) {
+        if (!context || !context.editable) {
+            return false;
+        }
+
+        const range = getCurrentSelectionRange();
+        if (!range || range.collapsed) {
+            return false;
+        }
+
+        if (!context.editable.contains(range.commonAncestorContainer)) {
+            return false;
+        }
+
+        return range.toString().length > 0;
+    }
+
     function isFormatToolbarTarget(target) {
         return Boolean(
             target
@@ -157,6 +187,21 @@
                 return;
             }
             button.disabled = !enabled;
+        });
+    }
+
+    function updateSelectionRequiredButtons(context) {
+        if (!formatToolbarGroup) {
+            return;
+        }
+
+        const hasSelection = hasMeaningfulSelection(context);
+        formatToolbarGroup.querySelectorAll("[data-report-text-format]").forEach((button) => {
+            const format = button.dataset.reportTextFormat;
+            if (!FORMATS_REQUIRING_SELECTION.has(format)) {
+                return;
+            }
+            button.disabled = !context || !context.editable || !hasSelection;
         });
     }
 
@@ -202,6 +247,7 @@
         setFormatButtonsEnabled(hasContext);
         if (hasContext) {
             updateFormatButtonStates(context);
+            updateSelectionRequiredButtons(context);
         } else {
             updateFormatButtonStates(null);
         }
@@ -229,6 +275,10 @@
         const context = resolveFormattableContext();
         const command = FORMAT_COMMANDS[format];
         if (!context || !command) {
+            return Promise.resolve();
+        }
+
+        if (FORMATS_REQUIRING_SELECTION.has(format) && !hasMeaningfulSelection(context)) {
             return Promise.resolve();
         }
 

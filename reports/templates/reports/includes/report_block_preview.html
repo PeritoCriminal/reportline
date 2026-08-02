@@ -80,6 +80,8 @@
                 <span>{{ entry.content.alt|default:"Imagem sem arquivo" }}</span>
             {% endif %}
         </figure>
+    {% elif entry.block_type == "horizontal_rule" %}
+        <hr class="report-editor-block-horizontal-rule" aria-hidden="true">
     {% else %}
         <p class="text-muted small mb-0">{{ entry.block_type_label }}</p>
     {% endif %}

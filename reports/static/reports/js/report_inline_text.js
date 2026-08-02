@@ -5,7 +5,7 @@
     "use strict";
 
     const ALLOWED_TAGS = new Set([
-        "STRONG", "EM", "U", "S", "B", "I", "STRIKE", "DEL", "A",
+        "STRONG", "EM", "U", "S", "B", "I", "STRIKE", "DEL", "A", "SUP", "SUB",
     ]);
     const TAG_MAP = {
         B: "STRONG",
@@ -181,6 +181,114 @@
         };
     }
 
+    function appendPlainTextWithNewlines(node, parts) {
+        if (node.nodeType === Node.TEXT_NODE) {
+            parts.text += node.textContent;
+            return;
+        }
+        if (node.nodeType !== Node.ELEMENT_NODE) {
+            return;
+        }
+        if (node.tagName === "BR") {
+            parts.text += "\n";
+            return;
+        }
+        if (node.tagName === "DIV" || node.tagName === "P") {
+            if (parts.text && !parts.text.endsWith("\n")) {
+                parts.text += "\n";
+            }
+            Array.from(node.childNodes).forEach((child) => appendPlainTextWithNewlines(child, parts));
+            parts.text += "\n";
+            return;
+        }
+        Array.from(node.childNodes).forEach((child) => appendPlainTextWithNewlines(child, parts));
+    }
+
+    function getPlainTextWithNewlinesFromHtml(html) {
+        const container = document.createElement("div");
+        container.innerHTML = html || "";
+        const parts = { text: "" };
+        Array.from(container.childNodes).forEach((child) => appendPlainTextWithNewlines(child, parts));
+        return parts.text.replace(/\n+$/, "");
+    }
+
+    function getLastLinePlainTextFromHtml(html) {
+        const text = getPlainTextWithNewlinesFromHtml(html);
+        if (!text) {
+            return "";
+        }
+        const lines = text.split("\n");
+        return lines[lines.length - 1] || "";
+    }
+
+    function fragmentToHtml(fragment) {
+        const container = document.createElement("div");
+        container.appendChild(fragment.cloneNode(true));
+        return sanitize(container.innerHTML);
+    }
+
+    function splitHtmlIntoLineFragments(html) {
+        const container = document.createElement("div");
+        container.innerHTML = html || "";
+        const lines = [];
+        let current = document.createDocumentFragment();
+
+        function pushLine() {
+            lines.push(current);
+            current = document.createDocumentFragment();
+        }
+
+        function processNode(node) {
+            if (node.nodeType === Node.TEXT_NODE) {
+                current.appendChild(node.cloneNode());
+                return;
+            }
+            if (node.nodeType !== Node.ELEMENT_NODE) {
+                return;
+            }
+            if (node.tagName === "BR") {
+                pushLine();
+                return;
+            }
+            if (node.tagName === "DIV" || node.tagName === "P") {
+                if (current.childNodes.length) {
+                    pushLine();
+                }
+                Array.from(node.childNodes).forEach(processNode);
+                pushLine();
+                return;
+            }
+            current.appendChild(node.cloneNode(true));
+        }
+
+        Array.from(container.childNodes).forEach(processNode);
+        if (current.childNodes.length) {
+            lines.push(current);
+        }
+        while (lines.length && !lines[lines.length - 1].childNodes.length) {
+            lines.pop();
+        }
+        return lines;
+    }
+
+    function removeLastLineFromHtml(html) {
+        const lines = splitHtmlIntoLineFragments(html);
+        if (!lines.length) {
+            return "";
+        }
+        lines.pop();
+        return lines.map(fragmentToHtml).filter(Boolean).join("<br>");
+    }
+
+    function isEmptyHtml(html) {
+        if (!html || !html.trim()) {
+            return true;
+        }
+        const container = document.createElement("div");
+        container.innerHTML = html;
+        return !(container.textContent || "").length;
+    }
+
     window.ReportLineInlineText = {
         sanitize,
         sanitizeHeader,
@@ -189,6 +297,9 @@
         getHtml,
         getPlainText,
         splitHtmlAtSelection,
+        getLastLinePlainTextFromHtml,
+        removeLastLineFromHtml,
+        isEmptyHtml,
         normalizeLinkUrl,
     };
 })();
