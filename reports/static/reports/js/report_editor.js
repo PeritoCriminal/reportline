@@ -3,7 +3,8 @@
  *
  * Enter divide ou insere blocos conforme posição do cursor; Shift+Enter
  * mantém quebra de linha no mesmo bloco; Backspace remove bloco vazio no início;
- * Delete remove parágrafo vazio ou totalmente selecionado.
+ * Delete remove parágrafo vazio ou totalmente selecionado; Backspace/Delete adjacentes
+ * removem linha horizontal entre blocos de texto.
  */
 (function () {
     "use strict";
@@ -270,6 +271,92 @@
             next = next.nextElementSibling;
         }
         return next || null;
+    }
+
+    function getPreviousEditorBlock(block) {
+        let previous = block.previousElementSibling;
+        while (previous && !previous.classList.contains("report-editor-block")) {
+            previous = previous.previousElementSibling;
+        }
+        return previous || null;
+    }
+
+    function isTextBlockEligibleForHorizontalRuleRemoval(block) {
+        return (
+            TEXT_BLOCK_TYPES.has(block.dataset.blockType)
+            && block.dataset.isCaption !== "true"
+        );
+    }
+
+    function isCaretCollapsedAtEnd(editable) {
+        const selection = window.getSelection();
+        if (!selection || selection.rangeCount === 0 || !selection.isCollapsed) {
+            return false;
+        }
+
+        const offsets = getEditableSelectionOffsets(editable);
+        if (!offsets) {
+            return false;
+        }
+
+        return offsets.start >= offsets.length;
+    }
+
+    function shouldBackspaceRemoveAdjacentHorizontalRule(block, editable) {
+        if (!isTextBlockEligibleForHorizontalRuleRemoval(block)) {
+            return false;
+        }
+        if (getCaretOffset(editable) !== 0 || isEditableEmpty(editable)) {
+            return false;
+        }
+
+        const previousBlock = getPreviousEditorBlock(block);
+        return Boolean(
+            previousBlock && previousBlock.dataset.blockType === "horizontal_rule"
+        );
+    }
+
+    function shouldDeleteRemoveAdjacentHorizontalRule(block, editable) {
+        if (!isTextBlockEligibleForHorizontalRuleRemoval(block)) {
+            return false;
+        }
+        if (!isCaretCollapsedAtEnd(editable)) {
+            return false;
+        }
+
+        const nextBlock = getNextEditorBlock(block);
+        return Boolean(nextBlock && nextBlock.dataset.blockType === "horizontal_rule");
+    }
+
+    async function deleteHorizontalRuleBlock(block) {
+        if (!block || block.dataset.blockType !== "horizontal_rule") {
+            return;
+        }
+        await deleteBlockById(block);
+    }
+
+    async function handleBackspaceAdjacentHorizontalRule(block, editable) {
+        if (!shouldBackspaceRemoveAdjacentHorizontalRule(block, editable)) {
+            return false;
+        }
+
+        const horizontalRuleBlock = getPreviousEditorBlock(block);
+        await deleteHorizontalRuleBlock(horizontalRuleBlock);
+        placeCaretAtStart(editable);
+        rememberEditorContext(block, editable);
+        return true;
+    }
+
+    async function handleDeleteAdjacentHorizontalRule(block, editable) {
+        if (!shouldDeleteRemoveAdjacentHorizontalRule(block, editable)) {
+            return false;
+        }
+
+        const horizontalRuleBlock = getNextEditorBlock(block);
+        await deleteHorizontalRuleBlock(horizontalRuleBlock);
+        placeCaretAtEnd(editable);
+        rememberEditorContext(block, editable);
+        return true;
     }
 
     function focusBlockAtStart(block) {
@@ -2329,17 +2416,30 @@
             }
 
             if (event.key === "Backspace") {
-                if (getCaretOffset(editable) === 0 && isEditableEmpty(editable)) {
-                    event.preventDefault();
-                    handleBackspace(block, editable).catch(console.error);
+                if (getCaretOffset(editable) === 0) {
+                    if (isEditableEmpty(editable)) {
+                        event.preventDefault();
+                        handleBackspace(block, editable).catch(console.error);
+                    } else if (shouldBackspaceRemoveAdjacentHorizontalRule(block, editable)) {
+                        event.preventDefault();
+                        handleBackspaceAdjacentHorizontalRule(block, editable).catch(console.error);
+                    }
                 }
                 return;
             }
 
-            if (event.key === "Delete" && block.dataset.blockType === "paragraph") {
-                if (isEditableFullySelected(editable)) {
+            if (event.key === "Delete") {
+                if (
+                    block.dataset.blockType === "paragraph"
+                    && isEditableFullySelected(editable)
+                ) {
                     event.preventDefault();
                     handleDelete(block, editable).catch(console.error);
+                    return;
+                }
+                if (shouldDeleteRemoveAdjacentHorizontalRule(block, editable)) {
+                    event.preventDefault();
+                    handleDeleteAdjacentHorizontalRule(block, editable).catch(console.error);
                 }
             }
         });
