@@ -20,6 +20,7 @@ from reports.services.report_block_sequence import (
     get_next_sibling_block_type,
     is_list_block_type,
 )
+from reports.services.report_config import build_caption_numbers_payload
 from reports.services.report_editor_context import render_editable_block_html
 from reports.services.report_tree import (
     append_list_item,
@@ -174,6 +175,8 @@ class ReportNodeDetailView(ReportAuthorMixin, View):
                 autofocus=True,
                 **focus_kwargs,
             )
+        if report.number_captions:
+            response["caption_numbers"] = build_caption_numbers_payload(report)
         return JsonResponse(response)
 
     def delete(self, request, pk, node_id):
@@ -186,7 +189,10 @@ class ReportNodeDetailView(ReportAuthorMixin, View):
         except ValidationError as exc:
             return _validation_error_response(exc)
 
-        return JsonResponse({"deleted": True, "node_id": str(node_id)})
+        response = {"deleted": True, "node_id": str(node_id)}
+        if report.number_captions:
+            response["caption_numbers"] = build_caption_numbers_payload(report)
+        return JsonResponse(response)
 
     def http_method_not_allowed(self, request, *args, **kwargs):
         """Restringe métodos aceitos neste endpoint."""
@@ -265,20 +271,21 @@ class ReportNodeCreateView(ReportAuthorMixin, View):
             is_caption=is_caption and block_type == ReportBlockType.PARAGRAPH,
         )
         block = node.block
-        return JsonResponse(
-            {
-                "node_id": str(node.pk),
-                "block_type": block.block_type,
-                "title_level": block.title_level,
-                "content": block.content,
-                "html": html,
-                "text_align": block.text_align,
-                "indent_level": block.indent_level,
-                "first_line_indent": block.first_line_indent,
-                "is_caption": is_caption and block_type == ReportBlockType.PARAGRAPH,
-                "insertion": "before" if before_node_id else "after",
-            }
-        )
+        response = {
+            "node_id": str(node.pk),
+            "block_type": block.block_type,
+            "title_level": block.title_level,
+            "content": block.content,
+            "html": html,
+            "text_align": block.text_align,
+            "indent_level": block.indent_level,
+            "first_line_indent": block.first_line_indent,
+            "is_caption": is_caption and block_type == ReportBlockType.PARAGRAPH,
+            "insertion": "before" if before_node_id else "after",
+        }
+        if report.number_captions:
+            response["caption_numbers"] = build_caption_numbers_payload(report)
+        return JsonResponse(response)
 
     def http_method_not_allowed(self, request, *args, **kwargs):
         """Restringe métodos aceitos neste endpoint."""

@@ -336,6 +336,18 @@
         return Promise.resolve();
     }
 
+    function applyCaptionNumbersFromResponse(data) {
+        if (
+            !data
+            || !data.caption_numbers
+            || !window.ReportLineReportConfig
+            || !window.ReportLineReportConfig.applyCaptionNumbers
+        ) {
+            return;
+        }
+        window.ReportLineReportConfig.applyCaptionNumbers(data.caption_numbers);
+    }
+
     async function saveBlock(block, options = {}) {
         const nodeId = block.dataset.nodeId;
         const content = collectBlockContent(block);
@@ -357,6 +369,8 @@
         if (block.dataset.blockType === "heading" && content.text !== undefined) {
             updateOutlineHeading(nodeId, content.text);
         }
+
+        applyCaptionNumbersFromResponse(data);
 
         return data;
     }
@@ -512,11 +526,56 @@
         }
     }
 
+    function getCaptionBlock(imageBlock) {
+        const captionBlock = imageBlock.nextElementSibling;
+        if (captionBlock && captionBlock.dataset.isCaption === "true") {
+            return captionBlock;
+        }
+        return null;
+    }
+
+    function imageHasCaption(imageBlock) {
+        return Boolean(getCaptionBlock(imageBlock));
+    }
+
+    function syncAddCaptionControl(imageBlock) {
+        if (!imageBlock || imageBlock.dataset.blockType !== "image") {
+            return;
+        }
+
+        const button = imageBlock.querySelector("[data-report-image-add-caption-inline]");
+        if (!button) {
+            return;
+        }
+
+        const hasCaption = imageHasCaption(imageBlock);
+        const selectedTarget = window.ReportLineImageResize
+            && window.ReportLineImageResize.getSelectedTarget
+            ? window.ReportLineImageResize.getSelectedTarget()
+            : null;
+        const isSelected = Boolean(
+            selectedTarget
+            && selectedTarget.type === "block"
+            && selectedTarget.root === imageBlock
+        );
+        const show = !hasCaption && isSelected;
+
+        button.classList.toggle("d-none", !show);
+        button.hidden = !show;
+    }
+
+    function syncAllAddCaptionControls() {
+        document.querySelectorAll('.report-editor-block[data-block-type="image"]').forEach((imageBlock) => {
+            syncAddCaptionControl(imageBlock);
+        });
+    }
+
     async function ensureCaptionParagraphAfterImage(imageBlock) {
         const nextBlock = imageBlock.nextElementSibling;
         if (nextBlock && nextBlock.dataset.isCaption === "true") {
             focusCaptionParagraph(nextBlock);
             syncCaptionWidthForImageBlock(imageBlock);
+            syncAddCaptionControl(imageBlock);
             return nextBlock;
         }
 
@@ -526,6 +585,7 @@
             caretAtStart: true,
         });
         syncCaptionWidthForImageBlock(imageBlock);
+        syncAddCaptionControl(imageBlock);
         return captionBlock;
     }
 
@@ -881,6 +941,7 @@
         const data = await apiRequest(config.createNodeUrl, "POST", payload);
         const newBlock = insertBlockHtml(referenceBlock, data.html, data.insertion);
         focusNewBlock(newBlock, { caretAtStart: options.caretAtStart });
+        applyCaptionNumbersFromResponse(data);
         if (data.block_type === "heading") {
             await refreshOutlineTree();
         }
@@ -1325,8 +1386,9 @@
     async function deleteBlockById(block) {
         const nodeId = block.dataset.nodeId;
         clearSaveTimer(nodeId);
-        await apiRequest(updateNodeUrl(nodeId), "DELETE");
+        const data = await apiRequest(updateNodeUrl(nodeId), "DELETE");
         block.remove();
+        applyCaptionNumbersFromResponse(data);
     }
 
     async function clearTableCellImage(selectedTarget) {
@@ -1421,12 +1483,18 @@
 
         const previousBlock = block.previousElementSibling;
         const blockType = block.dataset.blockType;
+        const wasCaption = block.dataset.isCaption === "true";
 
-        await apiRequest(updateNodeUrl(nodeId), "DELETE");
+        const data = await apiRequest(updateNodeUrl(nodeId), "DELETE");
 
         block.remove();
+        applyCaptionNumbersFromResponse(data);
         if (blockType === "heading") {
             await refreshOutlineTree();
+        }
+
+        if (wasCaption && previousBlock && previousBlock.dataset.blockType === "image") {
+            syncAddCaptionControl(previousBlock);
         }
 
         if (previousBlock && previousBlock.classList.contains("report-editor-block")) {
@@ -1785,14 +1853,6 @@
             text_align: align,
         });
         updateAlignmentToolbar(align);
-    }
-
-    function getCaptionBlock(imageBlock) {
-        const captionBlock = imageBlock.nextElementSibling;
-        if (captionBlock && captionBlock.dataset.isCaption === "true") {
-            return captionBlock;
-        }
-        return null;
     }
 
     function applyImageBlockAlignVisual(imageBlock, align) {
@@ -2682,6 +2742,9 @@
         clearImageSelectionContext,
         rememberImageSelection,
         setImageAlign,
+        ensureCaptionParagraphAfterImage,
+        imageHasCaption,
+        syncAllAddCaptionControls,
         applyImageBlockAlignVisual,
         applyTableCellImageAlignVisual,
         resolveParagraphContext,

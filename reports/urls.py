@@ -6,6 +6,7 @@ Telas de criação e edição de relatórios modulares.
 
 from django.urls import path
 
+from reports.views.report_config_api_views import ReportConfigView
 from reports.views.report_create_views import ReportCreateView
 from reports.views.report_editor_views import ReportEditorOutlineView, ReportEditorView
 from reports.views.report_image_api_views import ReportImageUploadView
@@ -29,6 +30,11 @@ urlpatterns = [
         "new/",
         ReportCreateView.as_view(),
         name="new",
+    ),
+    path(
+        "<uuid:pk>/config/",
+        ReportConfigView.as_view(),
+        name="config",
     ),
     path(
         "<uuid:pk>/edit/",

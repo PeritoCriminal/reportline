@@ -25,7 +25,7 @@
      {% if entry.block_type == "paragraph" %}
      data-indent-level="{{ entry.indent_level|default:0 }}"
      {% endif %}
-     {% if entry.block_type == "heading" and not entry.heading_number %}data-is-main-title="true"{% endif %}
+     {% if entry.block_type == "heading" and entry.is_main_title %}data-is-main-title="true"{% endif %}
      {% if is_caption %}data-is-caption="true"{% endif %}>
     {% if entry.block_type == "heading" %}
         <div class="report-editor-block-heading-wrap d-flex align-items-baseline gap-1">
@@ -44,12 +44,30 @@
                  {% if autofocus %}data-autofocus="true"{% endif %}>{{ entry.content.text|default:""|inline_text }}</div>
         </div>
     {% elif entry.block_type == "paragraph" %}
+        {% if is_caption %}
+        <div class="report-editor-block-caption-wrap">
+            <div class="report-editor-block-caption-line">
+                {% if entry.caption_number %}
+                <span class="report-editor-caption-number user-select-none"
+                      data-caption-number="1"
+                      aria-hidden="true">Figura {{ entry.caption_number }} - </span>
+                {% endif %}
+                <p class="report-editor-block-editable report-editor-block-paragraph mb-0"
+                   contenteditable="true"
+                   data-field="text"
+                   data-first-line-indent="false"
+                   data-placeholder="Legenda da imagem"
+                   {% if autofocus %}data-autofocus="true"{% endif %}>{{ entry.content.text|default:""|inline_text }}</p>
+            </div>
+        </div>
+        {% else %}
         <p class="report-editor-block-editable report-editor-block-paragraph"
            contenteditable="true"
            data-field="text"
-           data-first-line-indent="{% if is_caption %}false{% elif entry.first_line_indent != False %}true{% else %}false{% endif %}"
-           data-placeholder="{% if is_caption %}Legenda da imagem{% else %}Digite o parágrafo…{% endif %}"
+           data-first-line-indent="{% if entry.first_line_indent != False %}true{% else %}false{% endif %}"
+           data-placeholder="Digite o parágrafo…"
            {% if autofocus %}data-autofocus="true"{% endif %}>{{ entry.content.text|default:""|inline_text }}</p>
+        {% endif %}
     {% elif entry.block_type == "ordered_list" %}
         <ol class="report-editor-block-list" data-field="items">
             {% for item in entry.content.items %}
@@ -113,6 +131,12 @@
                     <span class="report-editor-block-image-placeholder">Selecione uma imagem na barra de ferramentas</span>
                 {% endif %}
             </div>
+            <button type="button"
+                    class="report-editor-add-caption-btn btn btn-link btn-sm py-0 d-none"
+                    data-report-image-add-caption-inline
+                    hidden>
+                Adicionar legenda
+            </button>
         </figure>
     {% elif entry.block_type == "horizontal_rule" %}
         <hr class="report-editor-block-horizontal-rule" aria-label="Linha horizontal">

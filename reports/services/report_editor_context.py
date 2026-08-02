@@ -15,10 +15,12 @@ from uuid import UUID
 from reports.models import Report, ReportBlockType, ReportNode
 from reports.services.report_inline_text import inline_text_plain
 from reports.services.report_page_layout import enrich_page_layout_for_editor
+from reports.services.report_caption_numbering import build_caption_number_map
 from reports.services.report_heading_numbering import (
     build_heading_number_map,
     build_heading_number_map_for_report,
 )
+from reports.services.report_user_config import serialize_report_config
 
 
 @dataclass
@@ -44,7 +46,9 @@ class ReportBodyEntry:
     title_level: int
     content: dict[str, Any]
     heading_number: str = ""
+    is_main_title: bool = False
     is_caption: bool = False
+    caption_number: int = 0
     text_align: str = "justify"
     indent_level: int = 0
     first_line_indent: bool = True
@@ -85,15 +89,27 @@ def build_report_editor_context(report: Report) -> dict[str, Any]:
         report.nodes.select_related("block").order_by("position", "created_at")
     )
     nodes_by_parent = _group_nodes_by_parent(nodes)
-    heading_numbers = build_heading_number_map(nodes_by_parent)
+    heading_numbers = build_heading_number_map_for_report(report)
+    caption_numbers = build_caption_number_map(
+        nodes_by_parent,
+        number_captions=report.number_captions,
+    )
+    main_title_id = _main_title_node_id(nodes_by_parent)
 
     return {
         "outline_tree": _build_outline_tree(
             nodes_by_parent,
             heading_numbers=heading_numbers,
         ),
-        "body_entries": _build_body_entries(nodes_by_parent, heading_numbers=heading_numbers),
+        "body_entries": _build_body_entries(
+            nodes_by_parent,
+            heading_numbers=heading_numbers,
+            caption_numbers=caption_numbers,
+            main_title_id=main_title_id,
+        ),
         "heading_numbers": heading_numbers,
+        "caption_numbers": caption_numbers,
+        "report_config": serialize_report_config(report),
         "page_layout": enrich_page_layout_for_editor(report.page_layout),
     }
 
@@ -202,17 +218,29 @@ def is_caption_paragraph_node(node: ReportNode) -> bool:
     return _is_caption_paragraph(node, nodes_by_parent)
 
 
+def _main_title_node_id(
+    nodes_by_parent: dict[UUID | None, list[ReportNode]],
+) -> UUID | None:
+    """Retorna o nó do título principal (primeiro título em ordem de leitura)."""
+    headings = _collect_headings_in_reading_order(nodes_by_parent)
+    return headings[0].pk if headings else None
+
+
 def _build_body_entries(
     nodes_by_parent: dict[UUID | None, list[ReportNode]],
     parent_id: UUID | None = None,
     *,
     heading_numbers: dict[UUID, str],
+    caption_numbers: dict[UUID, int] | None = None,
+    main_title_id: UUID | None = None,
 ) -> list[ReportBodyEntry]:
     """Percorre a árvore em profundidade-primeiro produzindo o corpo linear."""
+    numbers = caption_numbers or {}
     entries: list[ReportBodyEntry] = []
 
     for node in nodes_by_parent.get(parent_id, []):
         block = node.block
+        is_caption = _is_caption_paragraph(node, nodes_by_parent)
         entries.append(
             ReportBodyEntry(
                 node_id=node.pk,
@@ -221,7 +249,9 @@ def _build_body_entries(
                 title_level=block.title_level,
                 content=_enrich_block_content(block.block_type, block.content or {}),
                 heading_number=heading_numbers.get(node.pk, ""),
-                is_caption=_is_caption_paragraph(node, nodes_by_parent),
+                is_main_title=node.pk == main_title_id,
+                is_caption=is_caption,
+                caption_number=numbers.get(node.pk, 0) if is_caption else 0,
                 text_align=block.text_align,
                 indent_level=block.indent_level,
                 first_line_indent=block.first_line_indent,
@@ -232,6 +262,8 @@ def _build_body_entries(
                 nodes_by_parent,
                 node.pk,
                 heading_numbers=heading_numbers,
+                caption_numbers=numbers,
+                main_title_id=main_title_id,
             )
         )
 
@@ -242,12 +274,32 @@ def _body_entry_from_node(
     node: ReportNode,
     *,
     heading_numbers: dict[UUID, str] | None = None,
+    caption_numbers: dict[UUID, int] | None = None,
 ) -> ReportBodyEntry:
     """Converte nó persistido em entrada de corpo para templates do editor."""
     block = node.block
     numbers = heading_numbers
     if numbers is None:
         numbers = build_heading_number_map_for_node(node)
+
+    caption_map = caption_numbers
+    if caption_map is None:
+        nodes = list(
+            node.report.nodes.select_related("block").order_by("position", "created_at")
+        )
+        nodes_by_parent = _group_nodes_by_parent(nodes)
+        caption_map = build_caption_number_map(
+            nodes_by_parent,
+            number_captions=node.report.number_captions,
+        )
+
+    nodes = list(
+        node.report.nodes.select_related("block").order_by("position", "created_at")
+    )
+    nodes_by_parent = _group_nodes_by_parent(nodes)
+    is_caption = _is_caption_paragraph(node, nodes_by_parent)
+    main_title_id = _main_title_node_id(nodes_by_parent)
+
     return ReportBodyEntry(
         node_id=node.pk,
         block_type=block.block_type,
@@ -255,6 +307,9 @@ def _body_entry_from_node(
         title_level=block.title_level,
         content=_enrich_block_content(block.block_type, block.content or {}),
         heading_number=numbers.get(node.pk, ""),
+        is_main_title=node.pk == main_title_id,
+        is_caption=is_caption,
+        caption_number=caption_map.get(node.pk, 0) if is_caption else 0,
         text_align=block.text_align,
         indent_level=block.indent_level,
         first_line_indent=block.first_line_indent,

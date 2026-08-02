@@ -1,11 +1,12 @@
 /**
- * Menu de opções da imagem selecionada no editor (alinhamento).
+ * Menu de opções da imagem selecionada no editor (alinhamento e legenda).
  */
 (function () {
     "use strict";
 
     let imageOptionsToggle = null;
     let imageToolbarGroup = null;
+    let editorPage = null;
     let lastImageTarget = null;
 
     function resolveImageSelectionContext() {
@@ -20,6 +21,24 @@
         if (window.ReportLineEditor && window.ReportLineEditor.clearImageSelectionContext) {
             window.ReportLineEditor.clearImageSelectionContext();
         }
+        if (window.ReportLineEditor && window.ReportLineEditor.syncAllAddCaptionControls) {
+            window.ReportLineEditor.syncAllAddCaptionControls();
+        }
+    }
+
+    function resolveImageBlockFromTarget(target) {
+        if (!target || target.type !== "block" || !target.root) {
+            return null;
+        }
+        return target.root.closest('.report-editor-block[data-block-type="image"]') || target.root;
+    }
+
+    function imageHasCaption(imageBlock) {
+        if (window.ReportLineEditor && window.ReportLineEditor.imageHasCaption) {
+            return window.ReportLineEditor.imageHasCaption(imageBlock);
+        }
+        const next = imageBlock && imageBlock.nextElementSibling;
+        return Boolean(next && next.dataset.isCaption === "true");
     }
 
     function isImageToolbarTarget(target) {
@@ -64,6 +83,14 @@
         });
     }
 
+    function updateAddCaptionMenuState(target) {
+        const imageBlock = resolveImageBlockFromTarget(target);
+        const canAdd = Boolean(imageBlock && !imageHasCaption(imageBlock));
+        document.querySelectorAll("[data-report-image-add-caption-item]").forEach((item) => {
+            item.classList.toggle("d-none", !canAdd);
+        });
+    }
+
     function setOptionsToggleState(toggle, enabled) {
         if (!toggle) {
             return;
@@ -76,12 +103,20 @@
     }
 
     function updateToolbarVisibility(target) {
-        const hasSelection = Boolean(target && target.root);
+        const imageBlock = resolveImageBlockFromTarget(target);
+        const hasSelection = Boolean(imageBlock);
 
         setOptionsToggleState(imageOptionsToggle, hasSelection);
 
         if (hasSelection) {
             updateImageAlignMenuState(target);
+            updateAddCaptionMenuState(target);
+        } else {
+            updateAddCaptionMenuState(null);
+        }
+
+        if (window.ReportLineEditor && window.ReportLineEditor.syncAllAddCaptionControls) {
+            window.ReportLineEditor.syncAllAddCaptionControls();
         }
     }
 
@@ -90,6 +125,22 @@
             return;
         }
         window.bootstrap.Dropdown.getOrCreateInstance(imageOptionsToggle).hide();
+    }
+
+    async function addCaptionToSelectedImage(target) {
+        const imageBlock = resolveImageBlockFromTarget(target);
+        if (
+            !imageBlock
+            || imageHasCaption(imageBlock)
+            || !window.ReportLineEditor
+            || !window.ReportLineEditor.ensureCaptionParagraphAfterImage
+        ) {
+            return;
+        }
+
+        await window.ReportLineEditor.ensureCaptionParagraphAfterImage(imageBlock);
+        updateAddCaptionMenuState(target);
+        closeImageDropdown();
     }
 
     function refreshToolbarFromSelection(target) {
@@ -111,6 +162,7 @@
     function init() {
         imageToolbarGroup = document.querySelector(".report-editor-toolbar-image-group");
         imageOptionsToggle = document.querySelector("[data-report-image-options-toggle]");
+        editorPage = document.getElementById("report-editor-page");
 
         if (!imageOptionsToggle) {
             return;
@@ -143,6 +195,39 @@
                     .catch(console.error);
             });
         });
+
+        document.querySelectorAll("[data-report-image-add-caption]").forEach((button) => {
+            button.addEventListener("mousedown", (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+            });
+            button.addEventListener("click", (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+
+                const target = lastImageTarget || resolveImageSelectionContext();
+                addCaptionToSelectedImage(target).catch(console.error);
+            });
+        });
+
+        if (editorPage) {
+            editorPage.addEventListener("click", (event) => {
+                const inlineButton = event.target.closest("[data-report-image-add-caption-inline]");
+                if (!inlineButton) {
+                    return;
+                }
+
+                event.preventDefault();
+                event.stopPropagation();
+
+                const imageBlock = inlineButton.closest('.report-editor-block[data-block-type="image"]');
+                if (!imageBlock) {
+                    return;
+                }
+
+                addCaptionToSelectedImage({ type: "block", root: imageBlock }).catch(console.error);
+            });
+        }
 
         imageOptionsToggle.addEventListener("mousedown", (event) => {
             event.stopPropagation();

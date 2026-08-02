@@ -445,6 +445,70 @@ class ReportNodeApiViewTests(TestCase):
 
         self.assertEqual(response.status_code, 400)
 
+    def test_patch_caption_returns_caption_numbers_when_numbering_enabled(self):
+        """Garante mapa de numeração de legendas na resposta ao salvar legenda."""
+        self.report.number_captions = True
+        self.report.save(update_fields=["number_captions", "updated_at"])
+
+        image_block = ReportBlock.objects.create(
+            block_type=ReportBlockType.IMAGE,
+            content={"alt": "", "file": "img.jpg", "image_id": "", "width": 100, "height": 80},
+        )
+        image_node = ReportNode.objects.create(
+            report=self.report,
+            block=image_block,
+            position=Decimal("10"),
+        )
+        caption_block = ReportBlock.objects.create(
+            block_type=ReportBlockType.PARAGRAPH,
+            content={"text": ""},
+            first_line_indent=False,
+        )
+        caption_node = ReportNode.objects.create(
+            report=self.report,
+            block=caption_block,
+            position=Decimal("11"),
+        )
+
+        response = self._patch_node(
+            caption_node,
+            {"content": {"text": "Legenda da figura"}},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertIn("caption_numbers", payload)
+        self.assertEqual(payload["caption_numbers"][str(caption_node.pk)], 1)
+
+    def test_post_caption_after_image_returns_caption_numbers(self):
+        """Garante mapa de numeração ao criar legenda após imagem."""
+        self.report.number_captions = True
+        self.report.save(update_fields=["number_captions", "updated_at"])
+
+        image_block = ReportBlock.objects.create(
+            block_type=ReportBlockType.IMAGE,
+            content={"alt": "", "file": "img.jpg", "image_id": "", "width": 100, "height": 80},
+        )
+        image_node = ReportNode.objects.create(
+            report=self.report,
+            block=image_block,
+            position=Decimal("20"),
+        )
+
+        response = self._post_node(
+            {
+                "after_node_id": str(image_node.pk),
+                "block_type": ReportBlockType.PARAGRAPH,
+                "content": {"text": "Nova legenda"},
+                "is_caption": True,
+            }
+        )
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertIn("caption_numbers", payload)
+        self.assertEqual(len(payload["caption_numbers"]), 1)
+
     def _post_reorder(self, payload, user="api_user"):
         self.client.login(username=user, password="senha-segura")
         return self.client.post(

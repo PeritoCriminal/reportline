@@ -39,6 +39,8 @@
 {% include "reports/includes/report_link_insert_modal.html" %}
 {% include "reports/includes/report_page_header_modal.html" %}
 {% include "reports/includes/report_page_footer_modal.html" %}
+{% include "reports/includes/report_config_modal.html" %}
+{{ report_config|json_script:"report-editor-initial-config" }}
 {% endblock %}
 
 {% block footer %}{% endblock %}
@@ -58,7 +60,11 @@
         updateUrl: "{% url 'reports:page_layout' pk=report.pk %}",
         uploadUrl: "{% url 'reports:image_upload' pk=report.pk %}",
     };
+    window.REPORT_EDITOR_CONFIG = {
+        configUrl: "{% url 'reports:config' pk=report.pk %}",
+    };
 </script>
+<script src="{% versioned_static 'reports/js/report_config.js' %}" defer></script>
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.6/Sortable.min.js" defer></script>
 <script src="{% versioned_static 'reports/js/report_outline_accordion.js' %}" defer></script>
 <script src="{% versioned_static 'reports/js/report_outline_dnd.js' %}" defer></script>
@@ -129,6 +135,16 @@
         }
         if (window.ReportLinePageFooter && window.REPORT_EDITOR_PAGE_LAYOUT) {
             window.ReportLinePageFooter.init(window.REPORT_EDITOR_PAGE_LAYOUT);
+        }
+        if (window.ReportLineReportConfig && window.REPORT_EDITOR_CONFIG) {
+            const configScript = document.getElementById("report-editor-initial-config");
+            const initialConfig = configScript
+                ? JSON.parse(configScript.textContent)
+                : {};
+            window.ReportLineReportConfig.init({
+                configUrl: window.REPORT_EDITOR_CONFIG.configUrl,
+                initialConfig,
+            });
         }
     });
 </script>

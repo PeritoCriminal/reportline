@@ -42,9 +42,16 @@ def default_first_line_indent_for_block(
     block_type: str,
     *,
     is_caption: bool = False,
+    report_first_line_indent: bool | None = None,
 ) -> bool:
-    """Parágrafos de corpo usam recuo de primeira linha por padrão no laudo."""
-    return block_type == ReportBlockType.PARAGRAPH and not is_caption
+    """Parágrafos de corpo usam recuo de primeira linha conforme config do laudo."""
+    if is_caption:
+        return False
+    if block_type == ReportBlockType.PARAGRAPH:
+        if report_first_line_indent is not None:
+            return report_first_line_indent
+        return True
+    return False
 
 
 def is_caption_paragraph_node(node: ReportNode) -> bool:
@@ -60,6 +67,7 @@ def resolve_indent_on_create(
     is_caption: bool = False,
     indent_level: int | None = None,
     first_line_indent: bool | None = None,
+    report_first_line_indent: bool | None = None,
 ) -> tuple[int, bool]:
     """Resolve nível e recuo de 1ª linha ao criar bloco, com herança opcional."""
     level = (
@@ -70,7 +78,11 @@ def resolve_indent_on_create(
     first_line = (
         bool(first_line_indent)
         if first_line_indent is not None
-        else default_first_line_indent_for_block(block_type, is_caption=is_caption)
+        else default_first_line_indent_for_block(
+            block_type,
+            is_caption=is_caption,
+            report_first_line_indent=report_first_line_indent,
+        )
     )
     return level, first_line
 

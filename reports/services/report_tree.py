@@ -124,6 +124,7 @@ def update_node_block(
             block.first_line_indent = default_first_line_indent_for_block(
                 target_type,
                 is_caption=is_caption,
+                report_first_line_indent=node.report.first_line_indent,
             )
             update_fields.append("first_line_indent")
 
@@ -194,6 +195,7 @@ def insert_sibling_before(
         is_caption=is_caption,
         indent_level=indent_level,
         first_line_indent=first_line_indent,
+        report_first_line_indent=report.first_line_indent,
     )
 
     block = ReportBlock.objects.create(
@@ -281,6 +283,7 @@ def insert_sibling_after(
         is_caption=is_caption,
         indent_level=indent_level,
         first_line_indent=first_line_indent,
+        report_first_line_indent=report.first_line_indent,
     )
 
     block = ReportBlock.objects.create(

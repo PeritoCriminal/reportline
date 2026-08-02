@@ -79,6 +79,9 @@ def group_nodes_by_parent(nodes: list[ReportNode]) -> dict[UUID | None, list[Rep
 
 def build_heading_number_map_for_report(report) -> dict[UUID, str]:
     """Monta numeração de títulos a partir dos nós persistidos do relatório."""
+    if not report.number_headings:
+        return {}
+
     nodes = list(
         report.nodes.select_related("block").order_by("position", "created_at")
     )

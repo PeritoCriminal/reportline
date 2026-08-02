@@ -70,6 +70,18 @@ class Report(BaseModel):
         verbose_name="Layout de página",
         help_text="Cabeçalho e demais configurações de layout de página.",
     )
+    number_headings = models.BooleanField(
+        default=True,
+        verbose_name="Numerar títulos",
+    )
+    number_captions = models.BooleanField(
+        default=False,
+        verbose_name="Numerar legendas",
+    )
+    first_line_indent = models.BooleanField(
+        default=True,
+        verbose_name="Recuar primeira linha",
+    )
 
     class Meta:
         verbose_name = "Relatório"

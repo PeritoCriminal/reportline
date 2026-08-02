@@ -6,6 +6,7 @@ from .report_block import (
 )
 from .report_image import ReportImage
 from .report_node import ReportNode
+from .report_user_config import ReportUserConfig
 
 __all__ = [
     "Report",
@@ -15,4 +16,5 @@ __all__ = [
     "ReportImage",
     "ReportNode",
     "ReportStatus",
+    "ReportUserConfig",
 ]

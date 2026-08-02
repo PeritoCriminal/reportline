@@ -56,6 +56,9 @@ class ReportPageLayoutApiViewTests(TestCase):
         self.assertIn("header_html", payload)
         self.assertIn("footer_html", payload)
 
+        user_config = self.user.report_user_config
+        self.assertTrue(user_config.page_layout["header"]["enabled"])
+
     def test_apply_footer_template_enables_footer(self):
         """Garante ativação de rodapé via apply_template com section footer."""
         self.client.force_login(self.user)

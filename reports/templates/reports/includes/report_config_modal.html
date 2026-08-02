@@ -1,0 +1,78 @@
+{# Modal de configuração do laudo (preferências do documento e defaults do usuário). #}
+<div class="modal fade"
+     id="reportConfigModal"
+     tabindex="-1"
+     aria-labelledby="reportConfigModalLabel"
+     aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header border-secondary-subtle">
+                <h2 class="modal-title fs-5" id="reportConfigModalLabel">
+                    <i class="bi bi-gear text-primary me-2" aria-hidden="true"></i>
+                    Configuração do laudo
+                </h2>
+                <button type="button"
+                        class="btn-close"
+                        data-bs-dismiss="modal"
+                        aria-label="Fechar"></button>
+            </div>
+            <form id="report-config-form" novalidate>
+                <div class="modal-body">
+                    <p class="text-muted small mb-3">
+                        As opções abaixo aplicam-se a este laudo e passam a valer como padrão para laudos novos.
+                    </p>
+                    <div class="form-check mb-3">
+                        <input class="form-check-input"
+                               type="checkbox"
+                               id="report-config-number-headings"
+                               name="number_headings"
+                               checked>
+                        <label class="form-check-label" for="report-config-number-headings">
+                            Numerar títulos
+                        </label>
+                        <div class="form-text">
+                            O título principal permanece sem numeração; demais títulos seguem a hierarquia 1, 1.1…
+                        </div>
+                    </div>
+                    <div class="form-check mb-3">
+                        <input class="form-check-input"
+                               type="checkbox"
+                               id="report-config-number-captions"
+                               name="number_captions">
+                        <label class="form-check-label" for="report-config-number-captions">
+                            Numerar legendas
+                        </label>
+                        <div class="form-text">
+                            Adiciona “Figura N - ” antes do texto de legendas preenchidas, na ordem das imagens no laudo.
+                        </div>
+                    </div>
+                    <div class="form-check mb-0">
+                        <input class="form-check-input"
+                               type="checkbox"
+                               id="report-config-first-line-indent"
+                               name="first_line_indent"
+                               checked>
+                        <label class="form-check-label" for="report-config-first-line-indent">
+                            Recuo de primeira linha
+                        </label>
+                        <div class="form-text">
+                            Aplica-se a todos os parágrafos de corpo deste laudo; legendas não são recuadas.
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer border-secondary-subtle">
+                    <button type="button"
+                            class="btn btn-outline-secondary"
+                            data-bs-dismiss="modal">
+                        Cancelar
+                    </button>
+                    <button type="submit"
+                            class="btn btn-primary"
+                            id="report-config-submit">
+                        Salvar
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>

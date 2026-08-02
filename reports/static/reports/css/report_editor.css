@@ -1378,6 +1378,60 @@ body.report-editor-table-width-resize-active {
     text-indent: 0;
 }
 
+.report-editor-block-caption-wrap {
+    font-size: 0.875rem;
+    color: var(--report-page-muted);
+    margin-bottom: 1rem;
+    text-indent: 0;
+}
+
+.report-editor-block[data-is-caption="true"][data-text-align="left"] .report-editor-block-caption-wrap {
+    text-align: left;
+}
+
+.report-editor-block[data-is-caption="true"][data-text-align="center"] .report-editor-block-caption-wrap,
+.report-editor-block[data-is-caption="true"]:not([data-text-align]) .report-editor-block-caption-wrap {
+    text-align: center;
+}
+
+.report-editor-block[data-is-caption="true"][data-text-align="right"] .report-editor-block-caption-wrap {
+    text-align: right;
+}
+
+.report-editor-block-caption-line {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 0;
+    max-width: 100%;
+    text-align: left;
+}
+
+.report-editor-block-caption-line .report-editor-block-paragraph {
+    flex: 0 1 auto;
+    width: auto;
+    margin: 0;
+}
+
+.report-editor-caption-number {
+    color: var(--report-page-muted);
+    white-space: nowrap;
+    margin-right: 0.35em;
+}
+
+.report-editor-add-caption-btn {
+    display: block;
+    margin: 0.25rem auto 0;
+    font-size: 0.8125rem;
+    color: var(--report-page-muted);
+    text-decoration: none;
+}
+
+.report-editor-add-caption-btn:hover,
+.report-editor-add-caption-btn:focus {
+    color: var(--report-page-text);
+    text-decoration: underline;
+}
+
 .report-editor-table-cell-image {
     display: block;
     width: 100%;

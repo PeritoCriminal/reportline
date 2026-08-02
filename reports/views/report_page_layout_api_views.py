@@ -26,6 +26,7 @@ from reports.services.report_page_layout import (
 from reports.services.report_page_layout_image_cleanup import (
     delete_removed_page_layout_images,
 )
+from reports.services.report_user_page_layout import sync_user_page_layout_preferences
 from reports.views.report_node_api_views import ReportAuthorMixin, _validation_error_response
 
 
@@ -85,6 +86,8 @@ class ReportPageLayoutView(ReportAuthorMixin, View):
             delete_removed_page_layout_images(old_layout, page_layout)
             report.page_layout = page_layout
             report.save(update_fields=["page_layout", "updated_at"])
+            if report.author_id:
+                sync_user_page_layout_preferences(report.author, page_layout)
         except ValidationError as exc:
             return _validation_error_response(exc)
 
