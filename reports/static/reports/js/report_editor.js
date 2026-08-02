@@ -2,7 +2,8 @@
  * Editor interativo de relatórios modulares.
  *
  * Enter divide ou insere blocos conforme posição do cursor; Shift+Enter
- * mantém quebra de linha no mesmo bloco; Backspace remove bloco vazio.
+ * mantém quebra de linha no mesmo bloco; Backspace remove bloco vazio no início;
+ * Delete remove parágrafo vazio ou totalmente selecionado.
  */
 (function () {
     "use strict";
@@ -217,6 +218,87 @@
 
     function isEditableEmpty(editable) {
         return getEditablePlainText(editable).trim() === "";
+    }
+
+    function getEditableSelectionOffsets(editable) {
+        const selection = window.getSelection();
+        if (!selection || selection.rangeCount === 0) {
+            return null;
+        }
+
+        const range = selection.getRangeAt(0);
+        if (!editable.contains(range.startContainer) || !editable.contains(range.endContainer)) {
+            return null;
+        }
+
+        const startRange = range.cloneRange();
+        startRange.selectNodeContents(editable);
+        startRange.setEnd(range.startContainer, range.startOffset);
+
+        const endRange = range.cloneRange();
+        endRange.selectNodeContents(editable);
+        endRange.setEnd(range.endContainer, range.endOffset);
+
+        return {
+            start: startRange.toString().length,
+            end: endRange.toString().length,
+            length: getEditablePlainText(editable).length,
+        };
+    }
+
+    function isEditableFullySelected(editable) {
+        if (isEditableEmpty(editable)) {
+            return true;
+        }
+
+        const selection = window.getSelection();
+        if (!selection || selection.rangeCount === 0 || selection.isCollapsed) {
+            return false;
+        }
+
+        const offsets = getEditableSelectionOffsets(editable);
+        if (!offsets) {
+            return false;
+        }
+
+        return offsets.start === 0 && offsets.end >= offsets.length;
+    }
+
+    function getNextEditorBlock(block) {
+        let next = block.nextElementSibling;
+        while (next && !next.classList.contains("report-editor-block")) {
+            next = next.nextElementSibling;
+        }
+        return next || null;
+    }
+
+    function focusBlockAtStart(block) {
+        if (!block) {
+            return false;
+        }
+
+        const editable = block.querySelector(".report-editor-block-editable");
+        if (editable) {
+            placeCaretAtStart(editable);
+            rememberEditorContext(block, editable);
+            return true;
+        }
+
+        if (
+            block.dataset.blockType === "image"
+            && window.ReportLineImageResize
+            && window.ReportLineImageResize.selectTargetElement
+        ) {
+            const target = block.querySelector(
+                ".report-editor-block-image-img, .report-editor-block-image"
+            );
+            if (target) {
+                window.ReportLineImageResize.selectTargetElement(target);
+                return true;
+            }
+        }
+
+        return false;
     }
 
     function collectBlockContent(block) {
@@ -1477,10 +1559,12 @@
         return true;
     }
 
-    async function deleteEmptyBlock(block) {
+    async function deleteEmptyBlock(block, options = {}) {
         const nodeId = block.dataset.nodeId;
         clearSaveTimer(nodeId);
 
+        const focusNext = Boolean(options.focusNext);
+        const nextBlock = focusNext ? getNextEditorBlock(block) : null;
         const previousBlock = block.previousElementSibling;
         const blockType = block.dataset.blockType;
         const wasCaption = block.dataset.isCaption === "true";
@@ -1497,10 +1581,26 @@
             syncAddCaptionControl(previousBlock);
         }
 
+        if (focusNext) {
+            let candidate = nextBlock;
+            while (candidate && !focusBlockAtStart(candidate)) {
+                candidate = getNextEditorBlock(candidate);
+            }
+            if (!candidate && previousBlock && previousBlock.classList.contains("report-editor-block")) {
+                const editable = previousBlock.querySelector(".report-editor-block-editable");
+                if (editable) {
+                    placeCaretAtEnd(editable);
+                    rememberEditorContext(previousBlock, editable);
+                }
+            }
+            return;
+        }
+
         if (previousBlock && previousBlock.classList.contains("report-editor-block")) {
             const editable = previousBlock.querySelector(".report-editor-block-editable");
             if (editable) {
                 placeCaretAtEnd(editable);
+                rememberEditorContext(previousBlock, editable);
             }
         }
     }
@@ -1529,6 +1629,18 @@
         if (target) {
             placeCaretAtEnd(target);
         }
+    }
+
+    async function handleDelete(block, editable) {
+        if (block.dataset.blockType !== "paragraph") {
+            return;
+        }
+
+        if (!isEditableFullySelected(editable)) {
+            return;
+        }
+
+        await deleteEmptyBlock(block, { focusNext: true });
     }
 
     async function handleBackspace(block, editable) {
@@ -2220,6 +2332,14 @@
                 if (getCaretOffset(editable) === 0 && isEditableEmpty(editable)) {
                     event.preventDefault();
                     handleBackspace(block, editable).catch(console.error);
+                }
+                return;
+            }
+
+            if (event.key === "Delete" && block.dataset.blockType === "paragraph") {
+                if (isEditableFullySelected(editable)) {
+                    event.preventDefault();
+                    handleDelete(block, editable).catch(console.error);
                 }
             }
         });

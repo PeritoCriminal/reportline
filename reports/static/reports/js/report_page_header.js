@@ -363,6 +363,54 @@
 
 
 
+    function placeCaretAtStart(element) {
+        if (!element) {
+            return;
+        }
+        element.focus();
+        const selection = window.getSelection();
+        if (!selection) {
+            return;
+        }
+        const range = document.createRange();
+        range.selectNodeContents(element);
+        range.collapse(true);
+        selection.removeAllRanges();
+        selection.addRange(range);
+    }
+
+    function focusHeaderAfterTemplateApply() {
+        const root = document.getElementById("report-page-header-root");
+        if (!root || root.dataset.headerEnabled !== "true") {
+            return;
+        }
+
+        enterEditMode(root);
+        const textField = root.querySelector("[data-report-page-header-text]");
+        if (!textField) {
+            return;
+        }
+
+        lastFocusedTextField = textField;
+        placeCaretAtStart(textField);
+    }
+
+    function scheduleFocusAfterTemplateModal(onFocus) {
+        if (modal && modalElement) {
+            const handleHidden = () => {
+                modalElement.removeEventListener("hidden.bs.modal", handleHidden);
+                onFocus();
+            };
+            modalElement.addEventListener("hidden.bs.modal", handleHidden);
+            modal.hide();
+            return;
+        }
+
+        onFocus();
+    }
+
+
+
     async function applyTemplate(templateId) {
 
         const data = await patchPageLayout({
@@ -375,11 +423,7 @@
 
         replaceHeaderHtml(data.html, { preserveEditing: false });
 
-        if (modal) {
-
-            modal.hide();
-
-        }
+        scheduleFocusAfterTemplateModal(focusHeaderAfterTemplateApply);
 
     }
 
