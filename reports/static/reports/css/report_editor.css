@@ -1722,16 +1722,16 @@ body.report-editor-table-width-resize-active {
 }
 
 [data-bs-theme="light"] {
-    --report-panel-bg: #d4d9df;
-    --report-canvas-bg: #e2e6ea;
+    --report-panel-bg: #f7f6f4;
+    --report-canvas-bg: #f9f8f6;
     --report-page-bg: #fafaf8;
     --report-page-color: #212529;
     --report-page-muted: #6c757d;
     --report-paragraph-indent-step: 1.25cm;
     --report-paragraph-first-line-indent: 1.25cm;
     --report-page-link: #0d6efd;
-    --report-page-border: #ced4da;
-    --report-page-surface: #f3f4f6;
+    --report-page-border: #ebeae6;
+    --report-page-surface: #f8f7f5;
 }
 
 [data-bs-theme="dark"] {
