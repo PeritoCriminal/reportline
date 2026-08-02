@@ -454,6 +454,28 @@
             pointerId: event.pointerId,
         };
 
+        if (target.type === "block") {
+            if (window.ReportLineEditor && window.ReportLineEditor.beginBlockContentRecording) {
+                window.ReportLineEditor.beginBlockContentRecording(target.root);
+            }
+        } else if (target.type === "table-cell" && target.tableBlock) {
+            if (window.ReportLineEditor && window.ReportLineEditor.beginBlockContentRecording) {
+                window.ReportLineEditor.beginBlockContentRecording(target.tableBlock);
+            }
+        } else if (
+            target.type === "page-header-logo"
+            && window.ReportLinePageHeader
+            && window.ReportLinePageHeader.beginLayoutRecording
+        ) {
+            window.ReportLinePageHeader.beginLayoutRecording();
+        } else if (
+            target.type === "page-footer-logo"
+            && window.ReportLinePageFooter
+            && window.ReportLinePageFooter.beginLayoutRecording
+        ) {
+            window.ReportLinePageFooter.beginLayoutRecording();
+        }
+
         document.addEventListener("pointermove", moveDrag);
         document.addEventListener("pointerup", endDrag);
         document.addEventListener("pointercancel", endDrag);

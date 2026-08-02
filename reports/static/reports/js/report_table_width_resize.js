@@ -121,6 +121,10 @@
             pointerId: event.pointerId,
         };
 
+        if (window.ReportLineEditor && window.ReportLineEditor.beginBlockContentRecording) {
+            window.ReportLineEditor.beginBlockContentRecording(block);
+        }
+
         if (handle.setPointerCapture) {
             handle.setPointerCapture(event.pointerId);
         }

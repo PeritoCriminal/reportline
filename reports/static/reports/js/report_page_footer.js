@@ -5,6 +5,7 @@
     "use strict";
 
     const DEBOUNCE_MS = 1500;
+    const HISTORY_DEBOUNCE_MS = 400;
     const FOOTER_ALIGN_VALUES = new Set(["left", "center", "right"]);
 
     let updateUrl = "";
@@ -15,6 +16,8 @@
     let pendingLogoCellIndex = null;
     let fileInput = null;
     let saveTimer = null;
+    let historyTimer = null;
+    let pendingLayoutEdit = null;
     let isEditing = false;
     let lastFocusedTextField = null;
 
@@ -104,6 +107,71 @@
                 },
             },
         };
+    }
+
+    function beginFooterLayoutRecording() {
+        if (!window.ReportLineUndo || window.ReportLineUndo.isApplying()) {
+            return;
+        }
+        const root = document.getElementById("report-page-footer-root");
+        if (!root || root.dataset.footerEnabled !== "true" || pendingLayoutEdit) {
+            return;
+        }
+        pendingLayoutEdit = {
+            before: buildPageLayoutPayload(root),
+            preserveEditing: isEditing,
+        };
+    }
+
+    async function applyFooterLayoutSnapshot(snapshot, preserveEditing) {
+        const data = await patchPageLayout(snapshot);
+        replaceFooterHtml(data.footer_html || data.html, { preserveEditing });
+        return data;
+    }
+
+    function recordFooterLayoutChange(before, after, preserveEditing) {
+        if (
+            !window.ReportLineUndo
+            || window.ReportLineUndo.isApplying()
+            || JSON.stringify(before) === JSON.stringify(after)
+        ) {
+            return;
+        }
+
+        window.ReportLineUndo.recordCommand({
+            label: "Rodapé",
+            mergeKey: "page-layout-footer",
+            undo: () => applyFooterLayoutSnapshot(before, preserveEditing),
+            redo: () => applyFooterLayoutSnapshot(after, preserveEditing),
+        });
+    }
+
+    function finalizeFooterLayoutRecording() {
+        if (!pendingLayoutEdit) {
+            return;
+        }
+        const root = document.getElementById("report-page-footer-root");
+        if (!root) {
+            pendingLayoutEdit = null;
+            return;
+        }
+        const after = buildPageLayoutPayload(root);
+        const { before, preserveEditing } = pendingLayoutEdit;
+        pendingLayoutEdit = null;
+        recordFooterLayoutChange(before, after, preserveEditing);
+    }
+
+    async function recordImmediateFooterLayoutChange(mutator) {
+        const root = document.getElementById("report-page-footer-root");
+        if (!root || !window.ReportLineUndo || window.ReportLineUndo.isApplying()) {
+            await mutator();
+            return;
+        }
+        const before = buildPageLayoutPayload(root);
+        const preserveEditing = isEditing;
+        await mutator();
+        const after = buildPageLayoutPayload(root);
+        recordFooterLayoutChange(before, after, preserveEditing);
     }
 
     async function patchPageLayout(payload) {
@@ -266,16 +334,33 @@
     }
 
     async function applyTemplate(templateId) {
-        const data = await patchPageLayout({
-            apply_template: true,
-            template_id: templateId,
-            section: "footer",
+        await recordImmediateFooterLayoutChange(async () => {
+            const data = await patchPageLayout({
+                apply_template: true,
+                template_id: templateId,
+                section: "footer",
+            });
+            replaceFooterHtml(data.footer_html, { preserveEditing: false });
+            scheduleFocusAfterTemplateModal(focusFooterAfterTemplateApply);
         });
-        replaceFooterHtml(data.footer_html, { preserveEditing: false });
-        scheduleFocusAfterTemplateModal(focusFooterAfterTemplateApply);
+    }
+
+    function scheduleFooterHistoryFinalize() {
+        beginFooterLayoutRecording();
+        if (!pendingLayoutEdit) {
+            return;
+        }
+        if (historyTimer) {
+            window.clearTimeout(historyTimer);
+        }
+        historyTimer = window.setTimeout(() => {
+            historyTimer = null;
+            finalizeFooterLayoutRecording();
+        }, HISTORY_DEBOUNCE_MS);
     }
 
     function scheduleFooterSave() {
+        scheduleFooterHistoryFinalize();
         if (saveTimer) {
             window.clearTimeout(saveTimer);
         }
@@ -285,10 +370,24 @@
         }, DEBOUNCE_MS);
     }
 
+    async function flushFooterUndoState() {
+        if (historyTimer) {
+            window.clearTimeout(historyTimer);
+            historyTimer = null;
+        }
+        finalizeFooterLayoutRecording();
+    }
+
     async function flushFooterSave() {
         const root = document.getElementById("report-page-footer-root");
         if (!root || root.dataset.footerEnabled !== "true") {
             return null;
+        }
+
+        if (historyTimer) {
+            window.clearTimeout(historyTimer);
+            historyTimer = null;
+            finalizeFooterLayoutRecording();
         }
 
         if (saveTimer) {
@@ -298,6 +397,9 @@
 
         const data = await patchPageLayout(buildPageLayoutPayload(root));
         replaceFooterHtml(data.footer_html, { preserveEditing: isEditing });
+        if (pendingLayoutEdit) {
+            finalizeFooterLayoutRecording();
+        }
         return data;
     }
 
@@ -367,14 +469,16 @@
             return;
         }
         const cellIndex = Number.parseInt(logoSlotElement.dataset.cellIndex || "0", 10);
-        const data = await patchPageLayout({
-            clear_logo_cell: cellIndex,
-            section: "footer",
+        await recordImmediateFooterLayoutChange(async () => {
+            const data = await patchPageLayout({
+                clear_logo_cell: cellIndex,
+                section: "footer",
+            });
+            replaceFooterHtml(data.footer_html, { preserveEditing: true });
+            if (window.ReportLineImageResize && window.ReportLineImageResize.deselectTarget) {
+                window.ReportLineImageResize.deselectTarget();
+            }
         });
-        replaceFooterHtml(data.footer_html, { preserveEditing: true });
-        if (window.ReportLineImageResize && window.ReportLineImageResize.deselectTarget) {
-            window.ReportLineImageResize.deselectTarget();
-        }
     }
 
     async function handleLogoFileSelected(event) {
@@ -384,16 +488,20 @@
             return;
         }
 
+        const cellIndex = pendingLogoCellIndex;
         try {
-            const imagePayload = await uploadLogo(file);
-            const data = await patchPageLayout({
-                update_logo_cell: pendingLogoCellIndex,
-                image: imagePayload,
-                section: "footer",
+            await recordImmediateFooterLayoutChange(async () => {
+                const imagePayload = await uploadLogo(file);
+                const data = await patchPageLayout({
+                    update_logo_cell: cellIndex,
+                    image: imagePayload,
+                    section: "footer",
+                });
+                pendingLogoCellIndex = null;
+                replaceFooterHtml(data.footer_html, { preserveEditing: true });
             });
-            pendingLogoCellIndex = null;
-            replaceFooterHtml(data.footer_html, { preserveEditing: true });
         } catch (error) {
+            pendingLogoCellIndex = null;
             console.error(error);
         }
     }
@@ -559,8 +667,15 @@
         }
 
         root.querySelectorAll("[data-report-page-footer-text]").forEach((field) => {
+            field.addEventListener("beforeinput", () => {
+                if (isEditing) {
+                    beginFooterLayoutRecording();
+                }
+            });
+
             field.addEventListener("focusin", () => {
                 lastFocusedTextField = field;
+                beginFooterLayoutRecording();
             });
 
             field.addEventListener("input", scheduleFooterSave);
@@ -695,6 +810,8 @@
         openTemplateModal,
         scheduleFooterSave,
         flushFooterSave,
+        flushFooterUndoState,
+        beginLayoutRecording: beginFooterLayoutRecording,
         isEditing: () => isEditing,
         resolveFooterTextContext,
         applyFooterTextAlign,

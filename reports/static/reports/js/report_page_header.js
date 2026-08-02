@@ -12,6 +12,8 @@
 
     const DEBOUNCE_MS = 1500;
 
+    const HISTORY_DEBOUNCE_MS = 400;
+
     const HEADER_ALIGN_VALUES = new Set(["left", "center", "right"]);
 
 
@@ -31,6 +33,10 @@
     let fileInput = null;
 
     let saveTimer = null;
+
+    let historyTimer = null;
+
+    let pendingLayoutEdit = null;
 
     let isEditing = false;
 
@@ -192,6 +198,124 @@
             },
 
         };
+
+    }
+
+    function beginHeaderLayoutRecording() {
+
+        if (!window.ReportLineUndo || window.ReportLineUndo.isApplying()) {
+
+            return;
+
+        }
+
+        const root = document.getElementById("report-page-header-root");
+
+        if (!root || root.dataset.headerEnabled !== "true" || pendingLayoutEdit) {
+
+            return;
+
+        }
+
+        pendingLayoutEdit = {
+
+            before: buildPageLayoutPayload(root),
+
+            preserveEditing: isEditing,
+
+        };
+
+    }
+
+    async function applyHeaderLayoutSnapshot(snapshot, preserveEditing) {
+
+        const data = await patchPageLayout(snapshot);
+
+        replaceHeaderHtml(data.html || data.header_html, { preserveEditing });
+
+        return data;
+
+    }
+
+    function recordHeaderLayoutChange(before, after, preserveEditing) {
+
+        if (
+
+            !window.ReportLineUndo
+
+            || window.ReportLineUndo.isApplying()
+
+            || JSON.stringify(before) === JSON.stringify(after)
+
+        ) {
+
+            return;
+
+        }
+
+        window.ReportLineUndo.recordCommand({
+
+            label: "Cabeçalho",
+
+            mergeKey: "page-layout-header",
+
+            undo: () => applyHeaderLayoutSnapshot(before, preserveEditing),
+
+            redo: () => applyHeaderLayoutSnapshot(after, preserveEditing),
+
+        });
+
+    }
+
+    function finalizeHeaderLayoutRecording() {
+
+        if (!pendingLayoutEdit) {
+
+            return;
+
+        }
+
+        const root = document.getElementById("report-page-header-root");
+
+        if (!root) {
+
+            pendingLayoutEdit = null;
+
+            return;
+
+        }
+
+        const after = buildPageLayoutPayload(root);
+
+        const { before, preserveEditing } = pendingLayoutEdit;
+
+        pendingLayoutEdit = null;
+
+        recordHeaderLayoutChange(before, after, preserveEditing);
+
+    }
+
+    async function recordImmediateHeaderLayoutChange(mutator) {
+
+        const root = document.getElementById("report-page-header-root");
+
+        if (!root || !window.ReportLineUndo || window.ReportLineUndo.isApplying()) {
+
+            await mutator();
+
+            return;
+
+        }
+
+        const before = buildPageLayoutPayload(root);
+
+        const preserveEditing = isEditing;
+
+        await mutator();
+
+        const after = buildPageLayoutPayload(root);
+
+        recordHeaderLayoutChange(before, after, preserveEditing);
 
     }
 
@@ -413,23 +537,57 @@
 
     async function applyTemplate(templateId) {
 
-        const data = await patchPageLayout({
+        await recordImmediateHeaderLayoutChange(async () => {
 
-            apply_template: true,
+            const data = await patchPageLayout({
 
-            template_id: templateId,
+                apply_template: true,
+
+                template_id: templateId,
+
+            });
+
+            replaceHeaderHtml(data.html, { preserveEditing: false });
+
+            scheduleFocusAfterTemplateModal(focusHeaderAfterTemplateApply);
 
         });
 
-        replaceHeaderHtml(data.html, { preserveEditing: false });
+    }
 
-        scheduleFocusAfterTemplateModal(focusHeaderAfterTemplateApply);
+
+
+    function scheduleHeaderHistoryFinalize() {
+
+        beginHeaderLayoutRecording();
+
+        if (!pendingLayoutEdit) {
+
+            return;
+
+        }
+
+        if (historyTimer) {
+
+            window.clearTimeout(historyTimer);
+
+        }
+
+        historyTimer = window.setTimeout(() => {
+
+            historyTimer = null;
+
+            finalizeHeaderLayoutRecording();
+
+        }, HISTORY_DEBOUNCE_MS);
 
     }
 
 
 
     function scheduleHeaderSave() {
+
+        scheduleHeaderHistoryFinalize();
 
         if (saveTimer) {
 
@@ -449,6 +607,22 @@
 
 
 
+    async function flushHeaderUndoState() {
+
+        if (historyTimer) {
+
+            window.clearTimeout(historyTimer);
+
+            historyTimer = null;
+
+        }
+
+        finalizeHeaderLayoutRecording();
+
+    }
+
+
+
     async function flushHeaderSave() {
 
         const root = document.getElementById("report-page-header-root");
@@ -456,6 +630,18 @@
         if (!root || root.dataset.headerEnabled !== "true") {
 
             return null;
+
+        }
+
+
+
+        if (historyTimer) {
+
+            window.clearTimeout(historyTimer);
+
+            historyTimer = null;
+
+            finalizeHeaderLayoutRecording();
 
         }
 
@@ -474,6 +660,12 @@
         const data = await patchPageLayout(buildPageLayoutPayload(root));
 
         replaceHeaderHtml(data.html, { preserveEditing: isEditing });
+
+        if (pendingLayoutEdit) {
+
+            finalizeHeaderLayoutRecording();
+
+        }
 
         return data;
 
@@ -613,21 +805,25 @@
 
         const cellIndex = Number.parseInt(logoSlotElement.dataset.cellIndex || "0", 10);
 
-        const data = await patchPageLayout({
+        await recordImmediateHeaderLayoutChange(async () => {
 
-            clear_logo_cell: cellIndex,
+            const data = await patchPageLayout({
 
-            section: "header",
+                clear_logo_cell: cellIndex,
+
+                section: "header",
+
+            });
+
+            replaceHeaderHtml(data.header_html, { preserveEditing: true });
+
+            if (window.ReportLineImageResize && window.ReportLineImageResize.deselectTarget) {
+
+                window.ReportLineImageResize.deselectTarget();
+
+            }
 
         });
-
-        replaceHeaderHtml(data.header_html, { preserveEditing: true });
-
-        if (window.ReportLineImageResize && window.ReportLineImageResize.deselectTarget) {
-
-            window.ReportLineImageResize.deselectTarget();
-
-        }
 
     }
 
@@ -649,21 +845,29 @@
 
         try {
 
-            const imagePayload = await uploadLogo(file);
+            const cellIndex = pendingLogoCellIndex;
 
-            const data = await patchPageLayout({
+            await recordImmediateHeaderLayoutChange(async () => {
 
-                update_logo_cell: pendingLogoCellIndex,
+                const imagePayload = await uploadLogo(file);
 
-                image: imagePayload,
+                const data = await patchPageLayout({
+
+                    update_logo_cell: cellIndex,
+
+                    image: imagePayload,
+
+                });
+
+                pendingLogoCellIndex = null;
+
+                replaceHeaderHtml(data.html, { preserveEditing: true });
 
             });
 
-            pendingLogoCellIndex = null;
-
-            replaceHeaderHtml(data.html, { preserveEditing: true });
-
         } catch (error) {
+
+            pendingLogoCellIndex = null;
 
             console.error(error);
 
@@ -989,9 +1193,21 @@
 
         root.querySelectorAll("[data-report-page-header-text]").forEach((field) => {
 
+            field.addEventListener("beforeinput", () => {
+
+                if (isEditing) {
+
+                    beginHeaderLayoutRecording();
+
+                }
+
+            });
+
             field.addEventListener("focusin", () => {
 
                 lastFocusedTextField = field;
+
+                beginHeaderLayoutRecording();
 
             });
 
@@ -1218,6 +1434,10 @@
         scheduleHeaderSave,
 
         flushHeaderSave,
+
+        flushHeaderUndoState,
+
+        beginLayoutRecording: beginHeaderLayoutRecording,
 
         isEditing: () => isEditing,
 

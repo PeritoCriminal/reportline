@@ -498,6 +498,22 @@ Barra de ferramentas do editor: blocos, formatação inline e ações do documen
             </div>
             <button type="button"
                     class="btn btn-outline-secondary btn-toolbar-block"
+                    data-report-undo
+                    disabled
+                    title="Desfazer (Ctrl+Z)"
+                    aria-label="Desfazer">
+                <i class="bi bi-arrow-counterclockwise" aria-hidden="true"></i>
+            </button>
+            <button type="button"
+                    class="btn btn-outline-secondary btn-toolbar-block"
+                    data-report-redo
+                    disabled
+                    title="Refazer (Ctrl+Y)"
+                    aria-label="Refazer">
+                <i class="bi bi-arrow-clockwise" aria-hidden="true"></i>
+            </button>
+            <button type="button"
+                    class="btn btn-outline-secondary btn-toolbar-block"
                     data-report-config-open
                     title="Configuração"
                     aria-label="Configuração do laudo">

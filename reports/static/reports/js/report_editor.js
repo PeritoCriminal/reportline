@@ -4,7 +4,8 @@
  * Enter divide ou insere blocos conforme posição do cursor; Shift+Enter
  * mantém quebra de linha no mesmo bloco; Backspace remove bloco vazio no início;
  * Delete remove parágrafo vazio ou totalmente selecionado; Backspace/Delete adjacentes
- * removem linha horizontal entre blocos de texto.
+ * removem linha horizontal entre blocos de texto; undo/redo via ReportLineUndo
+ * (fase 1: texto/blocos; fase 2: listas, recuo, alinhamento; fase 3: tabela, imagem, faixas).
  */
 (function () {
     "use strict";
@@ -18,10 +19,13 @@
         "unordered_list",
     ]);
     const DEBOUNCE_MS = 1500;
+    const HISTORY_DEBOUNCE_MS = 400;
     const TEXT_ALIGN_VALUES = new Set(["left", "center", "right", "justify"]);
 
     let config = {};
     const saveTimers = new Map();
+    const historyTimers = new Map();
+    const pendingTextEdits = new Map();
     let lastEditorContext = null;
     let lastTableCellContext = null;
     let lastImageSelection = null;
@@ -388,6 +392,863 @@
         return false;
     }
 
+    function buildNodeInsertAnchor(block) {
+        const previousBlock = getPreviousEditorBlock(block);
+        if (previousBlock) {
+            return { type: "after", nodeId: previousBlock.dataset.nodeId };
+        }
+
+        const nextBlock = getNextEditorBlock(block);
+        if (nextBlock) {
+            return { type: "before", nodeId: nextBlock.dataset.nodeId };
+        }
+
+        return null;
+    }
+
+    function buildNodeSnapshot(block) {
+        const anchor = buildNodeInsertAnchor(block);
+        if (!anchor) {
+            return null;
+        }
+
+        const field = getTextField(block);
+        return {
+            anchor,
+            nodeId: block.dataset.nodeId,
+            blockType: block.dataset.blockType,
+            content: collectBlockContent(block),
+            isCaption: block.dataset.isCaption === "true",
+            titleLevel: block.dataset.titleLevel,
+            indentLevel: block.dataset.indentLevel,
+            firstLineIndent: block.dataset.firstLineIndent === "true",
+            fieldHtml: field ? getEditableHtml(field) : "",
+        };
+    }
+
+    function buildCreatePayload(referenceBlock, blockType, options = {}) {
+        const payload = {
+            block_type: blockType || undefined,
+            content: options.content,
+        };
+        if (options.titleLevel !== undefined) {
+            payload.title_level = options.titleLevel;
+        }
+        if (options.isCaption !== undefined) {
+            payload.is_caption = options.isCaption;
+        }
+        if (options.insertion === "before") {
+            payload.before_node_id = referenceBlock.dataset.nodeId;
+        } else {
+            payload.after_node_id = referenceBlock.dataset.nodeId;
+        }
+        if (blockType === "paragraph") {
+            const layout = paragraphLayoutFromReference(referenceBlock, options);
+            if (layout.indentLevel !== undefined) {
+                payload.indent_level = layout.indentLevel;
+            }
+            if (layout.firstLineIndent !== undefined) {
+                payload.first_line_indent = layout.firstLineIndent;
+            }
+        }
+        return payload;
+    }
+
+    function buildSnapshotFromCreatePayload(createPayload, block) {
+        const anchor = createPayload.before_node_id
+            ? { type: "before", nodeId: createPayload.before_node_id }
+            : { type: "after", nodeId: createPayload.after_node_id };
+        const field = getTextField(block);
+        return {
+            anchor,
+            nodeId: block.dataset.nodeId,
+            blockType: block.dataset.blockType,
+            content: createPayload.content,
+            isCaption: Boolean(createPayload.is_caption) || block.dataset.isCaption === "true",
+            titleLevel: createPayload.title_level,
+            indentLevel: createPayload.indent_level,
+            firstLineIndent: createPayload.first_line_indent,
+            fieldHtml: field ? getEditableHtml(field) : "",
+        };
+    }
+
+    function applyImageContentVisual(block, content) {
+        if (!block || block.dataset.blockType !== "image") {
+            return;
+        }
+
+        if (content.file !== undefined) {
+            block.dataset.file = content.file || "";
+        }
+        if (content.image_id !== undefined) {
+            block.dataset.imageId = content.image_id || "";
+        }
+        if (content.width) {
+            block.dataset.imageWidth = String(content.width);
+        }
+        if (content.height) {
+            block.dataset.imageHeight = String(content.height);
+        }
+
+        const img = block.querySelector(".report-editor-block-image-img");
+        if (img) {
+            if (content.alt !== undefined) {
+                img.setAttribute("alt", content.alt || "");
+            }
+            if (content.width && content.height) {
+                img.width = content.width;
+                img.height = content.height;
+                img.style.width = `${content.width}px`;
+                img.style.height = `${content.height}px`;
+            }
+        }
+    }
+
+    function recordTableContentHistory(nodeId, beforeContent, afterContent, tableFocus) {
+        if (
+            !window.ReportLineUndo
+            || window.ReportLineUndo.isApplying()
+            || JSON.stringify(beforeContent) === JSON.stringify(afterContent)
+        ) {
+            return;
+        }
+
+        window.ReportLineUndo.recordCommand({
+            label: "Editar tabela",
+            mergeKey: "",
+            undo: () => applyBlockContentForHistory(
+                nodeId,
+                beforeContent,
+                null,
+                "table",
+                { tableFocus }
+            ),
+            redo: () => applyBlockContentForHistory(
+                nodeId,
+                afterContent,
+                null,
+                "table",
+                { tableFocus }
+            ),
+        });
+    }
+
+    async function applyBlockContentForHistory(nodeId, content, fieldHtml, blockType, focusOptions = {}) {
+        const block = document.getElementById(`report-block-${nodeId}`);
+        if (!block) {
+            return;
+        }
+
+        clearSaveTimer(nodeId);
+        pendingTextEdits.delete(nodeId);
+
+        if (blockType === "table" && content.headers) {
+            const tableFocus = focusOptions.tableFocus || {
+                part: "cell",
+                rowIndex: 0,
+                colIndex: 0,
+            };
+            await patchTableContent(block, content, tableFocus, { skipHistory: true });
+            return;
+        }
+
+        if (blockType === "image") {
+            applyImageContentVisual(block, content);
+            const data = await apiRequest(updateNodeUrl(nodeId), "PATCH", { content });
+            applyCaptionNumbersFromResponse(data);
+            return;
+        }
+
+        let patchPayload;
+        if (LIST_TYPES.has(blockType) && content.items) {
+            rebuildListItems(block, content.items);
+            patchPayload = {
+                update_list_items: true,
+                items: content.items,
+            };
+        } else {
+            const field = getTextField(block);
+            if (field) {
+                const html = fieldHtml !== undefined && fieldHtml !== null
+                    ? fieldHtml
+                    : (content.text || "");
+                setEditableHtml(field, html);
+            }
+            patchPayload = { content };
+        }
+
+        const data = await apiRequest(updateNodeUrl(nodeId), "PATCH", patchPayload);
+        applyCaptionNumbersFromResponse(data);
+
+        if (blockType === "heading" && content.text !== undefined) {
+            const field = getTextField(block);
+            if (field) {
+                updateOutlineHeading(nodeId, getEditablePlainText(field));
+            }
+        }
+
+        if (focusOptions.listItemIndex !== undefined) {
+            const items = block.querySelectorAll(".report-editor-list-item");
+            const target = items[focusOptions.listItemIndex];
+            if (target) {
+                if (focusOptions.caretAtStart) {
+                    placeCaretAtStart(target);
+                } else if (focusOptions.caret !== undefined) {
+                    setCaretOffset(
+                        target,
+                        Math.min(focusOptions.caret, getEditablePlainText(target).length)
+                    );
+                } else {
+                    placeCaretAtEnd(target);
+                }
+                rememberEditorContext(block, target);
+            }
+        } else {
+            const field = getTextField(block);
+            if (field && focusOptions.caret !== undefined) {
+                setCaretOffset(
+                    field,
+                    Math.min(focusOptions.caret, getEditablePlainText(field).length)
+                );
+                rememberEditorContext(block, field);
+            }
+        }
+    }
+
+    function captureParagraphLayout(block) {
+        const paragraph = getParagraphElement(block);
+        return {
+            indent_level: getParagraphIndentLevel(block),
+            first_line_indent: paragraph ? paragraph.dataset.firstLineIndent !== "false" : true,
+        };
+    }
+
+    async function applyParagraphLayoutForHistory(block, layout) {
+        await patchParagraphLayout(block, layout, { skipHistory: true });
+    }
+
+    function recordParagraphLayoutHistory(block, beforeLayout, afterLayout) {
+        if (
+            !window.ReportLineUndo
+            || window.ReportLineUndo.isApplying()
+            || JSON.stringify(beforeLayout) === JSON.stringify(afterLayout)
+        ) {
+            return;
+        }
+
+        window.ReportLineUndo.recordCommand({
+            label: "Recuo do parágrafo",
+            undo: () => applyParagraphLayoutForHistory(block, beforeLayout),
+            redo: () => applyParagraphLayoutForHistory(block, afterLayout),
+        });
+    }
+
+    function captureBlockState(block) {
+        return {
+            nodeId: block.dataset.nodeId,
+            blockType: block.dataset.blockType,
+            content: collectBlockContent(block),
+            titleLevel: block.dataset.titleLevel,
+            textAlign: block.dataset.textAlign,
+            isCaption: block.dataset.isCaption === "true",
+            isMainTitle: block.dataset.isMainTitle === "true",
+            indentLevel: block.dataset.indentLevel,
+            firstLineIndent: block.dataset.firstLineIndent === "true",
+        };
+    }
+
+    async function applyBlockStateForHistory(state, focusOptions = {}) {
+        const block = document.getElementById(`report-block-${state.nodeId}`);
+        if (!block) {
+            return null;
+        }
+
+        clearSaveTimer(state.nodeId);
+        pendingTextEdits.delete(state.nodeId);
+
+        const payload = {
+            content: state.content,
+            block_type: state.blockType,
+            text_align: state.textAlign || defaultTextAlignForBlock(
+                state.blockType,
+                {
+                    isMainTitle: state.blockType === "heading" && state.isMainTitle,
+                    isCaption: state.isCaption,
+                }
+            ),
+        };
+
+        if (state.blockType === "heading" && state.titleLevel !== undefined && state.titleLevel !== "") {
+            payload.title_level = Number.parseInt(state.titleLevel, 10);
+        }
+        if (state.blockType === "paragraph") {
+            if (state.indentLevel !== undefined && state.indentLevel !== "") {
+                payload.indent_level = Number.parseInt(state.indentLevel, 10);
+            }
+            payload.first_line_indent = state.firstLineIndent;
+        }
+
+        const data = await apiRequest(updateNodeUrl(state.nodeId), "PATCH", payload);
+
+        let targetBlock = block;
+        if (data.html) {
+            targetBlock = replaceBlockFromHtml(state.nodeId, data.html) || block;
+        } else {
+            targetBlock.dataset.blockType = state.blockType;
+            if (state.textAlign) {
+                targetBlock.dataset.textAlign = state.textAlign;
+            }
+            if (LIST_TYPES.has(state.blockType) && state.content.items) {
+                rebuildListItems(targetBlock, state.content.items);
+            }
+            if (state.blockType === "paragraph") {
+                applyParagraphIndentVisual(targetBlock, {
+                    indent_level: state.indentLevel !== undefined && state.indentLevel !== ""
+                        ? Number.parseInt(state.indentLevel, 10)
+                        : undefined,
+                    first_line_indent: state.firstLineIndent,
+                });
+            }
+        }
+
+        applyCaptionNumbersFromResponse(data);
+
+        if (state.blockType === "heading" || block.dataset.blockType === "heading") {
+            await refreshOutlineTree();
+        }
+
+        focusConvertedBlock(targetBlock, state.blockType, focusOptions);
+        return targetBlock;
+    }
+
+    function recordBlockStateChange(beforeState, afterState, undoFocus, redoFocus) {
+        if (!window.ReportLineUndo || window.ReportLineUndo.isApplying()) {
+            return;
+        }
+
+        window.ReportLineUndo.recordCommand({
+            label: "Converter bloco",
+            undo: () => applyBlockStateForHistory(beforeState, undoFocus),
+            redo: () => applyBlockStateForHistory(afterState, redoFocus),
+        });
+    }
+
+    async function applyTextAlignForHistory(block, align) {
+        applyTextAlignToBlock(block, align);
+        clearSaveTimer(block.dataset.nodeId);
+        if (block.dataset.blockType === "image") {
+            await syncCaptionWithImageAlign(block, align);
+        }
+        if (
+            block.dataset.blockType === "table"
+            && window.ReportLineTableWidthResize
+            && window.ReportLineTableWidthResize.refreshTableDisplayLayout
+        ) {
+            window.ReportLineTableWidthResize.refreshTableDisplayLayout(block);
+        }
+        await apiRequest(updateNodeUrl(block.dataset.nodeId), "PATCH", {
+            text_align: align,
+        });
+        updateAlignmentToolbar(align);
+    }
+
+    function recordTextAlignHistory(block, beforeAlign, afterAlign) {
+        if (
+            !window.ReportLineUndo
+            || window.ReportLineUndo.isApplying()
+            || beforeAlign === afterAlign
+        ) {
+            return;
+        }
+
+        window.ReportLineUndo.recordCommand({
+            label: "Alinhamento",
+            mergeKey: `align-${block.dataset.nodeId}`,
+            undo: () => applyTextAlignForHistory(block, beforeAlign),
+            redo: () => applyTextAlignForHistory(block, afterAlign),
+        });
+    }
+
+    function recordImmediateBlockContentChange(block, beforeContent, focusOptions = {}) {
+        if (!window.ReportLineUndo || window.ReportLineUndo.isApplying()) {
+            return;
+        }
+
+        const nodeId = block.dataset.nodeId;
+        const blockType = block.dataset.blockType;
+        const afterContent = collectBlockContent(block);
+
+        if (JSON.stringify(beforeContent) === JSON.stringify(afterContent)) {
+            return;
+        }
+
+        window.ReportLineUndo.recordBlockContentChange({
+            nodeId,
+            label: "Editar lista",
+            mergeKey: "",
+            undo: () => applyBlockContentForHistory(
+                nodeId,
+                beforeContent,
+                null,
+                blockType,
+                focusOptions.undo || {}
+            ),
+            redo: () => applyBlockContentForHistory(
+                nodeId,
+                afterContent,
+                null,
+                blockType,
+                focusOptions.redo || {}
+            ),
+        });
+    }
+
+    function recordHorizontalRuleInsertHistory(spec) {
+        if (!window.ReportLineUndo || window.ReportLineUndo.isApplying()) {
+            return;
+        }
+
+        let liveParagraphId = spec.paragraphNodeId || spec.beforeParagraphSnapshot?.nodeId;
+        let liveHrId = spec.hrNodeId;
+        let liveAfterParaId = spec.afterParagraphNodeId;
+
+        window.ReportLineUndo.recordCommand({
+            label: "Inserir linha horizontal",
+            undo: async () => {
+                const hrBlock = document.getElementById(`report-block-${liveHrId}`);
+                const afterPara = document.getElementById(`report-block-${liveAfterParaId}`);
+                if (hrBlock) {
+                    await deleteBlockById(hrBlock, { skipHistory: true });
+                }
+                if (afterPara) {
+                    await deleteBlockById(afterPara, { skipHistory: true });
+                }
+
+                if (spec.mode === "replace") {
+                    const restored = await restoreNodeFromSnapshot(
+                        spec.beforeParagraphSnapshot,
+                        { skipHistory: true }
+                    );
+                    liveParagraphId = restored.dataset.nodeId;
+                    focusBlockAtStart(restored);
+                    return;
+                }
+
+                const paragraph = document.getElementById(`report-block-${liveParagraphId}`);
+                if (paragraph) {
+                    await applyBlockContentForHistory(
+                        liveParagraphId,
+                        spec.beforeContent,
+                        spec.beforeContent.text,
+                        "paragraph",
+                        { caretAtStart: false }
+                    );
+                    focusBlockAtStart(paragraph.querySelector(".report-editor-block-editable"));
+                }
+            },
+            redo: async () => {
+                if (spec.mode === "replace") {
+                    const paragraph = document.getElementById(`report-block-${liveParagraphId}`);
+                    if (!paragraph) {
+                        return;
+                    }
+                    const hrBlock = await createSiblingBlock(paragraph, "horizontal_rule", {
+                        skipHistory: true,
+                    });
+                    liveHrId = hrBlock.dataset.nodeId;
+                    await deleteBlockById(paragraph, { skipHistory: true });
+                    const newPara = await createSiblingBlock(hrBlock, "paragraph", {
+                        content: { text: spec.afterHtml || "" },
+                        caretAtStart: true,
+                        skipHistory: true,
+                    });
+                    liveAfterParaId = newPara.dataset.nodeId;
+                    return;
+                }
+
+                const paragraph = document.getElementById(`report-block-${liveParagraphId}`);
+                if (!paragraph) {
+                    return;
+                }
+
+                setTextFieldContent(paragraph, spec.trimmedContent.text || "");
+                await saveBlock(paragraph, { skipHistory: true });
+
+                const hrBlock = await createSiblingBlock(paragraph, "horizontal_rule", {
+                    skipHistory: true,
+                });
+                liveHrId = hrBlock.dataset.nodeId;
+                const newPara = await createSiblingBlock(hrBlock, "paragraph", {
+                    content: { text: spec.afterHtml || "" },
+                    caretAtStart: true,
+                    skipHistory: true,
+                });
+                liveAfterParaId = newPara.dataset.nodeId;
+            },
+        });
+    }
+
+    function recordImageBlocksDeleteHistory(spec) {
+        if (!window.ReportLineUndo || window.ReportLineUndo.isApplying()) {
+            return;
+        }
+
+        let liveImageId = spec.imageSnapshot.nodeId;
+        let liveCaptionId = spec.captionSnapshot ? spec.captionSnapshot.nodeId : null;
+
+        window.ReportLineUndo.recordCommand({
+            label: "Excluir imagem",
+            undo: async () => {
+                const restoredImage = await restoreNodeFromSnapshot(
+                    spec.imageSnapshot,
+                    { skipHistory: true }
+                );
+                liveImageId = restoredImage.dataset.nodeId;
+                syncAddCaptionControl(restoredImage);
+
+                if (spec.captionSnapshot) {
+                    const captionSnapshot = {
+                        ...spec.captionSnapshot,
+                        anchor: { type: "after", nodeId: liveImageId },
+                    };
+                    const restoredCaption = await restoreNodeFromSnapshot(
+                        captionSnapshot,
+                        { skipHistory: true }
+                    );
+                    liveCaptionId = restoredCaption.dataset.nodeId;
+                }
+
+                if (spec.previousBlock && spec.previousBlock.classList.contains("report-editor-block")) {
+                    const editable = spec.previousBlock.querySelector(".report-editor-block-editable");
+                    if (editable) {
+                        placeCaretAtEnd(editable);
+                        rememberEditorContext(spec.previousBlock, editable);
+                    }
+                } else {
+                    focusBlockAtStart(restoredImage);
+                }
+            },
+            redo: async () => {
+                if (liveCaptionId) {
+                    const captionBlock = document.getElementById(`report-block-${liveCaptionId}`);
+                    if (captionBlock) {
+                        await deleteBlockById(captionBlock, { skipHistory: true });
+                    }
+                }
+                const imageBlock = document.getElementById(`report-block-${liveImageId}`);
+                if (imageBlock) {
+                    await deleteBlockById(imageBlock, { skipHistory: true });
+                }
+            },
+        });
+    }
+
+    async function restoreNodeFromSnapshot(snapshot, options = {}) {
+        const payload = {
+            block_type: snapshot.blockType,
+            content: snapshot.content,
+        };
+
+        if (snapshot.isCaption) {
+            payload.is_caption = true;
+        }
+        if (snapshot.titleLevel !== undefined && snapshot.titleLevel !== "") {
+            payload.title_level = Number.parseInt(snapshot.titleLevel, 10);
+        }
+        if (snapshot.indentLevel !== undefined && snapshot.indentLevel !== "") {
+            payload.indent_level = Number.parseInt(snapshot.indentLevel, 10);
+        }
+        if (snapshot.firstLineIndent !== undefined) {
+            payload.first_line_indent = snapshot.firstLineIndent;
+        }
+
+        if (snapshot.anchor.type === "before") {
+            payload.before_node_id = snapshot.anchor.nodeId;
+        } else {
+            payload.after_node_id = snapshot.anchor.nodeId;
+        }
+
+        const referenceBlock = document.getElementById(`report-block-${snapshot.anchor.nodeId}`);
+        if (!referenceBlock) {
+            throw new Error("Não foi possível restaurar o bloco excluído.");
+        }
+
+        const data = await apiRequest(config.createNodeUrl, "POST", payload);
+        const insertion = snapshot.anchor.type === "before" ? "before" : "after";
+        const newBlock = insertBlockHtml(referenceBlock, data.html, insertion);
+        applyCaptionNumbersFromResponse(data);
+
+        const field = getTextField(newBlock);
+        if (field && snapshot.fieldHtml) {
+            setEditableHtml(field, snapshot.fieldHtml);
+            await apiRequest(updateNodeUrl(newBlock.dataset.nodeId), "PATCH", {
+                content: snapshot.content,
+            });
+        }
+
+        if (data.block_type === "heading") {
+            await refreshOutlineTree();
+        }
+
+        if (snapshot.isCaption) {
+            const imageBlock = getPreviousEditorBlock(newBlock);
+            if (imageBlock && imageBlock.dataset.blockType === "image") {
+                syncAddCaptionControl(imageBlock);
+            }
+        }
+
+        return newBlock;
+    }
+
+    function beginTextEditRecording(block, editable) {
+        beginBlockContentRecording(block, editable);
+    }
+
+    function beginBlockContentRecording(block, editable) {
+        if (!window.ReportLineUndo || window.ReportLineUndo.isApplying()) {
+            return;
+        }
+
+        const blockType = block.dataset.blockType;
+        const isTextBlock = TEXT_BLOCK_TYPES.has(blockType);
+        const isListBlock = LIST_TYPES.has(blockType);
+        const isTableBlock = blockType === "table";
+        const isImageBlock = blockType === "image";
+        if (!isTextBlock && !isListBlock && !isTableBlock && !isImageBlock) {
+            return;
+        }
+
+        const nodeId = block.dataset.nodeId;
+        if (pendingTextEdits.has(nodeId)) {
+            return;
+        }
+
+        const pending = {
+            nodeId,
+            blockType,
+            beforeContent: collectBlockContent(block),
+        };
+
+        if (isTextBlock && editable) {
+            pending.beforeHtml = getEditableHtml(editable);
+        } else if (isListBlock && editable && editable.classList.contains("report-editor-list-item")) {
+            pending.listItemIndex = getListItemIndex(editable);
+        } else if (isTableBlock && editable && editable.dataset.tablePart) {
+            pending.tableFocus = {
+                part: editable.dataset.tablePart,
+                rowIndex: editable.dataset.tablePart === "cell"
+                    ? Number.parseInt(editable.dataset.rowIndex || "0", 10)
+                    : -1,
+                colIndex: Number.parseInt(editable.dataset.colIndex || "0", 10),
+            };
+        }
+
+        pendingTextEdits.set(nodeId, pending);
+    }
+
+    function finalizeTextEditRecording(block) {
+        if (!window.ReportLineUndo || window.ReportLineUndo.isApplying()) {
+            pendingTextEdits.delete(block.dataset.nodeId);
+            return;
+        }
+
+        const nodeId = block.dataset.nodeId;
+        const pending = pendingTextEdits.get(nodeId);
+        if (!pending) {
+            return;
+        }
+
+        const afterContent = collectBlockContent(block);
+        let afterHtml = "";
+        if (TEXT_BLOCK_TYPES.has(pending.blockType)) {
+            const field = getTextField(block);
+            afterHtml = field ? getEditableHtml(field) : "";
+        }
+
+        pendingTextEdits.delete(nodeId);
+
+        if (JSON.stringify(pending.beforeContent) === JSON.stringify(afterContent)) {
+            return;
+        }
+
+        const undoFocus = {};
+        const redoFocus = {};
+        if (pending.listItemIndex !== undefined) {
+            undoFocus.listItemIndex = pending.listItemIndex;
+            redoFocus.listItemIndex = pending.listItemIndex;
+        }
+        if (pending.tableFocus) {
+            undoFocus.tableFocus = pending.tableFocus;
+            redoFocus.tableFocus = pending.tableFocus;
+        }
+
+        const mergeKey = pending.blockType === "table" || pending.blockType === "image"
+            ? `content-${nodeId}`
+            : undefined;
+
+        window.ReportLineUndo.recordBlockContentChange({
+            nodeId,
+            mergeKey,
+            label: pending.blockType === "table" ? "Editar tabela" : undefined,
+            undo: () => applyBlockContentForHistory(
+                nodeId,
+                pending.beforeContent,
+                pending.beforeHtml,
+                pending.blockType,
+                undoFocus
+            ),
+            redo: () => applyBlockContentForHistory(
+                nodeId,
+                afterContent,
+                afterHtml,
+                pending.blockType,
+                redoFocus
+            ),
+        });
+    }
+
+    async function flushPendingTextEdit(block) {
+        if (!block) {
+            return;
+        }
+        const nodeId = block.dataset.nodeId;
+        clearHistoryTimer(nodeId);
+        if (pendingTextEdits.has(nodeId)) {
+            finalizeTextEditRecording(block);
+        }
+        clearSaveTimer(nodeId);
+        await saveBlock(block, { skipHistory: true });
+    }
+
+    function clearHistoryTimer(nodeId) {
+        if (historyTimers.has(nodeId)) {
+            clearTimeout(historyTimers.get(nodeId));
+            historyTimers.delete(nodeId);
+        }
+    }
+
+    function scheduleDebouncedHistoryFinalize(block) {
+        const nodeId = block.dataset.nodeId;
+        if (!pendingTextEdits.has(nodeId)) {
+            return;
+        }
+        clearHistoryTimer(nodeId);
+        historyTimers.set(
+            nodeId,
+            setTimeout(() => {
+                historyTimers.delete(nodeId);
+                const liveBlock = document.getElementById(`report-block-${nodeId}`);
+                if (liveBlock) {
+                    finalizeTextEditRecording(liveBlock);
+                }
+            }, HISTORY_DEBOUNCE_MS)
+        );
+    }
+
+    async function flushUndoState() {
+        for (const nodeId of [...historyTimers.keys()]) {
+            clearHistoryTimer(nodeId);
+        }
+
+        for (const nodeId of [...pendingTextEdits.keys()]) {
+            const block = document.getElementById(`report-block-${nodeId}`);
+            if (block) {
+                finalizeTextEditRecording(block);
+            }
+        }
+
+        const savePromises = [];
+
+        if (window.ReportLinePageHeader && window.ReportLinePageHeader.flushHeaderUndoState) {
+            savePromises.push(window.ReportLinePageHeader.flushHeaderUndoState());
+        }
+        if (window.ReportLinePageFooter && window.ReportLinePageFooter.flushFooterUndoState) {
+            savePromises.push(window.ReportLinePageFooter.flushFooterUndoState());
+        }
+
+        for (const [nodeId, timer] of saveTimers.entries()) {
+            clearTimeout(timer);
+            const block = document.getElementById(`report-block-${nodeId}`);
+            if (block) {
+                savePromises.push(saveBlock(block, { skipHistory: true }));
+            }
+        }
+        saveTimers.clear();
+
+        if (window.ReportLinePageHeader && window.ReportLinePageHeader.flushHeaderSave) {
+            savePromises.push(window.ReportLinePageHeader.flushHeaderSave());
+        }
+        if (window.ReportLinePageFooter && window.ReportLinePageFooter.flushFooterSave) {
+            savePromises.push(window.ReportLinePageFooter.flushFooterSave());
+        }
+
+        await Promise.all(savePromises);
+    }
+
+    function recordBlockDeleteHistory(snapshot, focusHints = {}) {
+        if (
+            !snapshot
+            || !window.ReportLineUndo
+            || window.ReportLineUndo.isApplying()
+        ) {
+            return;
+        }
+
+        let liveNodeId = snapshot.nodeId;
+        window.ReportLineUndo.recordBlockDelete({
+            undo: async () => {
+                const restored = await restoreNodeFromSnapshot(snapshot, { skipHistory: true });
+                liveNodeId = restored.dataset.nodeId;
+                if (focusHints.focusNext) {
+                    focusBlockAtStart(restored);
+                } else if (focusHints.focusPrevious && focusHints.previousBlock) {
+                    const editable = focusHints.previousBlock.querySelector(
+                        ".report-editor-block-editable"
+                    );
+                    if (editable) {
+                        placeCaretAtEnd(editable);
+                        rememberEditorContext(focusHints.previousBlock, editable);
+                    }
+                } else {
+                    focusBlockAtStart(restored);
+                }
+            },
+            redo: async () => {
+                const blockElement = document.getElementById(`report-block-${liveNodeId}`);
+                if (blockElement) {
+                    await deleteBlockById(blockElement, { skipHistory: true });
+                }
+            },
+        });
+    }
+
+    function recordBlockInsertHistory(createPayload, newBlock, options = {}) {
+        if (
+            !window.ReportLineUndo
+            || window.ReportLineUndo.isApplying()
+            || options.skipHistory
+        ) {
+            return;
+        }
+
+        const snapshot = buildSnapshotFromCreatePayload(createPayload, newBlock);
+        let liveNodeId = newBlock.dataset.nodeId;
+
+        window.ReportLineUndo.recordBlockInsert({
+            undo: async () => {
+                const blockElement = document.getElementById(`report-block-${liveNodeId}`);
+                if (blockElement) {
+                    await deleteBlockById(blockElement, { skipHistory: true });
+                }
+            },
+            redo: async () => {
+                const restored = await restoreNodeFromSnapshot(snapshot, { skipHistory: true });
+                liveNodeId = restored.dataset.nodeId;
+                focusNewBlock(restored, { caretAtStart: options.caretAtStart });
+            },
+        });
+    }
+
     function collectBlockContent(block) {
         const blockType = block.dataset.blockType;
 
@@ -541,7 +1402,20 @@
 
         applyCaptionNumbersFromResponse(data);
 
+        if (!options.skipHistory) {
+            finalizeTextEditRecording(block);
+        } else {
+            pendingTextEdits.delete(nodeId);
+        }
+
         return data;
+    }
+
+    function clearSaveTimer(nodeId) {
+        if (saveTimers.has(nodeId)) {
+            clearTimeout(saveTimers.get(nodeId));
+            saveTimers.delete(nodeId);
+        }
     }
 
     function scheduleDebouncedSave(block) {
@@ -552,16 +1426,9 @@
         saveTimers.set(
             nodeId,
             setTimeout(() => {
-                saveBlock(block).catch(console.error);
+                saveBlock(block, { skipHistory: true }).catch(console.error);
             }, DEBOUNCE_MS)
         );
-    }
-
-    function clearSaveTimer(nodeId) {
-        if (saveTimers.has(nodeId)) {
-            clearTimeout(saveTimers.get(nodeId));
-            saveTimers.delete(nodeId);
-        }
     }
 
     function insertBlockHtml(referenceBlock, html, insertion) {
@@ -859,11 +1726,16 @@
         clearSaveTimer(block.dataset.nodeId);
 
         const nodeId = block.dataset.nodeId;
+        const beforeState = window.ReportLineUndo && !window.ReportLineUndo.isApplying()
+            ? captureBlockState(block)
+            : null;
         const content = buildContentForBlockType(block, editable, targetBlockType);
         const focusOptions = {};
+        const undoFocusOptions = {};
 
         if (TEXT_BLOCK_TYPES.has(sourceType) && editable) {
             focusOptions.caret = getCaretOffset(editable);
+            undoFocusOptions.caret = getCaretOffset(editable);
         } else if (
             LIST_TYPES.has(sourceType)
             && editable
@@ -871,6 +1743,8 @@
         ) {
             focusOptions.listItemIndex = getListItemIndex(editable);
             focusOptions.caret = getCaretOffset(editable);
+            undoFocusOptions.listItemIndex = focusOptions.listItemIndex;
+            undoFocusOptions.caret = focusOptions.caret;
         }
 
         const payload = {
@@ -907,6 +1781,15 @@
 
         if (sourceType === "heading" || targetBlockType === "heading") {
             await refreshOutlineTree();
+        }
+
+        if (beforeState) {
+            recordBlockStateChange(
+                beforeState,
+                captureBlockState(targetBlock),
+                undoFocusOptions,
+                focusOptions
+            );
         }
 
         return targetBlock;
@@ -1081,36 +1964,13 @@
     }
 
     async function createSiblingBlock(referenceBlock, blockType, options = {}) {
-        const payload = {
-            block_type: blockType || undefined,
-            content: options.content,
-        };
-        if (options.titleLevel !== undefined) {
-            payload.title_level = options.titleLevel;
-        }
-        if (options.isCaption !== undefined) {
-            payload.is_caption = options.isCaption;
-        }
-        if (options.insertion === "before") {
-            payload.before_node_id = referenceBlock.dataset.nodeId;
-        } else {
-            payload.after_node_id = referenceBlock.dataset.nodeId;
-        }
-
-        if (blockType === "paragraph") {
-            const layout = paragraphLayoutFromReference(referenceBlock, options);
-            if (layout.indentLevel !== undefined) {
-                payload.indent_level = layout.indentLevel;
-            }
-            if (layout.firstLineIndent !== undefined) {
-                payload.first_line_indent = layout.firstLineIndent;
-            }
-        }
+        const payload = buildCreatePayload(referenceBlock, blockType, options);
 
         const data = await apiRequest(config.createNodeUrl, "POST", payload);
         const newBlock = insertBlockHtml(referenceBlock, data.html, data.insertion);
         focusNewBlock(newBlock, { caretAtStart: options.caretAtStart });
         applyCaptionNumbersFromResponse(data);
+        recordBlockInsertHistory(payload, newBlock, options);
         if (data.block_type === "heading") {
             await refreshOutlineTree();
         }
@@ -1140,6 +2000,7 @@
 
     async function handleListEnter(block, activeItem) {
         clearSaveTimer(block.dataset.nodeId);
+        const beforeContent = collectBlockContent(block);
         const items = getListItems(block);
         const index = getListItemIndex(activeItem);
         const caret = getCaretOffset(activeItem);
@@ -1149,10 +2010,14 @@
 
         if (atStart) {
             items.splice(index, 0, "");
-            await saveBlock(block, { updateListItems: true, items });
+            await saveBlock(block, { updateListItems: true, items, skipHistory: true });
             rebuildListItems(block, items);
             const newItem = block.querySelectorAll(".report-editor-list-item")[index];
             placeCaretAtEnd(newItem);
+            recordImmediateBlockContentChange(block, beforeContent, {
+                undo: { listItemIndex: index + 1, caretAtStart: false },
+                redo: { listItemIndex: index, caretAtStart: true },
+            });
             return;
         }
 
@@ -1160,14 +2025,18 @@
             const { beforeHtml, afterHtml } = splitEditableAtCaret(activeItem);
             items[index] = beforeHtml;
             items.splice(index + 1, 0, afterHtml);
-            await saveBlock(block, { updateListItems: true, items });
+            await saveBlock(block, { updateListItems: true, items, skipHistory: true });
             rebuildListItems(block, items);
             const nextItem = block.querySelectorAll(".report-editor-list-item")[index + 1];
             placeCaretAtStart(nextItem);
+            recordImmediateBlockContentChange(block, beforeContent, {
+                undo: { listItemIndex: index, caret: beforeHtml.length },
+                redo: { listItemIndex: index + 1, caretAtStart: true },
+            });
             return;
         }
 
-        await saveBlock(block, { appendListItem: true });
+        await saveBlock(block, { appendListItem: true, skipHistory: true });
         const newItem = document.createElement("li");
         newItem.className = "report-editor-block-editable report-editor-list-item";
         newItem.contentEditable = "true";
@@ -1175,6 +2044,10 @@
         newItem.dataset.placeholder = "Item da lista";
         block.querySelector("[data-field=\"items\"]").appendChild(newItem);
         placeCaretAtEnd(newItem);
+        recordImmediateBlockContentChange(block, beforeContent, {
+            undo: { listItemIndex: items.length - 1, caretAtStart: false },
+            redo: { listItemIndex: items.length, caretAtStart: true },
+        });
     }
 
     function siblingInsertOptions(options, extra = {}) {
@@ -1381,6 +2254,13 @@
             return null;
         }
 
+        const beforeContent = cloneTableContent(collectBlockContent(block));
+        const tableFocus = {
+            part: "cell",
+            rowIndex: Number.parseInt(cellContainer.dataset.rowIndex || "0", 10),
+            colIndex: Number.parseInt(cellContainer.dataset.colIndex || "0", 10),
+        };
+
         cellContainer.classList.add("report-editor-table-cell-has-image");
         const usableWidth = getTableCellUsableWidth(cellElement);
         const displaySize = computeImageSizeForCell(imagePayload, usableWidth);
@@ -1389,7 +2269,13 @@
             displaySize.width,
             displaySize.height
         );
-        await saveBlock(block);
+        await saveBlock(block, { skipHistory: true });
+        recordTableContentHistory(
+            block.dataset.nodeId,
+            beforeContent,
+            cloneTableContent(collectBlockContent(block)),
+            tableFocus
+        );
         return block;
     }
 
@@ -1494,24 +2380,44 @@
         clearSaveTimer(block.dataset.nodeId);
         const trimmedBeforeHtml = removeLastLineFromHtml(beforeHtml);
         const paragraphEmptied = isEmptyHtml(trimmedBeforeHtml);
+        const beforeParagraphSnapshot = buildNodeSnapshot(block);
+        const fullBeforeContent = collectBlockContent(block);
 
         if (paragraphEmptied) {
-            const hrBlock = await createSiblingBlock(block, "horizontal_rule", {});
-            await deleteBlockById(block);
-            await createSiblingBlock(hrBlock, "paragraph", {
+            const hrBlock = await createSiblingBlock(block, "horizontal_rule", { skipHistory: true });
+            await deleteBlockById(block, { skipHistory: true });
+            const newPara = await createSiblingBlock(hrBlock, "paragraph", {
                 content: { text: afterHtml || "" },
                 caretAtStart: true,
+                skipHistory: true,
+            });
+            recordHorizontalRuleInsertHistory({
+                mode: "replace",
+                beforeParagraphSnapshot,
+                afterHtml: afterHtml || "",
+                hrNodeId: hrBlock.dataset.nodeId,
+                afterParagraphNodeId: newPara.dataset.nodeId,
             });
             return true;
         }
 
         setTextFieldContent(block, trimmedBeforeHtml);
-        await saveBlock(block);
+        await saveBlock(block, { skipHistory: true });
 
-        const hrBlock = await createSiblingBlock(block, "horizontal_rule", {});
-        await createSiblingBlock(hrBlock, "paragraph", {
+        const hrBlock = await createSiblingBlock(block, "horizontal_rule", { skipHistory: true });
+        const newPara = await createSiblingBlock(hrBlock, "paragraph", {
             content: { text: afterHtml || "" },
             caretAtStart: true,
+            skipHistory: true,
+        });
+        recordHorizontalRuleInsertHistory({
+            mode: "split",
+            paragraphNodeId: block.dataset.nodeId,
+            beforeContent: fullBeforeContent,
+            trimmedContent: { text: trimmedBeforeHtml },
+            afterHtml: afterHtml || "",
+            hrNodeId: hrBlock.dataset.nodeId,
+            afterParagraphNodeId: newPara.dataset.nodeId,
         });
         return true;
     }
@@ -1552,12 +2458,22 @@
         await createSiblingBlock(block, "paragraph");
     }
 
-    async function deleteBlockById(block) {
+    async function deleteBlockById(block, options = {}) {
         const nodeId = block.dataset.nodeId;
         clearSaveTimer(nodeId);
+        clearHistoryTimer(nodeId);
+        pendingTextEdits.delete(nodeId);
+
+        const snapshot = options.skipHistory ? null : buildNodeSnapshot(block);
+        const focusHints = options.historyFocus || {};
+
         const data = await apiRequest(updateNodeUrl(nodeId), "DELETE");
         block.remove();
         applyCaptionNumbersFromResponse(data);
+
+        if (!options.skipHistory && snapshot) {
+            recordBlockDeleteHistory(snapshot, focusHints);
+        }
     }
 
     async function clearTableCellImage(selectedTarget) {
@@ -1574,6 +2490,13 @@
 
         const rowIndex = cellContainer.dataset.rowIndex || "0";
         const colIndex = cellContainer.dataset.colIndex || "0";
+        const beforeContent = cloneTableContent(collectBlockContent(tableBlock));
+        const tableFocus = {
+            part: "cell",
+            rowIndex: Number.parseInt(rowIndex, 10),
+            colIndex: Number.parseInt(colIndex, 10),
+        };
+
         cellContainer.classList.remove("report-editor-table-cell-has-image");
         cellContainer.innerHTML = `
             <div class="report-editor-block-editable report-editor-table-cell"
@@ -1585,7 +2508,13 @@
                  data-placeholder="Célula"></div>
         `;
         clearSaveTimer(tableBlock.dataset.nodeId);
-        await saveBlock(tableBlock);
+        await saveBlock(tableBlock, { skipHistory: true });
+        recordTableContentHistory(
+            tableBlock.dataset.nodeId,
+            beforeContent,
+            cloneTableContent(collectBlockContent(tableBlock)),
+            tableFocus
+        );
         const textCell = cellContainer.querySelector('[data-table-part="cell"]');
         if (textCell) {
             placeCaretAtEnd(textCell);
@@ -1630,11 +2559,23 @@
         const captionBlock = imageBlock.nextElementSibling;
         const hasCaption = captionBlock && captionBlock.dataset.isCaption === "true";
         const previousBlock = imageBlock.previousElementSibling;
+        const imageSnapshot = buildNodeSnapshot(imageBlock);
+        const captionSnapshot = hasCaption ? buildNodeSnapshot(captionBlock) : null;
 
         if (hasCaption) {
-            await deleteBlockById(captionBlock);
+            await deleteBlockById(captionBlock, { skipHistory: true });
         }
-        await deleteBlockById(imageBlock);
+        await deleteBlockById(imageBlock, { skipHistory: true });
+
+        if (imageSnapshot) {
+            recordImageBlocksDeleteHistory({
+                imageSnapshot,
+                captionSnapshot,
+                previousBlock: previousBlock && previousBlock.classList.contains("report-editor-block")
+                    ? previousBlock
+                    : null,
+            });
+        }
 
         if (previousBlock && previousBlock.classList.contains("report-editor-block")) {
             const editable = previousBlock.querySelector(".report-editor-block-editable");
@@ -1649,6 +2590,8 @@
     async function deleteEmptyBlock(block, options = {}) {
         const nodeId = block.dataset.nodeId;
         clearSaveTimer(nodeId);
+        clearHistoryTimer(nodeId);
+        pendingTextEdits.delete(nodeId);
 
         const focusNext = Boolean(options.focusNext);
         const nextBlock = focusNext ? getNextEditorBlock(block) : null;
@@ -1656,12 +2599,29 @@
         const blockType = block.dataset.blockType;
         const wasCaption = block.dataset.isCaption === "true";
 
+        const snapshot = options.skipHistory ? null : buildNodeSnapshot(block);
+        const focusHints = options.skipHistory
+            ? null
+            : {
+                focusNext,
+                focusPrevious: !focusNext,
+                previousBlock: !focusNext
+                    && previousBlock
+                    && previousBlock.classList.contains("report-editor-block")
+                    ? previousBlock
+                    : null,
+            };
+
         const data = await apiRequest(updateNodeUrl(nodeId), "DELETE");
 
         block.remove();
         applyCaptionNumbersFromResponse(data);
         if (blockType === "heading") {
             await refreshOutlineTree();
+        }
+
+        if (!options.skipHistory && snapshot) {
+            recordBlockDeleteHistory(snapshot, focusHints);
         }
 
         if (wasCaption && previousBlock && previousBlock.dataset.blockType === "image") {
@@ -1707,15 +2667,20 @@
             return;
         }
 
+        const beforeContent = collectBlockContent(block);
         items.splice(index, 1);
         clearSaveTimer(block.dataset.nodeId);
-        await saveBlock(block, { updateListItems: true, items });
+        await saveBlock(block, { updateListItems: true, items, skipHistory: true });
         rebuildListItems(block, items);
         const focusIndex = Math.max(index - 1, 0);
         const target = block.querySelectorAll(".report-editor-list-item")[focusIndex];
         if (target) {
             placeCaretAtEnd(target);
         }
+        recordImmediateBlockContentChange(block, beforeContent, {
+            undo: { listItemIndex: index, caretAtStart: false },
+            redo: { listItemIndex: focusIndex, caretAtStart: false },
+        });
     }
 
     async function handleDelete(block, editable) {
@@ -2026,15 +2991,40 @@
         }
 
         if (context.kind === "table-cell" || context.kind === "table-cell-image") {
+            const beforeContent = cloneTableContent(collectBlockContent(context.block));
+            const tableFocus = {
+                part: context.target.dataset.tablePart || "cell",
+                rowIndex: context.target.dataset.tablePart === "cell"
+                    ? Number.parseInt(context.target.dataset.rowIndex || "0", 10)
+                    : -1,
+                colIndex: Number.parseInt(context.target.dataset.colIndex || "0", 10),
+            };
+
             applyTextAlignToTableTarget(context.target, align);
             if (context.kind === "table-cell-image") {
                 applyTableCellImageAlignVisual(context.target, align);
             }
             clearSaveTimer(context.block.dataset.nodeId);
-            await saveBlock(context.block);
+            await saveBlock(context.block, { skipHistory: true });
+            recordTableContentHistory(
+                context.block.dataset.nodeId,
+                beforeContent,
+                cloneTableContent(collectBlockContent(context.block)),
+                tableFocus
+            );
             updateAlignmentToolbar(align);
             return;
         }
+
+        const beforeAlign = context.block.dataset.textAlign
+            || defaultTextAlignForBlock(
+                context.block.dataset.blockType,
+                {
+                    isMainTitle: context.block.dataset.blockType === "heading"
+                        && context.block.dataset.isMainTitle === "true",
+                    isCaption: context.block.dataset.isCaption === "true",
+                }
+            );
 
         applyTextAlignToBlock(context.block, align);
         clearSaveTimer(context.block.dataset.nodeId);
@@ -2051,6 +3041,7 @@
         await apiRequest(updateNodeUrl(context.block.dataset.nodeId), "PATCH", {
             text_align: align,
         });
+        recordTextAlignHistory(context.block, beforeAlign, align);
         updateAlignmentToolbar(align);
     }
 
@@ -2130,6 +3121,7 @@
         }
 
         if (selectedTarget.type === "block") {
+            const beforeAlign = selectedTarget.root.dataset.textAlign || "center";
             applyTextAlignToBlock(selectedTarget.root, align);
             applyImageBlockAlignVisual(selectedTarget.root, align);
             clearSaveTimer(selectedTarget.root.dataset.nodeId);
@@ -2137,15 +3129,38 @@
             await apiRequest(updateNodeUrl(selectedTarget.root.dataset.nodeId), "PATCH", {
                 text_align: align,
             });
+            recordTextAlignHistory(selectedTarget.root, beforeAlign, align);
             selectedTarget.root.focus({ preventScroll: true });
             refreshAlignmentToolbarState();
             return;
         }
 
+        const tableBlock = selectedTarget.tableBlock;
+        const beforeContent = cloneTableContent(collectBlockContent(tableBlock));
+        const rowIndex = Number.parseInt(
+            selectedTarget.root.closest("td")?.dataset.rowIndex || "0",
+            10
+        );
+        const colIndex = Number.parseInt(
+            selectedTarget.root.closest("td")?.dataset.colIndex || "0",
+            10
+        );
+        const tableFocus = {
+            part: "cell",
+            rowIndex,
+            colIndex,
+        };
+
         applyTextAlignToTableTarget(selectedTarget.root, align);
         applyTableCellImageAlignVisual(selectedTarget.root, align);
-        clearSaveTimer(selectedTarget.tableBlock.dataset.nodeId);
-        await saveBlock(selectedTarget.tableBlock);
+        clearSaveTimer(tableBlock.dataset.nodeId);
+        await saveBlock(tableBlock, { skipHistory: true });
+        recordTableContentHistory(
+            tableBlock.dataset.nodeId,
+            beforeContent,
+            cloneTableContent(collectBlockContent(tableBlock)),
+            tableFocus
+        );
         selectedTarget.root.focus({ preventScroll: true });
         refreshAlignmentToolbarState();
     }
@@ -2162,6 +3177,7 @@
         }
 
         const block = context.block;
+        const beforeAlign = block.dataset.textAlign || "left";
         applyTextAlignToBlock(block, align);
         clearSaveTimer(block.dataset.nodeId);
         if (
@@ -2173,6 +3189,7 @@
         await apiRequest(updateNodeUrl(block.dataset.nodeId), "PATCH", {
             text_align: align,
         });
+        recordTextAlignHistory(block, beforeAlign, align);
     }
 
     const MAX_PARAGRAPH_INDENT_LEVEL = 5;
@@ -2287,7 +3304,8 @@
         }
     }
 
-    async function patchParagraphLayout(block, layout) {
+    async function patchParagraphLayout(block, layout, options = {}) {
+        const beforeLayout = options.skipHistory ? null : captureParagraphLayout(block);
         const payload = {};
         if (layout.indent_level !== undefined) {
             payload.indent_level = layout.indent_level;
@@ -2301,6 +3319,11 @@
             indent_level: data.indent_level,
             first_line_indent: data.first_line_indent,
         });
+
+        if (!options.skipHistory && beforeLayout) {
+            recordParagraphLayoutHistory(block, beforeLayout, captureParagraphLayout(block));
+        }
+
         return data;
     }
 
@@ -2444,6 +3467,17 @@
             }
         });
 
+        page.addEventListener("beforeinput", (event) => {
+            const editable = event.target.closest(".report-editor-block-editable");
+            if (!editable) {
+                return;
+            }
+            const block = editable.closest(".report-editor-block");
+            if (block) {
+                beginBlockContentRecording(block, editable);
+            }
+        });
+
         page.addEventListener("input", (event) => {
             const editable = event.target.closest(".report-editor-block-editable");
             if (!editable) {
@@ -2457,6 +3491,7 @@
                         updateOutlineHeading(block.dataset.nodeId, getEditablePlainText(field));
                     }
                 }
+                scheduleDebouncedHistoryFinalize(block);
                 scheduleDebouncedSave(block);
             }
         });
@@ -2467,6 +3502,7 @@
                 block.classList.add("is-active");
                 const editable = event.target.closest(".report-editor-block-editable");
                 if (editable && block.contains(editable)) {
+                    beginBlockContentRecording(block, editable);
                     rememberEditorContext(block, editable);
                 }
                 refreshAlignmentToolbarState();
@@ -2490,6 +3526,7 @@
             const block = event.target.closest(".report-editor-block");
             if (block && !block.contains(event.relatedTarget)) {
                 block.classList.remove("is-active");
+                flushPendingTextEdit(block).catch(console.error);
             }
         });
     }
@@ -2795,9 +3832,12 @@
         return null;
     }
 
-    async function patchTableContent(block, content, focus) {
+    async function patchTableContent(block, content, focus, options = {}) {
         clearSaveTimer(block.dataset.nodeId);
         const nodeId = block.dataset.nodeId;
+        const beforeContent = options.skipHistory
+            ? null
+            : cloneTableContent(collectBlockContent(block));
         const payload = {
             content,
             refresh_html: true,
@@ -2809,14 +3849,25 @@
         }
 
         const data = await apiRequest(updateNodeUrl(nodeId), "PATCH", payload);
+        let replacement = block;
         if (data.html) {
-            const replacement = replaceBlockFromHtml(nodeId, data.html);
+            replacement = replaceBlockFromHtml(nodeId, data.html);
             if (replacement) {
                 focusNewBlock(replacement);
             }
-            return replacement;
         }
-        return block;
+
+        if (!options.skipHistory && beforeContent) {
+            const afterBlock = document.getElementById(`report-block-${nodeId}`) || replacement;
+            recordTableContentHistory(
+                nodeId,
+                beforeContent,
+                cloneTableContent(collectBlockContent(afterBlock)),
+                focus
+            );
+        }
+
+        return replacement;
     }
 
     async function insertTableRowAfterCursor() {
@@ -2948,6 +3999,8 @@
         insertImageAtCursor,
         saveBlock,
         scheduleDebouncedSave,
+        beginBlockContentRecording,
+        flushUndoState,
         resolveEditorContext: resolveInsertContext,
         resolveTableCellContext,
         clearTableCellContext,
