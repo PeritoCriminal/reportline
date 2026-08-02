@@ -13,7 +13,7 @@ tipados. Base para laudos periciais e outros documentos produzidos no ReportLine
 |---|---|
 | **Problema** | Documentos periciais exigem seções aninhadas, tipos de conteúdo distintos e formatação consistente |
 | **Solução** | `Report` + árvore `ReportNode` + bloco genérico `ReportBlock` 1:1 por nó |
-| **Fora do escopo (fase atual)** | Edição interativa de link, renderização PDF/HTML, painel de propriedades do bloco (layout/paginação), templates de laudo pericial específicos, publicação/arquivamento na UI |
+| **Fora do escopo (fase atual)** | Renderização PDF/HTML de leitura, fórmulas matemáticas (KaTeX), painel de propriedades do bloco (layout/paginação por bloco), templates de laudo pericial específicos, publicação/arquivamento na UI |
 | **Consumidor futuro** | Camada de laudo pericial (mapeia papéis semânticos → blocos genéricos) |
 
 ---
@@ -30,6 +30,14 @@ tipados. Base para laudos periciais e outros documentos produzidos no ReportLine
 | **6 — Toolbar e conversão** | Split buttons (título), conversão in-place, inserção em listas, numeração de títulos |
 | **7 — Sumário interativo** | Drag-and-drop de títulos, refresh parcial do outline, accordion |
 | **8 — Tabelas e imagens** | Inserção de tabela/imagem, estrutura de linhas/colunas, bordas/cabeçalho opcionais, larguras de coluna, resize de imagem, células com imagem |
+| **9 — Formatação e links** | Negrito/itálico/sublinhado/sobrescrito/subscrito, alinhamento, recuo, link inline (modal), sanitização HTML bilateral |
+| **10 — Layout de página** | Cabeçalho/rodapé tabular (`page_layout` JSON), templates logo+texto, numeração “Página N de T” só no PDF |
+| **11 — Configuração do laudo** | Modal: numeração de títulos/legendas, recuo de 1ª linha; API PATCH; preferências do usuário |
+| **12 — Linha horizontal e legendas** | Bloco HR, atalho `---`+Enter, parágrafos legenda após imagem, numeração automática de figuras |
+| **13 — Undo/redo** | Pilha cliente (Ctrl+Z/Y): texto, blocos, listas, tabelas, imagens, cabeçalho/rodapé, config, reorder sumário |
+| **14 — Sumário assíncrono** | DnD sem reload; API reorder retorna ordem do corpo + HTML do sumário; expansão de seções no POST |
+
+> **Próximo marco:** pipeline de renderização HTML paginado → PDF — ver [08-report-document-render.md](./08-report-document-render.md).
 
 ---
 
@@ -145,6 +153,8 @@ reports/
 | `GET /reports/` | `reports:list` | `ReportListView` | Listagem dos relatórios do autor |
 | `GET/POST /reports/new/` | `reports:new` | `ReportCreateView` | Formulário de título; cria rascunho e redireciona ao editor |
 | `GET /reports/<uuid:pk>/edit/` | `reports:edit` | `ReportEditorView` | Editor visual (somente autor) |
+| `GET/PATCH /reports/<uuid:pk>/config/` | `reports:config` | `ReportConfigView` | Configuração do laudo (numeração, recuo) |
+| `PATCH /reports/<uuid:pk>/page-layout/` | `reports:page_layout` | `ReportPageLayoutView` | Cabeçalho/rodapé de página (JSON) |
 | `GET /reports/<uuid:pk>/outline/` | `reports:outline` | `ReportEditorOutlineView` | HTML parcial do sumário (JSON) |
 | `POST /reports/<uuid:pk>/images/upload/` | `reports:image_upload` | `ReportImageUploadView` | Upload multipart de imagem (JSON) |
 | `POST /reports/<uuid:pk>/nodes/` | `reports:node_create` | `ReportNodeCreateView` | Insere nó irmão antes/depois de bloco (JSON) |
@@ -219,7 +229,7 @@ flowchart LR
 - **POST `node_create`:** cria irmão com `after_node_id` ou `before_node_id`; retorna HTML do novo bloco
 - **PATCH `node_update`:** atualiza `content`; suporta conversão de tipo (`block_type`, `title_level`), listas (`append_list_item`, `update_list_items`) e refresh parcial de tabela (`refresh_html`, `focus_table_part`, `focus_table_row`, `focus_table_col`)
 - **DELETE `node_update`:** remove nó vazio via `delete_node`
-- **POST `node_reorder`:** body `{ parent_node_id, ordered_node_ids }` — apenas títulos irmãos
+- **POST `node_reorder`:** body `{ parent_node_id, ordered_node_ids }` — títulos irmãos; resposta inclui `body_node_ids`, `outline_html`, `heading_numbers`
 
 #### Campos relevantes do PATCH
 
@@ -280,10 +290,10 @@ Layout de três colunas com toolbar superior. Navbar global permanece visível;
 
 | Região | Estado |
 |---|---|
-| Toolbar | Ativa — tipos de bloco, formatação (visual/reservada), ações do documento |
-| Sumário | Títulos em árvore numerada; drag-and-drop de reorder; refresh via API |
-| Corpo | Blocos editáveis; painel central ocupa toda a coluna |
-| Propriedades | Reservada (layout/paginação futura) |
+| Toolbar | Tipos de bloco, formatação inline, alinhamento, config do laudo, undo/redo, PDF (desabilitado até pipeline de render) |
+| Sumário | Títulos em árvore numerada; accordion; DnD assíncrono; refresh via API |
+| Corpo | Blocos editáveis; cabeçalho/rodapé de página editáveis na folha (uma vez, scroll contínuo) |
+| Propriedades | Reservada (layout/paginação por bloco) |
 
 ### Toolbar — blocos
 
@@ -316,7 +326,9 @@ Layout de três colunas com toolbar superior. Navbar global permanece visível;
 
 **Responsividade:** abaixo de **992px**, toolbar e laterais ocultas; só o corpo central.
 
-**Assets JS:** `report_editor.js` (núcleo), `report_table_insert.js`, `report_table_structure.js`, `report_table_column_resize.js`, `report_image_insert.js`, `report_image_resize.js`, `report_outline_*.js`
+**Assets JS (principais):** `report_editor.js`, `report_undo.js`, `report_inline_text.js`, `report_text_format.js`, `report_text_link.js`, `report_config.js`, `report_page_header.js`, `report_page_footer.js`, `report_table_*.js`, `report_image_*.js`, `report_outline_*.js`
+
+**Undo/redo:** pilha cliente (`report_undo.js`, máx. 100 entradas); flush antes de undo/redo; cobre corpo, cabeçalho/rodapé, config e reorder do sumário.
 
 ---
 
@@ -545,16 +557,24 @@ Executar: `python manage.py test reports`
 - [x] Tabelas interativas (inserção, estrutura, bordas, cabeçalho, larguras)
 - [x] Imagens (upload, resize, inserção em bloco e célula de tabela)
 - [x] Exclusão de bloco/nó vazio (Backspace)
-- [ ] Edição interativa de link
-- [ ] Painel de propriedades do bloco (layout e paginação)
+- [x] Edição interativa de link
+- [x] Formatação inline, alinhamento e recuo de parágrafos
+- [x] Cabeçalho/rodapé de página (editor + `page_layout`)
+- [x] Configuração do laudo (numeração, recuo 1ª linha)
+- [x] Linha horizontal, legendas e numeração de figuras
+- [x] Undo/redo no editor (fases 1–4)
+- [x] Sumário DnD assíncrono (sem reload)
+- [ ] Painel de propriedades do bloco (layout e paginação por bloco)
 - [ ] Publicação/arquivamento na UI
 - [ ] Camada de laudo pericial (mapeamento semântico → blocos)
-- [ ] Renderização PDF/HTML
+- [ ] Renderização HTML paginado + PDF ([plano](./08-report-document-render.md))
+- [ ] Fórmulas matemáticas (KaTeX) — após pipeline de render
 
 ---
 
 ## Referências
 
+- [Renderização HTML/PDF (planejamento)](./08-report-document-render.md)
 - [ADR-0002](../decisions/0002-report-node-structure.md)
 - [Modelo de dados](./02-data-model.md)
 - [Mapa de apps](./03-apps-map.md)

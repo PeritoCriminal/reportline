@@ -15,6 +15,7 @@ evolução junto com o projeto.
 | [05-profiles.md](./05-profiles.md) | App profiles — perito criminal (SP) |
 | [06-user-messaging.md](./06-user-messaging.md) | Mensagens ao usuário — toasts, validação inline e modal |
 | [07-reports.md](./07-reports.md) | App reports — relatórios modulares |
+| [08-report-document-render.md](./08-report-document-render.md) | 🟡 Pipeline HTML paginado → PDF (planejamento) |
 | [../decisions/](../decisions/) | Registros de decisão arquitetural (ADRs) |
 
 ### ADRs transversais (institucional e infraestrutura)
