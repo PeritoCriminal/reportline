@@ -1,0 +1,78 @@
+{# Modal para escolher modelo de rodapé de página. #}
+<div class="modal fade"
+     id="reportPageFooterModal"
+     tabindex="-1"
+     aria-labelledby="reportPageFooterModalLabel"
+     aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content">
+            <div class="modal-header border-secondary-subtle">
+                <h2 class="modal-title fs-5" id="reportPageFooterModalLabel">
+                    <i class="bi bi-border-bottom text-primary me-2" aria-hidden="true"></i>
+                    Modelo de rodapé
+                </h2>
+                <button type="button"
+                        class="btn-close"
+                        data-bs-dismiss="modal"
+                        aria-label="Fechar"></button>
+            </div>
+            <div class="modal-body">
+                <p class="text-muted small mb-3">
+                    O rodapé será repetido em todas as páginas do PDF. Nos campos de texto,
+                    a numeração &ldquo;Página N de T&rdquo; aparece somente no PDF gerado. Use &ldquo;Remover&rdquo; para omiti-la.
+                </p>
+                <div class="row g-3">
+                    <div class="col-md-6 col-lg-3">
+                        <button type="button"
+                                class="report-page-footer-template-card w-100"
+                                data-report-page-footer-template="text_only">
+                            <span class="report-page-footer-template-preview" aria-hidden="true">
+                                <span class="report-page-footer-template-block report-page-footer-template-block-text report-page-footer-template-block-text-full"></span>
+                            </span>
+                            <span class="report-page-footer-template-title">Texto simples</span>
+                        </button>
+                    </div>
+                    <div class="col-md-6 col-lg-3">
+                        <button type="button"
+                                class="report-page-footer-template-card w-100"
+                                data-report-page-footer-template="logo_left_text_right">
+                            <span class="report-page-footer-template-preview" aria-hidden="true">
+                                <span class="report-page-footer-template-block report-page-footer-template-block-logo"></span>
+                                <span class="report-page-footer-template-block report-page-footer-template-block-text"></span>
+                            </span>
+                            <span class="report-page-footer-template-title">Imagem à esquerda, texto à direita</span>
+                        </button>
+                    </div>
+                    <div class="col-md-6 col-lg-3">
+                        <button type="button"
+                                class="report-page-footer-template-card w-100"
+                                data-report-page-footer-template="text_left_logo_right">
+                            <span class="report-page-footer-template-preview" aria-hidden="true">
+                                <span class="report-page-footer-template-block report-page-footer-template-block-text"></span>
+                                <span class="report-page-footer-template-block report-page-footer-template-block-logo"></span>
+                            </span>
+                            <span class="report-page-footer-template-title">Texto à esquerda, imagem à direita</span>
+                        </button>
+                    </div>
+                    <div class="col-md-6 col-lg-3">
+                        <button type="button"
+                                class="report-page-footer-template-card w-100"
+                                data-report-page-footer-template="logo_text_logo">
+                            <span class="report-page-footer-template-preview" aria-hidden="true">
+                                <span class="report-page-footer-template-block report-page-footer-template-block-logo"></span>
+                                <span class="report-page-footer-template-block report-page-footer-template-block-text"></span>
+                                <span class="report-page-footer-template-block report-page-footer-template-block-logo"></span>
+                            </span>
+                            <span class="report-page-footer-template-title">Imagem, texto e imagem</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer border-secondary-subtle">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    Cancelar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>

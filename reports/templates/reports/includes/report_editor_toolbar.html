@@ -103,20 +103,42 @@ Barra de ferramentas do editor: blocos, formatação inline e ações do documen
                     </li>
                 </ul>
             </div>
-            <button type="button"
-                    class="btn btn-outline-secondary btn-toolbar-block"
-                    data-insert-block-type="ordered_list"
-                    title="Lista numerada"
-                    aria-label="Inserir lista numerada">
-                <i class="bi bi-list-ol" aria-hidden="true"></i>
-            </button>
-            <button type="button"
-                    class="btn btn-outline-secondary btn-toolbar-block"
-                    data-insert-block-type="unordered_list"
-                    title="Lista com marcadores"
-                    aria-label="Inserir lista com marcadores">
-                <i class="bi bi-list-ul" aria-hidden="true"></i>
-            </button>
+            <div class="btn-group report-editor-toolbar-list-group">
+                <button type="button"
+                        class="btn btn-outline-secondary btn-toolbar-block btn-toolbar-list-main"
+                        data-insert-block-type="ordered_list"
+                        data-insert-block-type-main
+                        title="Lista numerada"
+                        aria-label="Inserir lista numerada">
+                    <i class="bi bi-list-ol" aria-hidden="true"></i>
+                </button>
+                <button type="button"
+                        class="btn btn-outline-secondary btn-toolbar-block btn-toolbar-list-toggle dropdown-toggle dropdown-toggle-split"
+                        data-bs-toggle="dropdown"
+                        aria-expanded="false"
+                        title="Listas"
+                        aria-label="Opções de lista">
+                    <span class="visually-hidden">Opções de lista</span>
+                </button>
+                <ul class="dropdown-menu report-editor-toolbar-list-menu">
+                    <li>
+                        <button type="button"
+                                class="dropdown-item d-flex align-items-center gap-2"
+                                data-insert-block-type="ordered_list">
+                            <i class="bi bi-list-ol" aria-hidden="true"></i>
+                            Lista numerada
+                        </button>
+                    </li>
+                    <li>
+                        <button type="button"
+                                class="dropdown-item d-flex align-items-center gap-2"
+                                data-insert-block-type="unordered_list">
+                            <i class="bi bi-list-ul" aria-hidden="true"></i>
+                            Lista com marcadores
+                        </button>
+                    </li>
+                </ul>
+            </div>
             <div class="btn-group report-editor-toolbar-table-group">
                 <button type="button"
                         class="btn btn-outline-secondary btn-toolbar-block btn-toolbar-table-main"
@@ -281,101 +303,171 @@ Barra de ferramentas do editor: blocos, formatação inline e ações do documen
 
         {# 2 — Alinhamento #}
         <div class="report-editor-toolbar-group" role="group" aria-label="Alinhamento">
-            <button type="button"
-                    class="btn btn-outline-secondary btn-toolbar-block"
-                    data-report-text-align="right"
-                    title="Alinhar à direita"
-                    aria-label="Alinhar à direita"
-                    aria-pressed="false">
-                <i class="bi bi-text-right" aria-hidden="true"></i>
-            </button>
-            <button type="button"
-                    class="btn btn-outline-secondary btn-toolbar-block"
-                    data-report-text-align="center"
-                    title="Centralizar"
-                    aria-label="Centralizar"
-                    aria-pressed="false">
-                <i class="bi bi-text-center" aria-hidden="true"></i>
-            </button>
-            <button type="button"
-                    class="btn btn-outline-secondary btn-toolbar-block"
-                    data-report-text-align="left"
-                    title="Alinhar à esquerda"
-                    aria-label="Alinhar à esquerda"
-                    aria-pressed="false">
-                <i class="bi bi-text-left" aria-hidden="true"></i>
-            </button>
-            <button type="button"
-                    class="btn btn-outline-secondary btn-toolbar-block"
-                    data-report-text-align="justify"
-                    title="Justificar"
-                    aria-label="Justificar"
-                    aria-pressed="false">
-                <i class="bi bi-justify" aria-hidden="true"></i>
-            </button>
+            <div class="btn-group report-editor-toolbar-align-group">
+                <button type="button"
+                        class="btn btn-outline-secondary btn-toolbar-block btn-toolbar-align-main"
+                        data-report-text-align-main
+                        data-report-text-align="justify"
+                        title="Justificar"
+                        aria-label="Justificar"
+                        aria-pressed="false">
+                    <i class="bi bi-justify" aria-hidden="true"></i>
+                </button>
+                <button type="button"
+                        class="btn btn-outline-secondary btn-toolbar-block btn-toolbar-align-toggle dropdown-toggle dropdown-toggle-split"
+                        data-bs-toggle="dropdown"
+                        aria-expanded="false"
+                        title="Alinhamento"
+                        aria-label="Opções de alinhamento">
+                    <span class="visually-hidden">Opções de alinhamento</span>
+                </button>
+                <ul class="dropdown-menu report-editor-toolbar-align-menu">
+                    <li>
+                        <button type="button"
+                                class="dropdown-item d-flex align-items-center gap-2"
+                                data-report-text-align="left">
+                            <i class="bi bi-text-left" aria-hidden="true"></i>
+                            Alinhar à esquerda
+                        </button>
+                    </li>
+                    <li>
+                        <button type="button"
+                                class="dropdown-item d-flex align-items-center gap-2"
+                                data-report-text-align="center">
+                            <i class="bi bi-text-center" aria-hidden="true"></i>
+                            Centralizar
+                        </button>
+                    </li>
+                    <li>
+                        <button type="button"
+                                class="dropdown-item d-flex align-items-center gap-2"
+                                data-report-text-align="right">
+                            <i class="bi bi-text-right" aria-hidden="true"></i>
+                            Alinhar à direita
+                        </button>
+                    </li>
+                    <li>
+                        <button type="button"
+                                class="dropdown-item d-flex align-items-center gap-2"
+                                data-report-text-align="justify">
+                            <i class="bi bi-justify" aria-hidden="true"></i>
+                            Justificar
+                        </button>
+                    </li>
+                </ul>
+            </div>
         </div>
 
         <div class="report-editor-toolbar-divider" aria-hidden="true"></div>
 
         {# 3 — Formatação inline #}
         <div class="report-editor-toolbar-group report-editor-toolbar-format-group" role="group" aria-label="Formatação de texto">
-            <button type="button"
-                    class="btn btn-outline-secondary btn-toolbar-block"
-                    data-report-text-format="bold"
-                    title="Negrito (Ctrl+B)"
-                    aria-label="Negrito"
-                    aria-pressed="false"
-                    disabled>
-                <i class="bi bi-type-bold" aria-hidden="true"></i>
-            </button>
-            <button type="button"
-                    class="btn btn-outline-secondary btn-toolbar-block"
-                    data-report-text-format="italic"
-                    title="Itálico (Ctrl+I)"
-                    aria-label="Itálico"
-                    aria-pressed="false"
-                    disabled>
-                <i class="bi bi-type-italic" aria-hidden="true"></i>
-            </button>
-            <button type="button"
-                    class="btn btn-outline-secondary btn-toolbar-block"
-                    data-report-text-format="underline"
-                    title="Sublinhado (Ctrl+U)"
-                    aria-label="Sublinhado"
-                    aria-pressed="false"
-                    disabled>
-                <i class="bi bi-type-underline" aria-hidden="true"></i>
-            </button>
-            <button type="button"
-                    class="btn btn-outline-secondary btn-toolbar-block"
-                    data-report-text-format="strikethrough"
-                    title="Riscado (Ctrl+Shift+X)"
-                    aria-label="Riscado"
-                    aria-pressed="false"
-                    disabled>
-                <i class="bi bi-type-strikethrough" aria-hidden="true"></i>
-            </button>
-            <button type="button"
-                    class="btn btn-outline-secondary btn-toolbar-block"
-                    data-report-text-link
-                    title="Inserir link"
-                    aria-label="Inserir link"
-                    disabled>
-                <i class="bi bi-link-45deg" aria-hidden="true"></i>
-            </button>
+            <div class="btn-group report-editor-toolbar-format-dropdown-group">
+                <button type="button"
+                        class="btn btn-outline-secondary btn-toolbar-block btn-toolbar-format-main"
+                        data-report-text-format-main
+                        data-report-text-format="bold"
+                        title="Negrito (Ctrl+B)"
+                        aria-label="Negrito"
+                        aria-pressed="false"
+                        disabled>
+                    <i class="bi bi-type-bold" aria-hidden="true"></i>
+                </button>
+                <button type="button"
+                        class="btn btn-outline-secondary btn-toolbar-block btn-toolbar-format-toggle dropdown-toggle dropdown-toggle-split"
+                        data-bs-toggle="dropdown"
+                        data-report-text-format-toggle
+                        aria-expanded="false"
+                        title="Formatação de texto"
+                        aria-label="Opções de formatação"
+                        disabled>
+                    <span class="visually-hidden">Opções de formatação</span>
+                </button>
+                <ul class="dropdown-menu report-editor-toolbar-format-menu">
+                    <li>
+                        <button type="button"
+                                class="dropdown-item d-flex align-items-center gap-2"
+                                data-report-text-format="bold">
+                            <i class="bi bi-type-bold" aria-hidden="true"></i>
+                            Negrito
+                        </button>
+                    </li>
+                    <li>
+                        <button type="button"
+                                class="dropdown-item d-flex align-items-center gap-2"
+                                data-report-text-format="italic">
+                            <i class="bi bi-type-italic" aria-hidden="true"></i>
+                            Itálico
+                        </button>
+                    </li>
+                    <li>
+                        <button type="button"
+                                class="dropdown-item d-flex align-items-center gap-2"
+                                data-report-text-format="underline">
+                            <i class="bi bi-type-underline" aria-hidden="true"></i>
+                            Sublinhado
+                        </button>
+                    </li>
+                    <li>
+                        <button type="button"
+                                class="dropdown-item d-flex align-items-center gap-2"
+                                data-report-text-format="strikethrough">
+                            <i class="bi bi-type-strikethrough" aria-hidden="true"></i>
+                            Riscado
+                        </button>
+                    </li>
+                    <li><hr class="dropdown-divider"></li>
+                    <li>
+                        <button type="button"
+                                class="dropdown-item d-flex align-items-center gap-2"
+                                data-report-text-link>
+                            <i class="bi bi-link-45deg" aria-hidden="true"></i>
+                            Inserir link
+                        </button>
+                    </li>
+                </ul>
+            </div>
         </div>
 
         <div class="report-editor-toolbar-divider" aria-hidden="true"></div>
 
         {# 5 — Ações do documento #}
         <div class="report-editor-toolbar-group" role="group" aria-label="Ações do relatório">
-            <button type="button"
-                    class="btn btn-outline-secondary btn-toolbar-block"
-                    data-report-page-header-toolbar
-                    title="Cabeçalho"
-                    aria-label="Configurar cabeçalho">
-                <i class="bi bi-layout-text-window-reverse" aria-hidden="true"></i>
-            </button>
+            <div class="btn-group report-editor-toolbar-page-layout-dropdown-group" data-report-page-layout-toolbar>
+                <button type="button"
+                        class="btn btn-outline-secondary btn-toolbar-block btn-toolbar-page-layout-main"
+                        data-report-page-header-toolbar
+                        title="Cabeçalho"
+                        aria-label="Configurar cabeçalho">
+                    <i class="bi bi-layout-text-window-reverse" aria-hidden="true"></i>
+                </button>
+                <button type="button"
+                        class="btn btn-outline-secondary btn-toolbar-block btn-toolbar-page-layout-toggle dropdown-toggle dropdown-toggle-split"
+                        data-bs-toggle="dropdown"
+                        aria-expanded="false"
+                        title="Cabeçalho e rodapé"
+                        aria-label="Opções de cabeçalho e rodapé">
+                    <span class="visually-hidden">Opções de cabeçalho e rodapé</span>
+                </button>
+                <ul class="dropdown-menu report-editor-toolbar-page-layout-menu">
+                    <li>
+                        <button type="button"
+                                class="dropdown-item d-flex align-items-center gap-2"
+                                data-report-page-header-toolbar>
+                            <i class="bi bi-layout-text-window-reverse" aria-hidden="true"></i>
+                            Cabeçalho
+                        </button>
+                    </li>
+                    <li>
+                        <button type="button"
+                                class="dropdown-item d-flex align-items-center gap-2"
+                                data-report-page-footer-toolbar>
+                            <i class="bi bi-border-bottom" aria-hidden="true"></i>
+                            Rodapé
+                        </button>
+                    </li>
+                </ul>
+            </div>
             <button type="button"
                     class="btn btn-outline-secondary btn-toolbar-block"
                     disabled

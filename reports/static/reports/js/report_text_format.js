@@ -46,6 +46,12 @@
                     return { block: null, editable: headerContext.editable, headerText: true };
                 }
             }
+            if (window.ReportLinePageFooter && window.ReportLinePageFooter.resolveFooterTextContext) {
+                const footerContext = window.ReportLinePageFooter.resolveFooterTextContext();
+                if (footerContext) {
+                    return { block: null, editable: footerContext.editable, footerText: true };
+                }
+            }
             return null;
         }
 
@@ -53,6 +59,9 @@
         if (!block) {
             if (editable.matches("[data-report-page-header-text]")) {
                 return { block: null, editable, headerText: true };
+            }
+            if (editable.matches("[data-report-page-footer-text]")) {
+                return { block: null, editable, footerText: true };
             }
             return null;
         }
@@ -134,7 +143,19 @@
             return;
         }
 
+        const mainButton = formatToolbarGroup.querySelector("[data-report-text-format-main]");
+        const toggleButton = formatToolbarGroup.querySelector("[data-report-text-format-toggle]");
+        if (mainButton) {
+            mainButton.disabled = !enabled;
+        }
+        if (toggleButton) {
+            toggleButton.disabled = !enabled;
+        }
+
         formatToolbarGroup.querySelectorAll("[data-report-text-format]").forEach((button) => {
+            if (button.hasAttribute("data-report-text-format-main")) {
+                return;
+            }
             button.disabled = !enabled;
         });
     }
@@ -160,6 +181,20 @@
             button.classList.toggle("active", active);
             button.setAttribute("aria-pressed", active ? "true" : "false");
         });
+
+        const mainButton = formatToolbarGroup.querySelector("[data-report-text-format-main]");
+        if (mainButton) {
+            let boldActive = false;
+            if (context && document.queryCommandSupported("bold")) {
+                try {
+                    boldActive = document.queryCommandState("bold");
+                } catch (_error) {
+                    boldActive = false;
+                }
+            }
+            mainButton.classList.toggle("active", boldActive);
+            mainButton.setAttribute("aria-pressed", boldActive ? "true" : "false");
+        }
     }
 
     function refreshToolbar(context) {
@@ -207,7 +242,7 @@
 
         const inlineText = getInlineText();
         if (inlineText) {
-            if (context.headerText && inlineText.getHeaderHtml) {
+            if ((context.headerText || context.footerText) && inlineText.getHeaderHtml) {
                 context.editable.innerHTML = inlineText.sanitizeHeader(context.editable.innerHTML);
             } else {
                 context.editable.innerHTML = inlineText.sanitize(context.editable.innerHTML);
@@ -216,6 +251,8 @@
 
         if (context.headerText && window.ReportLinePageHeader && window.ReportLinePageHeader.scheduleHeaderSave) {
             window.ReportLinePageHeader.scheduleHeaderSave();
+        } else if (context.footerText && window.ReportLinePageFooter && window.ReportLinePageFooter.scheduleFooterSave) {
+            window.ReportLinePageFooter.scheduleFooterSave();
         } else if (window.ReportLineEditor && window.ReportLineEditor.scheduleDebouncedSave) {
             window.ReportLineEditor.scheduleDebouncedSave(context.block);
         }
@@ -288,8 +325,8 @@
 
             const html = clipboard.getData("text/html");
             const plain = clipboard.getData("text/plain");
-            const isHeaderText = editable.matches("[data-report-page-header-text]");
-            const sanitizeFn = isHeaderText && inlineText.sanitizeHeader
+            const isBandText = editable.matches("[data-report-page-header-text], [data-report-page-footer-text]");
+            const sanitizeFn = isBandText && inlineText.sanitizeHeader
                 ? inlineText.sanitizeHeader.bind(inlineText)
                 : inlineText.sanitize.bind(inlineText);
             if (html) {
@@ -336,6 +373,9 @@
                 return;
             }
             if (event.target.closest("#report-page-header-root")) {
+                return;
+            }
+            if (event.target.closest("#report-page-footer-root")) {
                 return;
             }
             if (!isFormatToolbarTarget(event.target)) {

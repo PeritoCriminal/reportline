@@ -1,151 +1,89 @@
 /**
-
- * Cabeçalho de página do relatório (modelos, logos e texto).
-
+ * Rodapé de página do relatório (modelos, imagens, texto e numeração).
  */
-
 (function () {
-
     "use strict";
 
-
-
     const DEBOUNCE_MS = 1500;
-
-    const HEADER_ALIGN_VALUES = new Set(["left", "center", "right"]);
-
-
+    const FOOTER_ALIGN_VALUES = new Set(["left", "center", "right"]);
 
     let updateUrl = "";
-
     let uploadUrl = "";
-
     let modal = null;
-
     let modalElement = null;
-
-    let headerRoot = null;
-
+    let footerRoot = null;
     let pendingLogoCellIndex = null;
-
     let fileInput = null;
-
     let saveTimer = null;
-
     let isEditing = false;
-
     let lastFocusedTextField = null;
 
     function getCsrfToken() {
-
         const match = document.cookie.match(/(?:^|;\s*)csrftoken=([^;]+)/);
-
         return match ? decodeURIComponent(match[1]) : "";
-
     }
-
-
 
     function getInlineText() {
-
         return window.ReportLineInlineText || null;
-
     }
 
-
-
-    function getHeaderSurface(root) {
-
-        return root ? root.querySelector("[data-report-page-header-surface]") : null;
-
+    function getFooterSurface(root) {
+        return root ? root.querySelector("[data-report-page-footer-surface]") : null;
     }
 
-
-
-    function collectHeaderCells(root) {
-
+    function collectFooterCells(root) {
         const cells = [];
-
-        root.querySelectorAll(".report-page-header-row").forEach((row) => {
-
-            row.querySelectorAll(".report-page-header-cell").forEach((cellElement) => {
-
-                const logoButton = cellElement.querySelector("[data-report-page-header-logo]");
-
+        root.querySelectorAll(".report-page-footer-row").forEach((row) => {
+            row.querySelectorAll(".report-page-footer-cell").forEach((cellElement) => {
+                const logoButton = cellElement.querySelector("[data-report-page-footer-logo]");
                 if (logoButton) {
-
                     cells.push({
-
                         type: "logo",
-
                         logo_slot: logoButton.dataset.logoSlot || "primary",
-
                         file: logoButton.dataset.file || "",
-
                         image_id: logoButton.dataset.imageId || "",
-
                         width: Number.parseInt(logoButton.dataset.imageWidth || "0", 10) || 0,
-
                         height: Number.parseInt(logoButton.dataset.imageHeight || "0", 10) || 0,
-
                         alt: logoButton.dataset.imageAlt || "",
-
                     });
-
                     return;
-
                 }
 
-
-
-                const textField = cellElement.querySelector("[data-report-page-header-text]");
-
+                const textField = cellElement.querySelector("[data-report-page-footer-text]");
                 if (textField) {
-
                     const helpers = getInlineText();
-
                     const bandText = window.ReportLinePageBandText;
-
                     if (bandText) {
-
                         cells.push(bandText.collectTextCellPayload(textField, helpers));
-
                     } else {
-
                         const align = textField.dataset.textAlign || "left";
-
-                        cells.push({
-
+                        const cell = {
                             type: "text",
-
                             text: helpers ? helpers.getHeaderHtml(textField) : textField.innerHTML,
-
-                            align: HEADER_ALIGN_VALUES.has(align) ? align : "left",
-
+                            align: FOOTER_ALIGN_VALUES.has(align) ? align : "left",
                             indent_level: Number.parseInt(textField.dataset.indentLevel || "0", 10) || 0,
-
                             first_line_indent: textField.dataset.firstLineIndent === "true",
-
-                        });
-
+                        };
+                        if (textField.dataset.showPageNumber === "true") {
+                            cell.show_page_number = true;
+                        } else if (textField.hasAttribute("data-show-page-number")) {
+                            cell.show_page_number = false;
+                        }
+                        cells.push(cell);
                     }
-
                 }
-
             });
-
         });
-
         return cells;
-
     }
 
+    function defaultFooterColumnWidths(root) {
+        const templateId = root.dataset.footerTemplate || "";
+        const cellCount = root.querySelectorAll(".report-page-footer-row .report-page-footer-cell").length;
 
-
-    function defaultHeaderColumnWidths(root) {
-        const templateId = root.dataset.headerTemplate || "";
-        const cellCount = root.querySelectorAll(".report-page-header-row .report-page-header-cell").length;
-
+        if (templateId === "text_only" || cellCount === 1) {
+            return [100];
+        }
         if (templateId === "logo_text_logo" || cellCount === 3) {
             return [1, 98, 1];
         }
@@ -155,1044 +93,571 @@
         return [1, 99];
     }
 
-    function readHeaderColumnWidths(root) {
-        const cols = root.querySelectorAll(".report-page-header-table col");
-        if (!cols.length) {
-            return defaultHeaderColumnWidths(root);
-        }
-
-        const widths = Array.from(cols).map((col) => {
-            const match = (col.getAttribute("style") || "").match(/([\d.]+)%/);
-            return match ? Number.parseFloat(match[1]) : 0;
-        });
-
-        return widths.some((value) => value <= 0)
-            ? defaultHeaderColumnWidths(root)
-            : widths;
-    }
-
     function buildPageLayoutPayload(root) {
-
         return {
-
             page_layout: {
-
-                header: {
-
-                    enabled: root.dataset.headerEnabled === "true",
-
-                    template_id: root.dataset.headerTemplate || null,
-
-                    column_widths: readHeaderColumnWidths(root),
-
-                    cells: collectHeaderCells(root),
-
+                footer: {
+                    enabled: root.dataset.footerEnabled === "true",
+                    template_id: root.dataset.footerTemplate || null,
+                    column_widths: defaultFooterColumnWidths(root),
+                    cells: collectFooterCells(root),
                 },
-
             },
-
         };
-
     }
-
-
 
     async function patchPageLayout(payload) {
-
         const response = await fetch(updateUrl, {
-
             method: "PATCH",
-
             headers: {
-
                 "Content-Type": "application/json",
-
                 "X-CSRFToken": getCsrfToken(),
-
             },
-
             credentials: "same-origin",
-
             body: JSON.stringify(payload),
-
         });
-
-
 
         const data = await response.json().catch(() => ({}));
-
         if (!response.ok) {
-
-            const message = (data.errors && data.errors.join(" ")) || "Falha ao salvar cabeçalho.";
-
+            const message = (data.errors && data.errors.join(" ")) || "Falha ao salvar rodapé.";
             throw new Error(message);
-
         }
-
         return data;
-
     }
-
-
 
     function setEditingState(root, editing) {
-
-        if (!root || root.dataset.headerEnabled !== "true") {
-
+        if (!root || root.dataset.footerEnabled !== "true") {
             isEditing = false;
-
             return;
-
         }
-
-
 
         isEditing = editing;
+        root.dataset.footerEditing = editing ? "true" : "false";
 
-        root.dataset.headerEditing = editing ? "true" : "false";
-
-
-
-        const surface = getHeaderSurface(root);
-
+        const surface = getFooterSurface(root);
         if (surface) {
-
-            surface.classList.toggle("report-page-header--editing", editing);
-
-            surface.classList.toggle("report-page-header--view", !editing);
-
+            surface.classList.toggle("report-page-footer--editing", editing);
+            surface.classList.toggle("report-page-footer--view", !editing);
             surface.setAttribute(
-
                 "aria-label",
-
                 editing
-
-                    ? "Editando cabeçalho do documento"
-
-                    : "Cabeçalho do documento. Clique para editar."
-
+                    ? "Editando rodapé do documento"
+                    : "Rodapé do documento. Clique para editar."
             );
-
         }
 
-
-
-        root.querySelectorAll("[data-report-page-header-text]").forEach((field) => {
-
+        root.querySelectorAll("[data-report-page-footer-text]").forEach((field) => {
             field.contentEditable = editing ? "true" : "false";
-
         });
 
+        root.querySelectorAll("[data-report-page-footer-page-number-editor]").forEach((editor) => {
+            editor.hidden = !editing;
+        });
     }
 
+    function updatePageNumberControlUI(textField) {
+        const wrap = textField.closest(".report-page-footer-text-wrap");
+        if (!wrap) {
+            return;
+        }
+        const enabled = textField.dataset.showPageNumber === "true";
+        const active = wrap.querySelector("[data-report-page-footer-page-number-active]");
+        const addButton = wrap.querySelector("[data-report-page-footer-add-page-number]");
+        if (active) {
+            active.classList.toggle("d-none", !enabled);
+        }
+        if (addButton) {
+            addButton.classList.toggle("d-none", enabled);
+        }
+    }
 
+    function setFooterPageNumberEnabled(textField, enabled) {
+        if (!textField) {
+            return;
+        }
+        textField.dataset.showPageNumber = enabled ? "true" : "false";
+        updatePageNumberControlUI(textField);
+        flushFooterSave().catch(console.error);
+    }
 
     function syncLastFocusedTextField(root) {
-
         if (!root || !lastFocusedTextField) {
-
             return;
-
         }
-
         const cellIndex = lastFocusedTextField.dataset.cellIndex;
-
         if (cellIndex === undefined) {
-
             return;
-
         }
-
         const refreshed = root.querySelector(
-
-            `[data-report-page-header-text][data-cell-index="${cellIndex}"]`
-
+            `[data-report-page-footer-text][data-cell-index="${cellIndex}"]`
         );
-
         if (refreshed) {
-
             lastFocusedTextField = refreshed;
-
         }
-
     }
 
-
-
-    function replaceHeaderHtml(html, options) {
-
+    function replaceFooterHtml(html, options) {
         const opts = options || {};
-
         const wasEditing = opts.preserveEditing ? isEditing : false;
-
-        const currentRoot = document.getElementById("report-page-header-root");
-
+        const currentRoot = document.getElementById("report-page-footer-root");
         if (!currentRoot || !html) {
-
             return;
-
         }
 
         currentRoot.insertAdjacentHTML("afterend", html);
-
         currentRoot.remove();
-
-        headerRoot = document.getElementById("report-page-header-root");
-
-        bindHeaderRoot(headerRoot);
-
-        setEditingState(headerRoot, wasEditing);
-
-        syncLastFocusedTextField(headerRoot);
-
+        footerRoot = document.getElementById("report-page-footer-root");
+        bindFooterRoot(footerRoot);
+        setEditingState(footerRoot, wasEditing);
+        syncLastFocusedTextField(footerRoot);
     }
-
-
 
     function openTemplateModal() {
-
         if (!modal) {
-
             return;
-
         }
-
         modal.show();
-
     }
-
-
 
     async function applyTemplate(templateId) {
-
         const data = await patchPageLayout({
-
             apply_template: true,
-
             template_id: templateId,
-
+            section: "footer",
         });
-
-        replaceHeaderHtml(data.html, { preserveEditing: false });
-
+        replaceFooterHtml(data.footer_html, { preserveEditing: false });
         if (modal) {
-
             modal.hide();
-
         }
-
     }
 
-
-
-    function scheduleHeaderSave() {
-
+    function scheduleFooterSave() {
         if (saveTimer) {
-
             window.clearTimeout(saveTimer);
-
         }
-
         saveTimer = window.setTimeout(() => {
-
             saveTimer = null;
-
-            flushHeaderSave().catch(console.error);
-
+            flushFooterSave().catch(console.error);
         }, DEBOUNCE_MS);
-
     }
 
-
-
-    async function flushHeaderSave() {
-
-        const root = document.getElementById("report-page-header-root");
-
-        if (!root || root.dataset.headerEnabled !== "true") {
-
+    async function flushFooterSave() {
+        const root = document.getElementById("report-page-footer-root");
+        if (!root || root.dataset.footerEnabled !== "true") {
             return null;
-
         }
-
-
 
         if (saveTimer) {
-
             window.clearTimeout(saveTimer);
-
             saveTimer = null;
-
         }
-
-
 
         const data = await patchPageLayout(buildPageLayoutPayload(root));
-
-        replaceHeaderHtml(data.html, { preserveEditing: isEditing });
-
+        replaceFooterHtml(data.footer_html, { preserveEditing: isEditing });
         return data;
-
     }
-
-
 
     async function exitEditMode() {
-
         if (!isEditing) {
-
             return;
-
         }
-
-
 
         try {
-
-            await flushHeaderSave();
-
+            await flushFooterSave();
         } catch (error) {
-
             console.error(error);
-
         }
-
-
 
         if (window.ReportLineImageResize && window.ReportLineImageResize.deselectTarget) {
-
             window.ReportLineImageResize.deselectTarget();
-
         }
 
-
-
-        const root = document.getElementById("report-page-header-root");
-
+        const root = document.getElementById("report-page-footer-root");
         setEditingState(root, false);
-
         lastFocusedTextField = null;
-
     }
-
-
 
     function enterEditMode(root) {
-
-        if (!root || root.dataset.headerEnabled !== "true" || isEditing) {
-
+        if (!root || root.dataset.footerEnabled !== "true" || isEditing) {
             return;
-
         }
-
         setEditingState(root, true);
-
     }
-
-
 
     function ensureFileInput() {
-
         if (fileInput) {
-
             return fileInput;
-
         }
-
         fileInput = document.createElement("input");
-
         fileInput.type = "file";
-
         fileInput.accept = "image/jpeg,image/png,image/gif,image/webp";
-
         fileInput.hidden = true;
-
         fileInput.addEventListener("change", handleLogoFileSelected);
-
         document.body.appendChild(fileInput);
-
         return fileInput;
-
     }
-
-
 
     async function uploadLogo(file) {
-
         const formData = new FormData();
-
         formData.append("image", file);
 
-
-
         const response = await fetch(uploadUrl, {
-
             method: "POST",
-
             headers: {
-
                 "X-CSRFToken": getCsrfToken(),
-
             },
-
             credentials: "same-origin",
-
             body: formData,
-
         });
-
-
 
         const data = await response.json().catch(() => ({}));
-
         if (!response.ok) {
-
             const message = (data.errors && data.errors.join(" ")) || "Falha ao enviar imagem.";
-
             throw new Error(message);
-
         }
-
         return data;
-
     }
-
-
 
     async function clearLogoCell(logoSlotElement) {
-
         if (!isEditing || !logoSlotElement || !logoSlotElement.classList.contains("has-image")) {
-
             return;
-
         }
-
         const cellIndex = Number.parseInt(logoSlotElement.dataset.cellIndex || "0", 10);
-
         const data = await patchPageLayout({
-
             clear_logo_cell: cellIndex,
-
-            section: "header",
-
+            section: "footer",
         });
-
-        replaceHeaderHtml(data.header_html, { preserveEditing: true });
-
+        replaceFooterHtml(data.footer_html, { preserveEditing: true });
         if (window.ReportLineImageResize && window.ReportLineImageResize.deselectTarget) {
-
             window.ReportLineImageResize.deselectTarget();
-
         }
-
     }
-
-
 
     async function handleLogoFileSelected(event) {
-
         const file = event.target.files && event.target.files[0];
-
         event.target.value = "";
-
         if (!file || pendingLogoCellIndex === null) {
-
             return;
-
         }
-
-
 
         try {
-
             const imagePayload = await uploadLogo(file);
-
             const data = await patchPageLayout({
-
                 update_logo_cell: pendingLogoCellIndex,
-
                 image: imagePayload,
-
+                section: "footer",
             });
-
             pendingLogoCellIndex = null;
-
-            replaceHeaderHtml(data.html, { preserveEditing: true });
-
+            replaceFooterHtml(data.footer_html, { preserveEditing: true });
         } catch (error) {
-
             console.error(error);
-
         }
-
     }
-
-
 
     function openLogoPicker(cellIndex) {
-
         if (!isEditing) {
-
             return;
-
         }
-
         pendingLogoCellIndex = cellIndex;
-
         ensureFileInput().click();
-
     }
 
-
-
-    function applyHeaderTextAlign(textField, align) {
-
-        if (!textField || !HEADER_ALIGN_VALUES.has(align)) {
-
+    function applyFooterTextAlign(textField, align) {
+        if (!textField || !FOOTER_ALIGN_VALUES.has(align)) {
             return;
-
         }
-
-
 
         textField.dataset.textAlign = align;
-
-        const cell = textField.closest(".report-page-header-cell");
-
+        const cell = textField.closest(".report-page-footer-cell");
         if (cell) {
-
             cell.style.textAlign = align;
-
         }
-
-        scheduleHeaderSave();
-
+        scheduleFooterSave();
     }
 
-
-
-    function getActiveHeaderTextField() {
-
+    function getActiveFooterTextField() {
         if (!isEditing) {
-
             return null;
-
         }
-
-        const context = resolveHeaderTextContext();
-
+        const context = resolveFooterTextContext();
         if (context) {
-
             lastFocusedTextField = context.editable;
-
             return context.editable;
-
         }
-
         if (lastFocusedTextField && document.contains(lastFocusedTextField)) {
-
             return lastFocusedTextField;
-
         }
-
-        const root = document.getElementById("report-page-header-root");
-
+        const root = document.getElementById("report-page-footer-root");
         return root
-            ? root.querySelector("[data-report-page-header-text][contenteditable='true']")
+            ? root.querySelector("[data-report-page-footer-text][contenteditable='true']")
             : null;
-
     }
-
-
 
     function increaseTextIndent() {
-
         const bandText = window.ReportLinePageBandText;
-
-        const field = getActiveHeaderTextField();
-
+        const field = getActiveFooterTextField();
         if (!bandText || !field) {
-
             return;
-
         }
-
         bandText.increaseIndent(field);
-
-        flushHeaderSave().catch(console.error);
-
+        flushFooterSave().catch(console.error);
     }
-
-
 
     function decreaseTextIndent() {
-
         const bandText = window.ReportLinePageBandText;
-
-        const field = getActiveHeaderTextField();
-
+        const field = getActiveFooterTextField();
         if (!bandText || !field) {
-
             return;
-
         }
-
         bandText.decreaseIndent(field);
-
-        flushHeaderSave().catch(console.error);
-
+        flushFooterSave().catch(console.error);
     }
-
-
 
     function toggleTextFirstLineIndent() {
-
         const bandText = window.ReportLinePageBandText;
-
-        const field = getActiveHeaderTextField();
-
+        const field = getActiveFooterTextField();
         if (!bandText || !field) {
-
             return;
-
         }
-
         bandText.toggleFirstLineIndent(field);
-
-        flushHeaderSave().catch(console.error);
-
+        flushFooterSave().catch(console.error);
     }
 
-
-
-    function resolveHeaderTextContext() {
-
+    function resolveFooterTextContext() {
         if (!isEditing) {
-
             return null;
-
         }
-
-
 
         const selection = window.getSelection();
-
         if (selection && selection.rangeCount > 0) {
-
             const anchor = selection.anchorNode;
-
             const editable = anchor && anchor.nodeType === Node.ELEMENT_NODE
-
-                ? anchor.closest("[data-report-page-header-text]")
-
+                ? anchor.closest("[data-report-page-footer-text]")
                 : anchor && anchor.parentElement
-
-                    ? anchor.parentElement.closest("[data-report-page-header-text]")
-
+                    ? anchor.parentElement.closest("[data-report-page-footer-text]")
                     : null;
-
             if (editable && editable.contentEditable === "true") {
-
-                return { editable, kind: "page-header-text" };
-
+                return { editable, kind: "page-footer-text" };
             }
-
         }
-
-
 
         const active = document.activeElement;
-
-        if (active && active.matches("[data-report-page-header-text][contenteditable='true']")) {
-
-            return { editable: active, kind: "page-header-text" };
-
+        if (active && active.matches("[data-report-page-footer-text][contenteditable='true']")) {
+            return { editable: active, kind: "page-footer-text" };
         }
-
-
 
         return null;
-
     }
 
-
-
-    function bindHeaderRoot(root) {
-
+    function bindFooterRoot(root) {
         if (!root) {
-
             return;
-
         }
 
-
-
-        root.querySelectorAll("[data-report-page-header-open]").forEach((button) => {
-
+        root.querySelectorAll("[data-report-page-footer-open]").forEach((button) => {
             button.addEventListener("click", (event) => {
-
                 event.preventDefault();
-
                 openTemplateModal();
-
             });
-
         });
 
-
-
-        const surface = getHeaderSurface(root);
-
+        const surface = getFooterSurface(root);
         if (surface) {
-
             surface.addEventListener("click", (event) => {
-
-                if (root.dataset.headerEnabled !== "true") {
-
+                if (root.dataset.footerEnabled !== "true") {
                     return;
-
                 }
 
-                const logoSlot = event.target.closest("[data-report-page-header-logo]");
-
+                const logoSlot = event.target.closest("[data-report-page-footer-logo]");
                 const hasLogoImage = logoSlot && logoSlot.classList.contains("has-image");
-
                 const clickedLogoImage = Boolean(
-                    event.target.closest(".report-page-header-logo-img, .report-page-header-logo-frame")
+                    event.target.closest(".report-page-footer-logo-img, .report-page-footer-logo-frame")
                 );
 
-
-
                 if (!isEditing) {
-
                     enterEditMode(root);
-
                     if (logoSlot && !hasLogoImage) {
-
                         event.preventDefault();
-
                         openLogoPicker(Number.parseInt(logoSlot.dataset.cellIndex || "0", 10));
-
                         return;
-
                     }
-
                     if (hasLogoImage && clickedLogoImage) {
-
                         return;
-
                     }
-
-                    const textField = event.target.closest("[data-report-page-header-text]");
-
+                    const textField = event.target.closest("[data-report-page-footer-text]");
                     if (textField) {
-
                         textField.focus();
-
                     }
-
                     return;
-
                 }
-
-
 
                 if (logoSlot && !hasLogoImage) {
-
                     event.preventDefault();
-
                     openLogoPicker(Number.parseInt(logoSlot.dataset.cellIndex || "0", 10));
-
                 }
-
             });
-
-
 
             surface.addEventListener("dblclick", (event) => {
-
-                const logoSlot = event.target.closest("[data-report-page-header-logo].has-image");
-
+                const logoSlot = event.target.closest("[data-report-page-footer-logo].has-image");
                 if (!logoSlot) {
-
                     return;
-
                 }
-
-                if (!event.target.closest(".report-page-header-logo-img, .report-page-header-logo-frame")) {
-
+                if (!event.target.closest(".report-page-footer-logo-img, .report-page-footer-logo-frame")) {
                     return;
-
                 }
-
                 event.preventDefault();
-
                 event.stopPropagation();
-
                 if (!isEditing) {
-
                     enterEditMode(root);
-
                 }
-
                 openLogoPicker(Number.parseInt(logoSlot.dataset.cellIndex || "0", 10));
-
             });
-
         }
 
-
-
-        root.querySelectorAll("[data-report-page-header-text]").forEach((field) => {
-
+        root.querySelectorAll("[data-report-page-footer-text]").forEach((field) => {
             field.addEventListener("focusin", () => {
-
                 lastFocusedTextField = field;
-
             });
 
-            field.addEventListener("input", scheduleHeaderSave);
-
-
+            field.addEventListener("input", scheduleFooterSave);
 
             field.addEventListener("keydown", (event) => {
-
                 if (!isEditing) {
-
                     return;
-
                 }
-
                 if (event.key === "Enter" && !event.shiftKey) {
-
                     event.preventDefault();
-
                     document.execCommand("insertLineBreak");
-
                 }
-
             });
-
-
 
             field.addEventListener("paste", (event) => {
-
                 if (!isEditing) {
-
                     return;
-
                 }
-
                 const helpers = getInlineText();
-
                 if (!helpers) {
-
                     return;
-
                 }
-
                 event.preventDefault();
-
                 const clipboard = event.clipboardData;
-
                 if (!clipboard) {
-
                     return;
-
                 }
-
                 const html = clipboard.getData("text/html");
-
                 const plain = clipboard.getData("text/plain");
-
                 if (html) {
-
                     document.execCommand("insertHTML", false, helpers.sanitizeHeader(html));
-
                 } else {
-
                     document.execCommand("insertText", false, plain);
-
                 }
-
             });
-
         });
 
+        root.querySelectorAll("[data-report-page-footer-remove-page-number]").forEach((button) => {
+            button.addEventListener("click", (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                const wrap = button.closest(".report-page-footer-text-wrap");
+                const textField = wrap && wrap.querySelector("[data-report-page-footer-text]");
+                setFooterPageNumberEnabled(textField, false);
+            });
+        });
+
+        root.querySelectorAll("[data-report-page-footer-add-page-number]").forEach((button) => {
+            button.addEventListener("click", (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                const wrap = button.closest(".report-page-footer-text-wrap");
+                const textField = wrap && wrap.querySelector("[data-report-page-footer-text]");
+                setFooterPageNumberEnabled(textField, true);
+            });
+        });
     }
-
-
 
     function bindTemplateCards() {
-
-        document.querySelectorAll("[data-report-page-header-template]").forEach((button) => {
-
+        document.querySelectorAll("[data-report-page-footer-template]").forEach((button) => {
             button.addEventListener("click", (event) => {
-
                 event.preventDefault();
-
-                applyTemplate(button.dataset.reportPageHeaderTemplate).catch(console.error);
-
+                applyTemplate(button.dataset.reportPageFooterTemplate).catch(console.error);
             });
-
         });
-
     }
-
-
 
     function bindToolbar() {
-
-        document.querySelectorAll("[data-report-page-header-toolbar]").forEach((button) => {
-
+        document.querySelectorAll("[data-report-page-footer-toolbar]").forEach((button) => {
             button.addEventListener("click", (event) => {
-
                 event.preventDefault();
-
                 openTemplateModal();
-
             });
-
         });
-
     }
-
-
 
     function bindGlobalHandlers() {
-
         document.addEventListener("mousedown", (event) => {
-
             if (!isEditing) {
-
                 return;
-
             }
-
-            const root = document.getElementById("report-page-header-root");
-
+            const root = document.getElementById("report-page-footer-root");
             if (!root) {
-
                 return;
-
             }
-
             if (root.contains(event.target)) {
-
                 return;
-
             }
-
-            if (event.target.closest("#reportPageHeaderModal")) {
-
+            if (event.target.closest("#reportPageFooterModal")) {
                 return;
-
             }
-
-            if (event.target.closest("[data-report-page-header-toolbar], [data-report-page-layout-toolbar]")) {
-
+            if (event.target.closest("[data-report-page-footer-toolbar], [data-report-page-layout-toolbar]")) {
                 return;
-
             }
-
             if (event.target.closest(".report-editor-toolbar")) {
-
                 return;
-
             }
-
             if (event.target.closest(".report-editor-image-handle")) {
-
                 return;
-
             }
-
             exitEditMode().catch(console.error);
-
         });
-
-
 
         document.addEventListener("keydown", (event) => {
-
             if (!isEditing || event.key !== "Escape") {
-
                 return;
-
             }
-
             exitEditMode().catch(console.error);
-
         });
-
     }
-
-
 
     function init(options) {
-
         updateUrl = options.updateUrl || "";
-
         uploadUrl = options.uploadUrl || "";
+        modalElement = document.getElementById("reportPageFooterModal");
+        footerRoot = document.getElementById("report-page-footer-root");
 
-        modalElement = document.getElementById("reportPageHeaderModal");
-
-        headerRoot = document.getElementById("report-page-header-root");
-
-
-
-        if (!updateUrl || !uploadUrl || !headerRoot || !window.bootstrap) {
-
+        if (!updateUrl || !uploadUrl || !footerRoot || !window.bootstrap) {
             return;
-
         }
 
-
-
         modal = window.bootstrap.Modal.getOrCreateInstance(modalElement);
-
-        bindHeaderRoot(headerRoot);
-
+        bindFooterRoot(footerRoot);
         bindTemplateCards();
-
         bindToolbar();
-
         bindGlobalHandlers();
-
-        setEditingState(headerRoot, false);
-
+        setEditingState(footerRoot, false);
     }
 
-
-
-    window.ReportLinePageHeader = {
-
+    window.ReportLinePageFooter = {
         init,
-
         openTemplateModal,
-
-        scheduleHeaderSave,
-
-        flushHeaderSave,
-
+        scheduleFooterSave,
+        flushFooterSave,
         isEditing: () => isEditing,
-
-        resolveHeaderTextContext,
-
-        applyHeaderTextAlign,
-
+        resolveFooterTextContext,
+        applyFooterTextAlign,
         increaseTextIndent,
-
         decreaseTextIndent,
-
         toggleTextFirstLineIndent,
-
-        getActiveHeaderTextField,
-
+        getActiveFooterTextField,
         clearLogoCell,
-
     };
-
 })();
-
-

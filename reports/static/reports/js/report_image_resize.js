@@ -58,6 +58,17 @@
             };
         }
 
+        const footerLogo = element.closest(".report-page-footer-logo-slot.has-image");
+        if (footerLogo) {
+            return {
+                type: "page-footer-logo",
+                root: footerLogo,
+                frameSelector: ".report-page-footer-logo-frame",
+                imgSelector: ".report-page-footer-logo-img",
+                resizeWrapSelector: ".report-page-footer-logo-frame",
+            };
+        }
+
         return null;
     }
 
@@ -95,12 +106,19 @@
     }
 
     function getCellMaxWidth(target) {
-        const container = target.root.closest(".report-page-header-cell, td");
-        if (target.type === "page-header-logo" && container) {
-            const row = container.closest(".report-page-header-row");
+        const container = target.root.closest(
+            ".report-page-header-cell, .report-page-footer-cell, td"
+        );
+        if (
+            (target.type === "page-header-logo" || target.type === "page-footer-logo")
+            && container
+        ) {
+            const row = container.closest(".report-page-header-row, .report-page-footer-row");
             if (row) {
                 const rowWidth = row.clientWidth;
-                const textCell = row.querySelector(".report-page-header-cell--text");
+                const textCell = row.querySelector(
+                    ".report-page-header-cell--text, .report-page-footer-cell--text"
+                );
                 const textWidth = textCell ? textCell.clientWidth : 0;
                 const reserved = Math.max(0, rowWidth - textWidth);
                 return Math.max(MIN_IMAGE_SIDE_PX, reserved || container.clientWidth);
@@ -139,7 +157,7 @@
             );
         }
 
-        if (target.type === "page-header-logo") {
+        if (target.type === "page-header-logo" || target.type === "page-footer-logo") {
             maxWidth = Math.min(maxWidth, getCellMaxWidth(target));
             maxHeight = Math.round(
                 maxWidth * (maxHeight / Math.max(1, naturalHeight || maxHeight))
@@ -301,7 +319,7 @@
             return;
         }
 
-        if (target.type === "page-header-logo") {
+        if (target.type === "page-header-logo" || target.type === "page-footer-logo") {
             const normalized = getInitialHeaderLogoDisplaySize(
                 target,
                 img.naturalWidth,
@@ -493,6 +511,26 @@
             return;
         }
 
+        if (target.type === "page-footer-logo") {
+            const cellIndex = target.root.dataset.cellIndex;
+            if (window.ReportLinePageFooter && window.ReportLinePageFooter.flushFooterSave) {
+                try {
+                    await window.ReportLinePageFooter.flushFooterSave();
+                } catch (error) {
+                    console.error(error);
+                }
+            }
+            if (cellIndex !== undefined) {
+                const slot = document.querySelector(
+                    `[data-report-page-footer-logo][data-cell-index="${cellIndex}"]`
+                );
+                if (slot) {
+                    selectTargetElement(slot);
+                }
+            }
+            return;
+        }
+
         if (!window.ReportLineEditor || !window.ReportLineEditor.saveBlock) {
             return;
         }
@@ -542,6 +580,9 @@
             prepareResizeTarget(resolveResizeTarget(element));
         });
         root.querySelectorAll(".report-page-header-logo-slot.has-image").forEach((element) => {
+            prepareResizeTarget(resolveResizeTarget(element));
+        });
+        root.querySelectorAll(".report-page-footer-logo-slot.has-image").forEach((element) => {
             prepareResizeTarget(resolveResizeTarget(element));
         });
         scanCaptionWidths(root);

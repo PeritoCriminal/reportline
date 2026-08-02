@@ -50,8 +50,27 @@
         return Math.min(MAX_INDENT_LEVEL, level);
     }
 
+    function getIndentLevelFromContext(context) {
+        if (!context) {
+            return 0;
+        }
+        if (context.bandText && window.ReportLinePageBandText) {
+            return window.ReportLinePageBandText.getIndentLevel(context.editable);
+        }
+        if (context.block) {
+            return getIndentLevel(context.block);
+        }
+        return 0;
+    }
+
     function hasFirstLineIndent(context) {
-        if (!context || !context.block) {
+        if (!context) {
+            return true;
+        }
+        if (context.bandText && window.ReportLinePageBandText) {
+            return window.ReportLinePageBandText.hasFirstLineIndent(context.editable);
+        }
+        if (!context.block) {
             return true;
         }
         const paragraph = context.editable
@@ -63,11 +82,11 @@
     }
 
     function updateParagraphMenuState(context) {
-        if (!context || !context.block) {
+        if (!context || (!context.block && !context.bandText)) {
             return;
         }
 
-        const level = getIndentLevel(context.block);
+        const level = getIndentLevelFromContext(context);
         if (decreaseIndentButton) {
             decreaseIndentButton.disabled = level <= 0;
         }
@@ -91,7 +110,7 @@
     }
 
     function updateToolbarVisibility(context) {
-        const hasParagraph = Boolean(context && context.block);
+        const hasParagraph = Boolean(context && (context.block || context.bandText));
         setOptionsToggleState(hasParagraph);
         if (hasParagraph) {
             updateParagraphMenuState(context);
@@ -105,6 +124,13 @@
         window.bootstrap.Dropdown.getOrCreateInstance(paragraphOptionsToggle).hide();
     }
 
+    function isBandTextEditing() {
+        return Boolean(
+            (window.ReportLinePageHeader && window.ReportLinePageHeader.isEditing())
+            || (window.ReportLinePageFooter && window.ReportLinePageFooter.isEditing())
+        );
+    }
+
     function refreshToolbarFromFocus(target) {
         if (
             isParagraphToolbarTarget(target)
@@ -115,15 +141,19 @@
             return;
         }
 
-        if (target && target.closest && target.closest("#report-editor-page")) {
+        if (target && target.closest && (
+            target.closest("#report-editor-page")
+            || target.closest("#report-page-header-root")
+            || target.closest("#report-page-footer-root")
+        )) {
             updateToolbarVisibility(resolveParagraphContext());
             return;
         }
 
-        if (window.ReportLineEditor && window.ReportLineEditor.clearParagraphContext) {
+        if (!isBandTextEditing() && window.ReportLineEditor && window.ReportLineEditor.clearParagraphContext) {
             window.ReportLineEditor.clearParagraphContext();
         }
-        updateToolbarVisibility(null);
+        updateToolbarVisibility(isBandTextEditing() ? resolveParagraphContext() : null);
     }
 
     function bindIndentAction(selector, handler) {
@@ -212,7 +242,11 @@
         });
 
         document.addEventListener("focusin", (event) => {
-            if (event.target.closest("#report-editor-page")) {
+            if (
+                event.target.closest("#report-editor-page")
+                || event.target.closest("#report-page-header-root")
+                || event.target.closest("#report-page-footer-root")
+            ) {
                 return;
             }
             refreshToolbarFromFocus(event.target);

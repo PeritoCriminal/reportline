@@ -1305,6 +1305,20 @@
             return false;
         }
 
+        if (selectedTarget.type === "page-header-logo") {
+            if (window.ReportLinePageHeader && window.ReportLinePageHeader.clearLogoCell) {
+                await window.ReportLinePageHeader.clearLogoCell(selectedTarget.root);
+            }
+            return true;
+        }
+
+        if (selectedTarget.type === "page-footer-logo") {
+            if (window.ReportLinePageFooter && window.ReportLinePageFooter.clearLogoCell) {
+                await window.ReportLinePageFooter.clearLogoCell(selectedTarget.root);
+            }
+            return true;
+        }
+
         if (selectedTarget.type === "table-cell") {
             await clearTableCellImage(selectedTarget);
             return true;
@@ -1444,6 +1458,40 @@
         target.style.textAlign = align;
     }
 
+    function resolveBandTextTarget() {
+        if (window.ReportLinePageHeader && window.ReportLinePageHeader.isEditing()) {
+            const field = window.ReportLinePageHeader.getActiveHeaderTextField
+                ? window.ReportLinePageHeader.getActiveHeaderTextField()
+                : null;
+            if (field) {
+                return {
+                    kind: "page-header-text",
+                    target: field,
+                    bandText: true,
+                    editable: field,
+                    band: "header",
+                };
+            }
+        }
+
+        if (window.ReportLinePageFooter && window.ReportLinePageFooter.isEditing()) {
+            const field = window.ReportLinePageFooter.getActiveFooterTextField
+                ? window.ReportLinePageFooter.getActiveFooterTextField()
+                : null;
+            if (field) {
+                return {
+                    kind: "page-footer-text",
+                    target: field,
+                    bandText: true,
+                    editable: field,
+                    band: "footer",
+                };
+            }
+        }
+
+        return null;
+    }
+
     function resolveAlignmentContext() {
         if (window.ReportLineImageResize && window.ReportLineImageResize.getSelectedTarget) {
             const selectedTarget = window.ReportLineImageResize.getSelectedTarget();
@@ -1459,6 +1507,11 @@
             }
         }
 
+        const bandContext = resolveBandTextTarget();
+        if (bandContext) {
+            return { kind: bandContext.kind, target: bandContext.target };
+        }
+
         const active = document.activeElement;
         if (active && active.closest) {
             if (
@@ -1468,6 +1521,17 @@
             ) {
                 return {
                     kind: "page-header-text",
+                    target: active,
+                };
+            }
+
+            if (
+                window.ReportLinePageFooter
+                && window.ReportLinePageFooter.isEditing()
+                && active.matches("[data-report-page-footer-text][contenteditable='true']")
+            ) {
+                return {
+                    kind: "page-footer-text",
                     target: active,
                 };
             }
@@ -1511,6 +1575,16 @@
             }
         }
 
+        if (window.ReportLinePageFooter && window.ReportLinePageFooter.resolveFooterTextContext) {
+            const footerContext = window.ReportLinePageFooter.resolveFooterTextContext();
+            if (footerContext) {
+                return {
+                    kind: "page-footer-text",
+                    target: footerContext.editable,
+                };
+            }
+        }
+
         return null;
     }
 
@@ -1519,6 +1593,9 @@
             return null;
         }
         if (context.kind === "page-header-text") {
+            return context.target.dataset.textAlign || "left";
+        }
+        if (context.kind === "page-footer-text") {
             return context.target.dataset.textAlign || "left";
         }
         if (context.kind === "table-cell" || context.kind === "table-cell-image") {
@@ -1531,9 +1608,46 @@
         return context.block.dataset.textAlign || "justify";
     }
 
+    const ALIGN_ICONS = {
+        left: "bi-text-left",
+        center: "bi-text-center",
+        right: "bi-text-right",
+        justify: "bi-justify",
+    };
+
+    const ALIGN_LABELS = {
+        left: "Alinhar à esquerda",
+        center: "Centralizar",
+        right: "Alinhar à direita",
+        justify: "Justificar",
+    };
+
     function updateAlignmentToolbar(activeAlign) {
+        const alignGroup = document.querySelector(".report-editor-toolbar-align-group");
+        const resolvedAlign = activeAlign || "justify";
+
+        if (alignGroup) {
+            const mainButton = alignGroup.querySelector("[data-report-text-align-main]");
+            if (mainButton) {
+                mainButton.dataset.reportTextAlign = resolvedAlign;
+                mainButton.title = ALIGN_LABELS[resolvedAlign] || ALIGN_LABELS.justify;
+                mainButton.setAttribute("aria-label", mainButton.title);
+                const icon = mainButton.querySelector("i");
+                if (icon) {
+                    icon.className = `bi ${ALIGN_ICONS[resolvedAlign] || ALIGN_ICONS.justify}`;
+                }
+            }
+
+            alignGroup.querySelectorAll("[data-report-text-align]").forEach((button) => {
+                const isActive = Boolean(activeAlign) && button.dataset.reportTextAlign === activeAlign;
+                button.classList.toggle("active", isActive);
+                button.setAttribute("aria-pressed", isActive ? "true" : "false");
+            });
+            return;
+        }
+
         document.querySelectorAll("[data-report-text-align]").forEach((button) => {
-            const isActive = button.dataset.reportTextAlign === activeAlign;
+            const isActive = Boolean(activeAlign) && button.dataset.reportTextAlign === activeAlign;
             button.classList.toggle("active", isActive);
             button.setAttribute("aria-pressed", isActive ? "true" : "false");
         });
@@ -1561,6 +1675,18 @@
                 const headerAlign = ["left", "center", "right"].includes(align) ? align : "left";
                 window.ReportLinePageHeader.applyHeaderTextAlign(context.target, headerAlign);
                 updateAlignmentToolbar(headerAlign);
+            }
+            return;
+        }
+
+        if (context.kind === "page-footer-text") {
+            if (
+                window.ReportLinePageFooter
+                && window.ReportLinePageFooter.applyFooterTextAlign
+            ) {
+                const footerAlign = ["left", "center", "right"].includes(align) ? align : "left";
+                window.ReportLinePageFooter.applyFooterTextAlign(context.target, footerAlign);
+                updateAlignmentToolbar(footerAlign);
             }
             return;
         }
@@ -1736,10 +1862,29 @@
         );
     }
 
+    function isLayoutToolbarControl(element) {
+        if (!element || !element.closest) {
+            return false;
+        }
+        return (
+            isParagraphToolbarControl(element)
+            || Boolean(element.closest(".report-editor-toolbar-align-group"))
+            || Boolean(element.closest(".report-editor-toolbar-format-group"))
+        );
+    }
+
     function resolveParagraphContextFromActiveElement() {
         const active = document.activeElement;
         if (!active || !active.closest) {
             return null;
+        }
+
+        if (active.matches("[data-report-page-header-text][contenteditable='true']")) {
+            return { bandText: true, editable: active, band: "header" };
+        }
+
+        if (active.matches("[data-report-page-footer-text][contenteditable='true']")) {
+            return { bandText: true, editable: active, band: "footer" };
         }
 
         const editable = active.closest(".report-editor-block-editable");
@@ -1760,7 +1905,7 @@
     }
 
     function rememberParagraphContext(context) {
-        if (context && context.block) {
+        if (context && (context.block || context.bandText)) {
             lastParagraphContext = context;
         }
     }
@@ -1776,10 +1921,19 @@
             return fromActive;
         }
 
+        const bandContext = resolveBandTextTarget();
+        if (bandContext) {
+            rememberParagraphContext(bandContext);
+            return bandContext;
+        }
+
         if (
             lastParagraphContext
-            && document.contains(lastParagraphContext.block)
-            && isParagraphToolbarControl(document.activeElement)
+            && (
+                (lastParagraphContext.block && document.contains(lastParagraphContext.block))
+                || (lastParagraphContext.bandText && document.contains(lastParagraphContext.editable))
+            )
+            && isLayoutToolbarControl(document.activeElement)
         ) {
             return lastParagraphContext;
         }
@@ -1830,6 +1984,15 @@
             return;
         }
 
+        if (context.bandText) {
+            if (context.band === "header" && window.ReportLinePageHeader) {
+                window.ReportLinePageHeader.increaseTextIndent();
+            } else if (context.band === "footer" && window.ReportLinePageFooter) {
+                window.ReportLinePageFooter.increaseTextIndent();
+            }
+            return;
+        }
+
         const current = getParagraphIndentLevel(context.block);
         if (current >= MAX_PARAGRAPH_INDENT_LEVEL) {
             return;
@@ -1844,6 +2007,15 @@
             return;
         }
 
+        if (context.bandText) {
+            if (context.band === "header" && window.ReportLinePageHeader) {
+                window.ReportLinePageHeader.decreaseTextIndent();
+            } else if (context.band === "footer" && window.ReportLinePageFooter) {
+                window.ReportLinePageFooter.decreaseTextIndent();
+            }
+            return;
+        }
+
         const current = getParagraphIndentLevel(context.block);
         if (current <= 0) {
             return;
@@ -1855,6 +2027,15 @@
     async function toggleParagraphFirstLineIndent() {
         const context = resolveParagraphContext();
         if (!context) {
+            return;
+        }
+
+        if (context.bandText) {
+            if (context.band === "header" && window.ReportLinePageHeader) {
+                window.ReportLinePageHeader.toggleTextFirstLineIndent();
+            } else if (context.band === "footer" && window.ReportLinePageFooter) {
+                window.ReportLinePageFooter.toggleTextFirstLineIndent();
+            }
             return;
         }
 
@@ -1940,6 +2121,15 @@
                 const editable = event.target.closest(".report-editor-block-editable");
                 if (editable && block.contains(editable)) {
                     rememberEditorContext(block, editable);
+                }
+                refreshAlignmentToolbarState();
+                return;
+            }
+
+            if (event.target.closest("[data-report-page-header-text], [data-report-page-footer-text]")) {
+                const bandContext = resolveBandTextTarget();
+                if (bandContext) {
+                    rememberParagraphContext(bandContext);
                 }
                 refreshAlignmentToolbarState();
             }

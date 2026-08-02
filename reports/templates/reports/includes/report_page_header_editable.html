@@ -58,6 +58,8 @@
                                  data-report-page-header-text
                                  data-cell-index="{{ forloop.counter0 }}"
                                  data-text-align="{{ cell.align|default:'left' }}"
+                                 data-indent-level="{{ cell.indent_level|default:0 }}"
+                                 data-first-line-indent="{% if cell.first_line_indent %}true{% else %}false{% endif %}"
                                  data-placeholder="Texto do cabeçalho">{{ cell.text|default:""|header_text }}</div>
                         {% endif %}
                     </div>

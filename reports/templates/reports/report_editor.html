@@ -38,6 +38,7 @@
 {% include "reports/includes/report_table_insert_modal.html" %}
 {% include "reports/includes/report_link_insert_modal.html" %}
 {% include "reports/includes/report_page_header_modal.html" %}
+{% include "reports/includes/report_page_footer_modal.html" %}
 {% endblock %}
 
 {% block footer %}{% endblock %}
@@ -74,7 +75,9 @@
 <script src="{% versioned_static 'reports/js/report_paragraph_options.js' %}" defer></script>
 <script src="{% versioned_static 'reports/js/report_text_format.js' %}" defer></script>
 <script src="{% versioned_static 'reports/js/report_text_link.js' %}" defer></script>
+<script src="{% versioned_static 'reports/js/report_page_band_text.js' %}" defer></script>
 <script src="{% versioned_static 'reports/js/report_page_header.js' %}" defer></script>
+<script src="{% versioned_static 'reports/js/report_page_footer.js' %}" defer></script>
 {# TODO(produção): remover bloco abaixo (atalho ipsumN) antes do deploy em produção. #}
 {% if report_editor_dev_ipsum %}
 <script src="{% versioned_static 'reports/js/report_editor_dev_ipsum.js' %}" defer></script>
@@ -123,6 +126,9 @@
         }
         if (window.ReportLinePageHeader && window.REPORT_EDITOR_PAGE_LAYOUT) {
             window.ReportLinePageHeader.init(window.REPORT_EDITOR_PAGE_LAYOUT);
+        }
+        if (window.ReportLinePageFooter && window.REPORT_EDITOR_PAGE_LAYOUT) {
+            window.ReportLinePageFooter.init(window.REPORT_EDITOR_PAGE_LAYOUT);
         }
     });
 </script>

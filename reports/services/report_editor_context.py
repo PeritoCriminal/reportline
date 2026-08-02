@@ -307,6 +307,18 @@ def render_page_header_html(page_layout: dict[str, Any], request) -> str:
     )
 
 
+def render_page_footer_html(page_layout: dict[str, Any], request) -> str:
+    """Renderiza partial HTML do rodapé de página para o editor."""
+    from django.template.loader import render_to_string
+
+    enriched = enrich_page_layout_for_editor(page_layout)
+    return render_to_string(
+        "reports/includes/report_page_footer_editable.html",
+        {"page_layout": enriched},
+        request=request,
+    )
+
+
 def render_editable_block_html(
     node: ReportNode,
     request,

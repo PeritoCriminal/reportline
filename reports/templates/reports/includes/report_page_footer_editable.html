@@ -1,0 +1,100 @@
+{% load report_inline_text %}
+{% with footer=page_layout.footer %}
+<div class="report-page-footer-root"
+     id="report-page-footer-root"
+     data-footer-enabled="{% if footer.enabled %}true{% else %}false{% endif %}"
+     data-footer-editing="false"
+     data-footer-template="{{ footer.template_id|default:'' }}">
+    {% if footer.enabled %}
+        <div class="report-page-footer report-page-footer--active report-page-footer--view"
+             data-report-page-footer-surface
+             role="region"
+             aria-label="Rodapé do documento">
+            <div class="report-page-footer-row">
+                {% for cell in footer.cells %}
+                    <div class="report-page-footer-cell{% if cell.type == 'text' %} report-page-footer-cell--text{% elif forloop.first %} report-page-footer-cell--logo-start{% elif forloop.last %} report-page-footer-cell--logo-end{% else %} report-page-footer-cell--logo-start{% endif %}"
+                         {% if cell.type == 'text' %}style="text-align: {{ cell.align|default:'left' }};"{% endif %}>
+                        {% if cell.type == "logo" %}
+                            <div class="report-page-footer-logo-slot{% if cell.file %} has-image{% endif %}"
+                                 data-report-page-footer-logo
+                                 data-cell-index="{{ forloop.counter0 }}"
+                                 data-logo-slot="{{ cell.logo_slot|default:'primary' }}"
+                                 data-file="{{ cell.file|default:'' }}"
+                                 data-image-id="{{ cell.image_id|default:'' }}"
+                                 data-image-width="{{ cell.width|default:0 }}"
+                                 data-image-height="{{ cell.height|default:0 }}"
+                                 data-image-alt="{{ cell.alt|default:'' }}"
+                                 title="{% if cell.file %}Clique para redimensionar. Clique duplo para trocar imagem.{% else %}Escolher imagem{% endif %}">
+                                {% if cell.url %}
+                                    <div class="report-page-footer-logo-frame">
+                                        <img src="{{ cell.url }}"
+                                             alt="{{ cell.alt|default:'' }}"
+                                             class="report-page-footer-logo-img"
+                                             {% if cell.width and cell.height %}
+                                             width="{{ cell.width }}"
+                                             height="{{ cell.height }}"
+                                             style="width: {{ cell.width }}px; height: {{ cell.height }}px;"
+                                             {% endif %}
+                                             draggable="false">
+                                        <div class="report-editor-image-resize-handles report-page-footer-logo-handles"
+                                             hidden
+                                             aria-hidden="true">
+                                            <span class="report-editor-image-handle" data-handle="nw"></span>
+                                            <span class="report-editor-image-handle" data-handle="ne"></span>
+                                            <span class="report-editor-image-handle" data-handle="sw"></span>
+                                            <span class="report-editor-image-handle" data-handle="se"></span>
+                                        </div>
+                                    </div>
+                                {% else %}
+                                    <span class="report-page-footer-logo-placeholder" aria-hidden="true">
+                                        <i class="bi bi-image"></i>
+                                        <span class="report-page-footer-logo-placeholder-label">Escolher imagem</span>
+                                    </span>
+                                {% endif %}
+                            </div>
+                        {% else %}
+                            <div class="report-page-footer-text-wrap">
+                                <div class="report-editor-block-editable report-page-footer-text"
+                                     contenteditable="false"
+                                     data-report-page-footer-text
+                                     data-cell-index="{{ forloop.counter0 }}"
+                                     data-text-align="{{ cell.align|default:'left' }}"
+                                     data-indent-level="{{ cell.indent_level|default:0 }}"
+                                     data-first-line-indent="{% if cell.first_line_indent %}true{% else %}false{% endif %}"
+                                     data-show-page-number="{% if cell.show_page_number %}true{% else %}false{% endif %}"
+                                     data-placeholder="Texto do rodapé">{{ cell.text|default:""|header_text }}</div>
+                                <div class="report-page-footer-page-number-editor"
+                                     data-report-page-footer-page-number-editor
+                                     hidden>
+                                    <div class="report-page-footer-page-number-active{% if not cell.show_page_number %} d-none{% endif %}"
+                                         data-report-page-footer-page-number-active>
+                                        <span class="report-page-footer-page-number-label">Página N de T (somente no PDF)</span>
+                                        <button type="button"
+                                                class="btn btn-sm btn-link report-page-footer-page-number-remove"
+                                                data-report-page-footer-remove-page-number>
+                                            Remover
+                                        </button>
+                                    </div>
+                                    <button type="button"
+                                            class="btn btn-sm btn-link report-page-footer-page-number-add{% if cell.show_page_number %} d-none{% endif %}"
+                                            data-report-page-footer-add-page-number>
+                                        Adicionar numeração (Página N de T)
+                                    </button>
+                                </div>
+                            </div>
+                        {% endif %}
+                    </div>
+                {% endfor %}
+            </div>
+        </div>
+    {% else %}
+        <button type="button"
+                class="report-page-footer report-page-footer--empty"
+                data-report-page-footer-open
+                aria-label="Configurar rodapé do documento">
+            <i class="bi bi-border-bottom" aria-hidden="true"></i>
+            <span>Clique para configurar o rodapé</span>
+        </button>
+    {% endif %}
+</div>
+{% endwith %}
