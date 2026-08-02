@@ -12,6 +12,8 @@
     let numberCaptionsInput = null;
     let firstLineIndentInput = null;
     let pendingApplyPayload = null;
+    let pendingConfigBefore = null;
+    let lastAppliedConfig = null;
 
     function getCsrfToken() {
         const match = document.cookie.match(/(?:^|;\s*)csrftoken=([^;]+)/);
@@ -67,6 +69,22 @@
         }
     }
 
+    function configPayloadFromData(data) {
+        return {
+            number_headings: Boolean(data.number_headings),
+            number_captions: Boolean(data.number_captions),
+            first_line_indent: Boolean(data.first_line_indent),
+        };
+    }
+
+    function captureConfigFromForm() {
+        return {
+            number_headings: Boolean(numberHeadingsInput && numberHeadingsInput.checked),
+            number_captions: Boolean(numberCaptionsInput && numberCaptionsInput.checked),
+            first_line_indent: Boolean(firstLineIndentInput && firstLineIndentInput.checked),
+        };
+    }
+
     function applyFirstLineIndent(enabled) {
         document.querySelectorAll(
             '.report-editor-block[data-block-type="paragraph"]:not([data-is-caption="true"]) .report-editor-block-paragraph'
@@ -112,10 +130,6 @@
     }
 
     function applyHeadingNumbers(headingNumbers) {
-        if (window.ReportLineOutline && window.ReportLineOutline.applyHeadingNumbers) {
-            window.ReportLineOutline.applyHeadingNumbers(headingNumbers);
-        }
-
         const headingBlocks = Array.from(
             document.querySelectorAll('.report-editor-block[data-block-type="heading"]')
         );
@@ -157,15 +171,7 @@
         }
     }
 
-    async function saveConfig(event) {
-        event.preventDefault();
-
-        const payload = {
-            number_headings: Boolean(numberHeadingsInput && numberHeadingsInput.checked),
-            number_captions: Boolean(numberCaptionsInput && numberCaptionsInput.checked),
-            first_line_indent: Boolean(firstLineIndentInput && firstLineIndentInput.checked),
-        };
-
+    async function patchConfig(payload) {
         const response = await fetch(configUrl, {
             method: "PATCH",
             credentials: "same-origin",
@@ -183,6 +189,33 @@
             throw new Error(message);
         }
 
+        return data;
+    }
+
+    async function applyConfigSnapshot(snapshot) {
+        const data = await patchConfig(snapshot);
+        await applyConfigEffects(data);
+        populateForm(data);
+        lastAppliedConfig = data;
+        return data;
+    }
+
+    function recordConfigHistory(beforeSnapshot, afterSnapshot) {
+        if (!window.ReportLineUndo || window.ReportLineUndo.isApplying()) {
+            return;
+        }
+        window.ReportLineUndo.recordCommand({
+            label: "Configuração do laudo",
+            undo: () => applyConfigSnapshot(beforeSnapshot),
+            redo: () => applyConfigSnapshot(afterSnapshot),
+        });
+    }
+
+    async function saveConfig(event) {
+        event.preventDefault();
+
+        const payload = captureConfigFromForm();
+        const data = await patchConfig(payload);
         pendingApplyPayload = data;
 
         if (modal) {
@@ -194,6 +227,9 @@
         if (!modal) {
             return;
         }
+        pendingConfigBefore = lastAppliedConfig
+            ? configPayloadFromData(lastAppliedConfig)
+            : captureConfigFromForm();
         modal.show();
     }
 
@@ -210,7 +246,8 @@
         }
 
         modal = bootstrap.Modal.getOrCreateInstance(modalElement);
-        populateForm(options && options.initialConfig);
+        lastAppliedConfig = options && options.initialConfig ? options.initialConfig : null;
+        populateForm(lastAppliedConfig);
 
         modalElement.addEventListener("hidden.bs.modal", () => {
             if (!pendingApplyPayload) {
@@ -219,8 +256,18 @@
 
             const data = pendingApplyPayload;
             pendingApplyPayload = null;
-            applyConfigEffects(data).catch(console.error);
-            showToast("Configuração salva com sucesso.", "success");
+            const beforeSnapshot = pendingConfigBefore || configPayloadFromData(data);
+            const afterSnapshot = configPayloadFromData(data);
+            pendingConfigBefore = null;
+
+            applyConfigEffects(data)
+                .then(() => {
+                    lastAppliedConfig = data;
+                    populateForm(data);
+                    recordConfigHistory(beforeSnapshot, afterSnapshot);
+                    showToast("Configuração salva com sucesso.", "success");
+                })
+                .catch(console.error);
         });
 
         document.querySelectorAll("[data-report-config-open]").forEach((button) => {
@@ -237,5 +284,11 @@
         });
     }
 
-    window.ReportLineReportConfig = { init, populateForm, applyCaptionNumbers };
+    window.ReportLineReportConfig = {
+        init,
+        populateForm,
+        applyCaptionNumbers,
+        applyHeadingNumbers,
+        applyConfigEffects,
+    };
 })();

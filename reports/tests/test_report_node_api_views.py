@@ -538,7 +538,11 @@ class ReportNodeApiViewTests(TestCase):
         )
 
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.json()["ok"], True)
+        payload = response.json()
+        self.assertEqual(payload["ok"], True)
+        self.assertIn("body_node_ids", payload)
+        self.assertIn("outline_html", payload)
+        self.assertIn("heading_numbers", payload)
         self.node.refresh_from_db()
         second_node.refresh_from_db()
         self.assertGreater(self.node.position, second_node.position)

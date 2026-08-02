@@ -1,5 +1,5 @@
 /**
- * Pilha de undo/redo do editor de laudos (fases 1–3).
+ * Pilha de undo/redo do editor de laudos (fases 1–4).
  */
 (function () {
     "use strict";

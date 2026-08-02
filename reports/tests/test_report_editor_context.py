@@ -9,7 +9,10 @@ from django.contrib.auth import get_user_model
 from django.test import TestCase
 
 from reports.models import Report, ReportBlock, ReportBlockType, ReportNode
-from reports.services.report_editor_context import build_report_editor_context
+from reports.services.report_editor_context import (
+    build_report_editor_context,
+    list_body_node_ids,
+)
 
 User = get_user_model()
 
@@ -214,6 +217,32 @@ class ReportEditorContextTests(TestCase):
         node_ids = [entry.node_id for entry in context["body_entries"]]
 
         self.assertEqual(node_ids, [first.pk, second.pk, third.pk])
+
+    def test_list_body_node_ids_matches_body_entries_order(self):
+        """Garante que list_body_node_ids reflita a mesma ordem de leitura do corpo."""
+        first = self._create_node(
+            ReportBlockType.HEADING,
+            {"text": "Parte 1"},
+            position=Decimal("1"),
+        )
+        second = self._create_node(
+            ReportBlockType.PARAGRAPH,
+            {"text": "Detalhe."},
+            parent=first,
+            position=Decimal("1"),
+        )
+        third = self._create_node(
+            ReportBlockType.PARAGRAPH,
+            {"text": "Encerramento."},
+            position=Decimal("2"),
+        )
+
+        context = build_report_editor_context(self.report)
+        expected = [str(node_id) for node_id in (first.pk, second.pk, third.pk)]
+        body_entry_ids = [str(entry.node_id) for entry in context["body_entries"]]
+
+        self.assertEqual(list_body_node_ids(self.report), expected)
+        self.assertEqual(body_entry_ids, expected)
 
     def test_empty_report_returns_empty_structures(self):
         """Garante estruturas vazias quando relatório não possui nós."""

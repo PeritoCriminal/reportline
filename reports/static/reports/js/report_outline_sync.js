@@ -34,6 +34,44 @@
         });
     }
 
+    function applyBodyNodeOrder(nodeIds) {
+        var page = document.getElementById("report-editor-page");
+        if (!page || !nodeIds || !nodeIds.length) {
+            return;
+        }
+        var footer = document.getElementById("report-page-footer-root");
+        var anchor = footer || null;
+        nodeIds.forEach(function (nodeId) {
+            var block = document.getElementById("report-block-" + nodeId);
+            if (block && page.contains(block)) {
+                page.insertBefore(block, anchor);
+            }
+        });
+    }
+
+    async function applyReorderPayload(data) {
+        if (!data) {
+            return;
+        }
+        if (data.body_node_ids) {
+            applyBodyNodeOrder(data.body_node_ids);
+        }
+        if (data.outline_html) {
+            var root = getOutlineRoot();
+            if (root) {
+                root.innerHTML = data.outline_html;
+                mountOutlineInteractions(root);
+            }
+        }
+        if (data.heading_numbers) {
+            if (window.ReportLineReportConfig && window.ReportLineReportConfig.applyHeadingNumbers) {
+                window.ReportLineReportConfig.applyHeadingNumbers(data.heading_numbers);
+            } else {
+                applyHeadingNumbers(data.heading_numbers);
+            }
+        }
+    }
+
     async function refreshOutline() {
         var cfg = window.REPORT_EDITOR_OUTLINE || {};
         var root = getOutlineRoot();
@@ -69,5 +107,7 @@
     window.ReportLineOutline = {
         refresh: refreshOutline,
         applyHeadingNumbers: applyHeadingNumbers,
+        applyBodyNodeOrder: applyBodyNodeOrder,
+        applyReorderPayload: applyReorderPayload,
     };
 })();

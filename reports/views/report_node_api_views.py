@@ -337,7 +337,20 @@ class ReportNodeReorderView(ReportAuthorMixin, View):
         except ValidationError as exc:
             return _validation_error_response(exc)
 
-        return JsonResponse({"ok": True})
+        from reports.services.report_editor_context import (
+            list_body_node_ids,
+            render_outline_refresh_payload,
+        )
+
+        outline_payload = render_outline_refresh_payload(report, request)
+        return JsonResponse(
+            {
+                "ok": True,
+                "body_node_ids": list_body_node_ids(report),
+                "outline_html": outline_payload["html"],
+                "heading_numbers": outline_payload["heading_numbers"],
+            }
+        )
 
     def http_method_not_allowed(self, request, *args, **kwargs):
         """Restringe métodos aceitos neste endpoint."""

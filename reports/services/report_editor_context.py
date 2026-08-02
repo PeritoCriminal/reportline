@@ -333,6 +333,21 @@ def render_outline_tree_html(report: Report, request) -> str:
     )
 
 
+def list_body_node_ids(report: Report) -> list[str]:
+    """Lista IDs dos nós do corpo em ordem de leitura (profundidade-primeiro)."""
+    nodes = list(report.nodes.order_by("position", "created_at"))
+    nodes_by_parent = _group_nodes_by_parent(nodes)
+
+    def collect(parent_id: UUID | None = None) -> list[str]:
+        ordered: list[str] = []
+        for node in nodes_by_parent.get(parent_id, []):
+            ordered.append(str(node.pk))
+            ordered.extend(collect(node.pk))
+        return ordered
+
+    return collect(None)
+
+
 def render_outline_refresh_payload(report: Report, request) -> dict[str, str | dict[str, str]]:
     """Monta HTML do sumário e mapa de numeração para atualização assíncrona."""
     context = build_report_editor_context(report)
