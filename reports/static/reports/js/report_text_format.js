@@ -40,11 +40,20 @@
             : anchor.parentElement.closest(".report-editor-block-editable");
 
         if (!editable) {
+            if (window.ReportLinePageHeader && window.ReportLinePageHeader.resolveHeaderTextContext) {
+                const headerContext = window.ReportLinePageHeader.resolveHeaderTextContext();
+                if (headerContext) {
+                    return { block: null, editable: headerContext.editable, headerText: true };
+                }
+            }
             return null;
         }
 
         const block = editable.closest(".report-editor-block");
         if (!block) {
+            if (editable.matches("[data-report-page-header-text]")) {
+                return { block: null, editable, headerText: true };
+            }
             return null;
         }
 
@@ -198,10 +207,16 @@
 
         const inlineText = getInlineText();
         if (inlineText) {
-            context.editable.innerHTML = inlineText.sanitize(context.editable.innerHTML);
+            if (context.headerText && inlineText.getHeaderHtml) {
+                context.editable.innerHTML = inlineText.sanitizeHeader(context.editable.innerHTML);
+            } else {
+                context.editable.innerHTML = inlineText.sanitize(context.editable.innerHTML);
+            }
         }
 
-        if (window.ReportLineEditor && window.ReportLineEditor.scheduleDebouncedSave) {
+        if (context.headerText && window.ReportLinePageHeader && window.ReportLinePageHeader.scheduleHeaderSave) {
+            window.ReportLinePageHeader.scheduleHeaderSave();
+        } else if (window.ReportLineEditor && window.ReportLineEditor.scheduleDebouncedSave) {
             window.ReportLineEditor.scheduleDebouncedSave(context.block);
         }
 
@@ -273,8 +288,12 @@
 
             const html = clipboard.getData("text/html");
             const plain = clipboard.getData("text/plain");
+            const isHeaderText = editable.matches("[data-report-page-header-text]");
+            const sanitizeFn = isHeaderText && inlineText.sanitizeHeader
+                ? inlineText.sanitizeHeader.bind(inlineText)
+                : inlineText.sanitize.bind(inlineText);
             if (html) {
-                document.execCommand("insertHTML", false, inlineText.sanitize(html));
+                document.execCommand("insertHTML", false, sanitizeFn(html));
             } else {
                 document.execCommand("insertText", false, plain);
             }
@@ -314,6 +333,9 @@
 
         document.addEventListener("focusin", (event) => {
             if (event.target.closest("#report-editor-page")) {
+                return;
+            }
+            if (event.target.closest("#report-page-header-root")) {
                 return;
             }
             if (!isFormatToolbarTarget(event.target)) {

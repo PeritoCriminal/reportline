@@ -97,6 +97,55 @@ class _InlineTextSanitizer(HTMLParser):
         return "".join(self._parts)
 
 
+class _HeaderTextSanitizer(_InlineTextSanitizer):
+    """Sanitiza texto de cabeçalho permitindo quebras de linha ``<br>``."""
+
+    _BLOCK_TAGS = frozenset({"p", "div"})
+
+    def handle_starttag(self, tag: str, attrs) -> None:
+        normalized = tag.lower()
+        if normalized == "br":
+            self._parts.append("<br>")
+            return
+        if normalized in self._BLOCK_TAGS:
+            return
+        super().handle_starttag(tag, attrs)
+
+    def handle_endtag(self, tag: str) -> None:
+        normalized = tag.lower()
+        if normalized in self._BLOCK_TAGS:
+            if self._parts and not self._parts[-1].endswith("<br>"):
+                self._parts.append("<br>")
+            return
+        super().handle_endtag(tag)
+
+    def get_html(self) -> str:
+        html = super().get_html()
+        while html.endswith("<br>"):
+            html = html[:-4]
+        return html
+
+
+def sanitize_header_text_html(value: str) -> str:
+    """
+    Sanitiza HTML de célula de texto do cabeçalho.
+
+    Permite formatação inline e quebras de linha via ``<br>``; blocos ``p``/``div``
+    são normalizados para quebras de linha.
+    """
+    if not isinstance(value, str):
+        return ""
+    if not value:
+        return ""
+    if "<" not in value and ">" not in value:
+        return value
+
+    parser = _HeaderTextSanitizer()
+    parser.feed(value)
+    parser.close()
+    return parser.get_html()
+
+
 def sanitize_inline_text_html(value: str) -> str:
     """
     Remove markup perigoso e normaliza tags de formatação inline.

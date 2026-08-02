@@ -49,7 +49,9 @@
         return TAG_MAP[tagName] || tagName;
     }
 
-    function sanitizeNode(node) {
+    function sanitizeNode(node, options) {
+        const allowBreaks = options && options.allowBreaks;
+
         if (node.nodeType === Node.TEXT_NODE) {
             return node.textContent;
         }
@@ -58,9 +60,20 @@
             return "";
         }
 
+        if (allowBreaks && node.tagName === "BR") {
+            return "<br>";
+        }
+
+        if (allowBreaks && (node.tagName === "DIV" || node.tagName === "P")) {
+            const inner = Array.from(node.childNodes)
+                .map((child) => sanitizeNode(child, options))
+                .join("");
+            return inner ? `${inner}<br>` : "";
+        }
+
         if (node.tagName === "A") {
             const href = normalizeLinkUrl(node.getAttribute("href") || "");
-            const inner = Array.from(node.childNodes).map(sanitizeNode).join("");
+            const inner = Array.from(node.childNodes).map((child) => sanitizeNode(child, options)).join("");
             if (!href) {
                 return inner;
             }
@@ -69,15 +82,15 @@
 
         const tagName = normalizeTagName(node.tagName);
         if (!ALLOWED_TAGS.has(node.tagName) && !ALLOWED_TAGS.has(tagName)) {
-            return Array.from(node.childNodes).map(sanitizeNode).join("");
+            return Array.from(node.childNodes).map((child) => sanitizeNode(child, options)).join("");
         }
 
-        const inner = Array.from(node.childNodes).map(sanitizeNode).join("");
+        const inner = Array.from(node.childNodes).map((child) => sanitizeNode(child, options)).join("");
         const normalized = tagName.toLowerCase();
         return `<${normalized}>${inner}</${normalized}>`;
     }
 
-    function sanitize(html) {
+    function sanitize(html, options) {
         if (!html) {
             return "";
         }
@@ -87,7 +100,28 @@
 
         const template = document.createElement("template");
         template.innerHTML = html;
-        return Array.from(template.content.childNodes).map(sanitizeNode).join("");
+        let result = Array.from(template.content.childNodes)
+            .map((child) => sanitizeNode(child, options))
+            .join("");
+
+        if (options && options.allowBreaks) {
+            while (result.endsWith("<br>")) {
+                result = result.slice(0, -4);
+            }
+        }
+
+        return result;
+    }
+
+    function sanitizeHeader(html) {
+        return sanitize(html, { allowBreaks: true });
+    }
+
+    function getHeaderHtml(element) {
+        if (!element) {
+            return "";
+        }
+        return sanitizeHeader(element.innerHTML);
     }
 
     function setHtml(element, html) {
@@ -149,6 +183,8 @@
 
     window.ReportLineInlineText = {
         sanitize,
+        sanitizeHeader,
+        getHeaderHtml,
         setHtml,
         getHtml,
         getPlainText,

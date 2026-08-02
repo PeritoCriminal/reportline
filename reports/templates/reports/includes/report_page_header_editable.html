@@ -1,0 +1,77 @@
+{% load report_inline_text %}
+{% with header=page_layout.header %}
+<div class="report-page-header-root"
+     id="report-page-header-root"
+     data-header-enabled="{% if header.enabled %}true{% else %}false{% endif %}"
+     data-header-editing="false"
+     data-header-template="{{ header.template_id|default:'' }}">
+    {% if header.enabled %}
+        <div class="report-page-header report-page-header--active report-page-header--view"
+             data-report-page-header-surface
+             role="region"
+             aria-label="Cabeçalho do documento">
+            <div class="report-page-header-row">
+                {% for cell in header.cells %}
+                    <div class="report-page-header-cell{% if cell.type == 'text' %} report-page-header-cell--text{% elif forloop.first %} report-page-header-cell--logo-start{% elif forloop.last %} report-page-header-cell--logo-end{% else %} report-page-header-cell--logo-start{% endif %}"
+                         {% if cell.type == 'text' %}style="text-align: {{ cell.align|default:'left' }};"{% endif %}>
+                        {% if cell.type == "logo" %}
+                            <div class="report-page-header-logo-slot{% if cell.file %} has-image{% endif %}"
+                                 data-report-page-header-logo
+                                 data-cell-index="{{ forloop.counter0 }}"
+                                 data-logo-slot="{{ cell.logo_slot|default:'primary' }}"
+                                 data-file="{{ cell.file|default:'' }}"
+                                 data-image-id="{{ cell.image_id|default:'' }}"
+                                 data-image-width="{{ cell.width|default:0 }}"
+                                 data-image-height="{{ cell.height|default:0 }}"
+                                 data-image-alt="{{ cell.alt|default:'' }}"
+                                 title="{% if cell.file %}Clique para redimensionar. Clique duplo para trocar imagem.{% else %}Escolher imagem{% endif %}">
+                                {% if cell.url %}
+                                    <div class="report-page-header-logo-frame">
+                                        <img src="{{ cell.url }}"
+                                             alt="{{ cell.alt|default:'' }}"
+                                             class="report-page-header-logo-img"
+                                             {% if cell.width and cell.height %}
+                                             width="{{ cell.width }}"
+                                             height="{{ cell.height }}"
+                                             style="width: {{ cell.width }}px; height: {{ cell.height }}px;"
+                                             {% endif %}
+                                             draggable="false">
+                                        <div class="report-editor-image-resize-handles report-page-header-logo-handles"
+                                             hidden
+                                             aria-hidden="true">
+                                            <span class="report-editor-image-handle" data-handle="nw"></span>
+                                            <span class="report-editor-image-handle" data-handle="ne"></span>
+                                            <span class="report-editor-image-handle" data-handle="sw"></span>
+                                            <span class="report-editor-image-handle" data-handle="se"></span>
+                                        </div>
+                                    </div>
+                                {% else %}
+                                    <span class="report-page-header-logo-placeholder" aria-hidden="true">
+                                        <i class="bi bi-image"></i>
+                                        <span class="report-page-header-logo-placeholder-label">Escolher imagem</span>
+                                    </span>
+                                {% endif %}
+                            </div>
+                        {% else %}
+                            <div class="report-editor-block-editable report-page-header-text"
+                                 contenteditable="false"
+                                 data-report-page-header-text
+                                 data-cell-index="{{ forloop.counter0 }}"
+                                 data-text-align="{{ cell.align|default:'left' }}"
+                                 data-placeholder="Texto do cabeçalho">{{ cell.text|default:""|header_text }}</div>
+                        {% endif %}
+                    </div>
+                {% endfor %}
+            </div>
+        </div>
+    {% else %}
+        <button type="button"
+                class="report-page-header report-page-header--empty"
+                data-report-page-header-open
+                aria-label="Configurar cabeçalho do documento">
+            <i class="bi bi-layout-text-window-reverse" aria-hidden="true"></i>
+            <span>Clique para configurar o cabeçalho</span>
+        </button>
+    {% endif %}
+</div>
+{% endwith %}

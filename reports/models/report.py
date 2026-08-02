@@ -64,6 +64,12 @@ class Report(BaseModel):
         default=ReportStatus.DRAFT,
         verbose_name="Status",
     )
+    page_layout = models.JSONField(
+        default=dict,
+        blank=True,
+        verbose_name="Layout de página",
+        help_text="Cabeçalho e demais configurações de layout de página.",
+    )
 
     class Meta:
         verbose_name = "Relatório"

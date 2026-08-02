@@ -14,6 +14,7 @@ from uuid import UUID
 
 from reports.models import Report, ReportBlockType, ReportNode
 from reports.services.report_inline_text import inline_text_plain
+from reports.services.report_page_layout import enrich_page_layout_for_editor
 from reports.services.report_heading_numbering import (
     build_heading_number_map,
     build_heading_number_map_for_report,
@@ -93,6 +94,7 @@ def build_report_editor_context(report: Report) -> dict[str, Any]:
         ),
         "body_entries": _build_body_entries(nodes_by_parent, heading_numbers=heading_numbers),
         "heading_numbers": heading_numbers,
+        "page_layout": enrich_page_layout_for_editor(report.page_layout),
     }
 
 
@@ -291,6 +293,18 @@ def render_outline_refresh_payload(report: Report, request) -> dict[str, str | d
         for node_id, number in context["heading_numbers"].items()
     }
     return {"html": html, "heading_numbers": heading_numbers}
+
+
+def render_page_header_html(page_layout: dict[str, Any], request) -> str:
+    """Renderiza partial HTML do cabeçalho de página para o editor."""
+    from django.template.loader import render_to_string
+
+    enriched = enrich_page_layout_for_editor(page_layout)
+    return render_to_string(
+        "reports/includes/report_page_header_editable.html",
+        {"page_layout": enriched},
+        request=request,
+    )
 
 
 def render_editable_block_html(

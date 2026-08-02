@@ -1,0 +1,67 @@
+{# Modal para escolher modelo de cabeçalho de página. #}
+<div class="modal fade"
+     id="reportPageHeaderModal"
+     tabindex="-1"
+     aria-labelledby="reportPageHeaderModalLabel"
+     aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content">
+            <div class="modal-header border-secondary-subtle">
+                <h2 class="modal-title fs-5" id="reportPageHeaderModalLabel">
+                    <i class="bi bi-layout-text-window-reverse text-primary me-2" aria-hidden="true"></i>
+                    Modelo de cabeçalho
+                </h2>
+                <button type="button"
+                        class="btn-close"
+                        data-bs-dismiss="modal"
+                        aria-label="Fechar"></button>
+            </div>
+            <div class="modal-body">
+                <p class="text-muted small mb-3">
+                    O cabeçalho será repetido em todas as páginas do PDF.
+                </p>
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        <button type="button"
+                                class="report-page-header-template-card w-100"
+                                data-report-page-header-template="logo_left_text_right">
+                            <span class="report-page-header-template-preview" aria-hidden="true">
+                                <span class="report-page-header-template-block report-page-header-template-block-logo"></span>
+                                <span class="report-page-header-template-block report-page-header-template-block-text"></span>
+                            </span>
+                            <span class="report-page-header-template-title">Logo à esquerda, texto à direita</span>
+                        </button>
+                    </div>
+                    <div class="col-md-4">
+                        <button type="button"
+                                class="report-page-header-template-card w-100"
+                                data-report-page-header-template="text_left_logo_right">
+                            <span class="report-page-header-template-preview" aria-hidden="true">
+                                <span class="report-page-header-template-block report-page-header-template-block-text"></span>
+                                <span class="report-page-header-template-block report-page-header-template-block-logo"></span>
+                            </span>
+                            <span class="report-page-header-template-title">Texto à esquerda, logo à direita</span>
+                        </button>
+                    </div>
+                    <div class="col-md-4">
+                        <button type="button"
+                                class="report-page-header-template-card w-100"
+                                data-report-page-header-template="logo_text_logo">
+                            <span class="report-page-header-template-preview" aria-hidden="true">
+                                <span class="report-page-header-template-block report-page-header-template-block-logo"></span>
+                                <span class="report-page-header-template-block report-page-header-template-block-text"></span>
+                                <span class="report-page-header-template-block report-page-header-template-block-logo"></span>
+                            </span>
+                            <span class="report-page-header-template-title">Logo, texto e logo</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer border-secondary-subtle">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    Cancelar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>

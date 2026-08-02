@@ -8,6 +8,7 @@
     "use strict";
 
     let maxImageSidePx = 529;
+    let headerLogoInitialHeightPx = 113;
     const MIN_IMAGE_SIDE_PX = 48;
 
     let pageElement = null;
@@ -43,6 +44,17 @@
                 imgSelector: ".report-editor-table-cell-img",
                 resizeWrapSelector: ".report-editor-table-cell-image",
                 tableBlock: cellImage.closest(".report-editor-block[data-block-type=\"table\"]"),
+            };
+        }
+
+        const headerLogo = element.closest(".report-page-header-logo-slot.has-image");
+        if (headerLogo) {
+            return {
+                type: "page-header-logo",
+                root: headerLogo,
+                frameSelector: ".report-page-header-logo-frame",
+                imgSelector: ".report-page-header-logo-img",
+                resizeWrapSelector: ".report-page-header-logo-frame",
             };
         }
 
@@ -83,6 +95,18 @@
     }
 
     function getCellMaxWidth(target) {
+        const container = target.root.closest(".report-page-header-cell, td");
+        if (target.type === "page-header-logo" && container) {
+            const row = container.closest(".report-page-header-row");
+            if (row) {
+                const rowWidth = row.clientWidth;
+                const textCell = row.querySelector(".report-page-header-cell--text");
+                const textWidth = textCell ? textCell.clientWidth : 0;
+                const reserved = Math.max(0, rowWidth - textWidth);
+                return Math.max(MIN_IMAGE_SIDE_PX, reserved || container.clientWidth);
+            }
+        }
+
         const td = target.root.closest("td");
         if (!td) {
             return maxImageSidePx;
@@ -109,6 +133,13 @@
         }
 
         if (target.type === "table-cell") {
+            maxWidth = Math.min(maxWidth, getCellMaxWidth(target));
+            maxHeight = Math.round(
+                maxWidth * (maxHeight / Math.max(1, naturalHeight || maxHeight))
+            );
+        }
+
+        if (target.type === "page-header-logo") {
             maxWidth = Math.min(maxWidth, getCellMaxWidth(target));
             maxHeight = Math.round(
                 maxWidth * (maxHeight / Math.max(1, naturalHeight || maxHeight))
@@ -244,6 +275,15 @@
         };
     }
 
+    function getInitialHeaderLogoDisplaySize(target, naturalWidth, naturalHeight) {
+        const height = headerLogoInitialHeightPx;
+        let width = height;
+        if (naturalWidth > 0 && naturalHeight > 0) {
+            width = Math.round(height * (naturalWidth / naturalHeight));
+        }
+        return normalizeSize(target, width, height);
+    }
+
     function syncNaturalDimensions(target, img) {
         if (!img.naturalWidth || !img.naturalHeight) {
             return;
@@ -258,6 +298,16 @@
         const storedHeight = Number.parseInt(target.root.dataset.imageHeight || "0", 10);
         if (storedWidth > 0 && storedHeight > 0) {
             applyDisplaySize(target, storedWidth, storedHeight);
+            return;
+        }
+
+        if (target.type === "page-header-logo") {
+            const normalized = getInitialHeaderLogoDisplaySize(
+                target,
+                img.naturalWidth,
+                img.naturalHeight
+            );
+            applyDisplaySize(target, normalized.width, normalized.height);
             return;
         }
 
@@ -423,6 +473,26 @@
         clearDragListeners();
         activeDrag = null;
 
+        if (target.type === "page-header-logo") {
+            const cellIndex = target.root.dataset.cellIndex;
+            if (window.ReportLinePageHeader && window.ReportLinePageHeader.flushHeaderSave) {
+                try {
+                    await window.ReportLinePageHeader.flushHeaderSave();
+                } catch (error) {
+                    console.error(error);
+                }
+            }
+            if (cellIndex !== undefined) {
+                const slot = document.querySelector(
+                    `[data-report-page-header-logo][data-cell-index="${cellIndex}"]`
+                );
+                if (slot) {
+                    selectTargetElement(slot);
+                }
+            }
+            return;
+        }
+
         if (!window.ReportLineEditor || !window.ReportLineEditor.saveBlock) {
             return;
         }
@@ -471,7 +541,17 @@
         root.querySelectorAll(".report-editor-table-cell-image").forEach((element) => {
             prepareResizeTarget(resolveResizeTarget(element));
         });
+        root.querySelectorAll(".report-page-header-logo-slot.has-image").forEach((element) => {
+            prepareResizeTarget(resolveResizeTarget(element));
+        });
         scanCaptionWidths(root);
+    }
+
+    function selectTargetElement(element) {
+        const target = resolveResizeTarget(element);
+        if (target) {
+            selectTarget(target);
+        }
     }
 
     function bindPage(page) {
@@ -530,6 +610,9 @@
         if (options && options.maxSidePx) {
             maxImageSidePx = options.maxSidePx;
         }
+        if (options && options.headerLogoInitialHeightPx) {
+            headerLogoInitialHeightPx = options.headerLogoInitialHeightPx;
+        }
         pageElement = document.getElementById("report-editor-page");
         if (!pageElement) {
             return;
@@ -543,5 +626,6 @@
         syncCaptionLayout,
         getSelectedTarget: () => selectedTarget,
         deselectTarget,
+        selectTargetElement,
     };
 })();

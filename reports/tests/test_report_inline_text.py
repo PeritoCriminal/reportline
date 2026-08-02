@@ -4,6 +4,7 @@ from django.test import TestCase
 
 from reports.services.report_inline_text import (
     inline_text_plain,
+    sanitize_header_text_html,
     sanitize_inline_text_html,
 )
 
@@ -64,3 +65,33 @@ class ReportInlineTextTests(TestCase):
         )
         self.assertNotIn("<a ", sanitized)
         self.assertIn("Ataque", sanitized)
+
+
+class SanitizeHeaderTextHtmlTests(TestCase):
+    """Testes de sanitização de HTML de célula de cabeçalho."""
+
+    def test_preserves_line_breaks(self):
+        """Garante que quebras de linha ``<br>`` sejam preservadas."""
+        result = sanitize_header_text_html("Linha 1<br>Linha 2")
+        self.assertEqual(result, "Linha 1<br>Linha 2")
+
+    def test_converts_paragraphs_to_line_breaks(self):
+        """Garante normalização de parágrafos HTML em quebras de linha."""
+        result = sanitize_header_text_html("<p>Primeira</p><p>Segunda</p>")
+        self.assertEqual(result, "Primeira<br>Segunda")
+
+    def test_preserves_inline_formatting(self):
+        """Garante negrito e itálico junto com quebras de linha."""
+        result = sanitize_header_text_html("<strong>Título</strong><br><em>Sub</em>")
+        self.assertEqual(result, "<strong>Título</strong><br><em>Sub</em>")
+
+    def test_strips_dangerous_tags(self):
+        """Garante remoção de tags não permitidas no cabeçalho."""
+        result = sanitize_header_text_html("<script>x</script>Texto")
+        self.assertNotIn("script", result)
+        self.assertIn("Texto", result)
+
+    def test_inline_sanitizer_still_strips_br(self):
+        """Garante que sanitização inline comum não preserve quebras de linha."""
+        result = sanitize_inline_text_html("A<br>B")
+        self.assertEqual(result, "AB")

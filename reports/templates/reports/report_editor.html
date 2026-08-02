@@ -37,6 +37,7 @@
 </div>
 {% include "reports/includes/report_table_insert_modal.html" %}
 {% include "reports/includes/report_link_insert_modal.html" %}
+{% include "reports/includes/report_page_header_modal.html" %}
 {% endblock %}
 
 {% block footer %}{% endblock %}
@@ -50,6 +51,11 @@
     window.REPORT_EDITOR_IMAGES = {
         uploadUrl: "{% url 'reports:image_upload' pk=report.pk %}",
         maxSidePx: {{ max_image_side_px }},
+        headerLogoInitialHeightPx: {{ header_logo_initial_height_px }},
+    };
+    window.REPORT_EDITOR_PAGE_LAYOUT = {
+        updateUrl: "{% url 'reports:page_layout' pk=report.pk %}",
+        uploadUrl: "{% url 'reports:image_upload' pk=report.pk %}",
     };
 </script>
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.6/Sortable.min.js" defer></script>
@@ -68,6 +74,7 @@
 <script src="{% versioned_static 'reports/js/report_paragraph_options.js' %}" defer></script>
 <script src="{% versioned_static 'reports/js/report_text_format.js' %}" defer></script>
 <script src="{% versioned_static 'reports/js/report_text_link.js' %}" defer></script>
+<script src="{% versioned_static 'reports/js/report_page_header.js' %}" defer></script>
 {# TODO(produção): remover bloco abaixo (atalho ipsumN) antes do deploy em produção. #}
 {% if report_editor_dev_ipsum %}
 <script src="{% versioned_static 'reports/js/report_editor_dev_ipsum.js' %}" defer></script>
@@ -113,6 +120,9 @@
         }
         if (window.ReportLineTextLink) {
             window.ReportLineTextLink.init();
+        }
+        if (window.ReportLinePageHeader && window.REPORT_EDITOR_PAGE_LAYOUT) {
+            window.ReportLinePageHeader.init(window.REPORT_EDITOR_PAGE_LAYOUT);
         }
     });
 </script>

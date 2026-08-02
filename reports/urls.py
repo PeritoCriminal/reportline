@@ -15,6 +15,7 @@ from reports.views.report_node_api_views import (
     ReportNodeDetailView,
     ReportNodeReorderView,
 )
+from reports.views.report_page_layout_api_views import ReportPageLayoutView
 
 app_name = "reports"
 
@@ -43,6 +44,11 @@ urlpatterns = [
         "<uuid:pk>/images/upload/",
         ReportImageUploadView.as_view(),
         name="image_upload",
+    ),
+    path(
+        "<uuid:pk>/page-layout/",
+        ReportPageLayoutView.as_view(),
+        name="page_layout",
     ),
     path(
         "<uuid:pk>/nodes/",

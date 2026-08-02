@@ -1,4 +1,5 @@
 <article class="report-editor-page" id="report-editor-page" data-report-id="{{ report.pk }}">
+    {% include "reports/includes/report_page_header_editable.html" with page_layout=page_layout %}
     {% if body_entries %}
         {% for entry in body_entries %}
             {% if autofocus_node_id == entry.node_id %}

@@ -1461,6 +1461,17 @@
 
         const active = document.activeElement;
         if (active && active.closest) {
+            if (
+                window.ReportLinePageHeader
+                && window.ReportLinePageHeader.isEditing()
+                && active.matches("[data-report-page-header-text][contenteditable='true']")
+            ) {
+                return {
+                    kind: "page-header-text",
+                    target: active,
+                };
+            }
+
             const tableCell = active.closest(".report-editor-table-cell[data-table-part]");
             if (tableCell) {
                 const block = tableCell.closest('.report-editor-block[data-block-type="table"]');
@@ -1490,12 +1501,25 @@
             return { kind: "block", block: insertContext.block };
         }
 
+        if (window.ReportLinePageHeader && window.ReportLinePageHeader.resolveHeaderTextContext) {
+            const headerContext = window.ReportLinePageHeader.resolveHeaderTextContext();
+            if (headerContext) {
+                return {
+                    kind: "page-header-text",
+                    target: headerContext.editable,
+                };
+            }
+        }
+
         return null;
     }
 
     function getCurrentTextAlign(context) {
         if (!context) {
             return null;
+        }
+        if (context.kind === "page-header-text") {
+            return context.target.dataset.textAlign || "left";
         }
         if (context.kind === "table-cell" || context.kind === "table-cell-image") {
             return context.target.dataset.textAlign
@@ -1526,6 +1550,18 @@
 
         const context = resolveAlignmentContext();
         if (!context) {
+            return;
+        }
+
+        if (context.kind === "page-header-text") {
+            if (
+                window.ReportLinePageHeader
+                && window.ReportLinePageHeader.applyHeaderTextAlign
+            ) {
+                const headerAlign = ["left", "center", "right"].includes(align) ? align : "left";
+                window.ReportLinePageHeader.applyHeaderTextAlign(context.target, headerAlign);
+                updateAlignmentToolbar(headerAlign);
+            }
             return;
         }
 
