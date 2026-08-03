@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+
+{% block title %}PDF indisponível{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="alert alert-warning" role="alert">
+                <h1 class="h4 alert-heading">Exportação de PDF indisponível</h1>
+                <p class="mb-0">
+                    Não foi possível gerar o PDF deste laudo porque o serviço de renderização
+                    (Playwright/Chromium) não está configurado neste ambiente.
+                </p>
+            </div>
+            <p class="text-muted">
+                Consulte a documentação de implantação do servidor ou use a
+                <a href="{% url 'reports:preview' pk=report.pk %}">visualização do laudo</a>
+                enquanto o PDF não estiver disponível.
+            </p>
+            <a class="btn btn-outline-secondary" href="{% url 'reports:edit' pk=report.pk %}">
+                Voltar ao editor
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}

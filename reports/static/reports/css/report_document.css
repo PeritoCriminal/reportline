@@ -106,6 +106,26 @@ body.report-document-preview {
     display: none !important;
 }
 
+/* --- PDF contínuo (Playwright; sem paginação JS) --- */
+
+html.report-document-pdf-root,
+body.report-document-pdf {
+    margin: 0;
+    background: #fff;
+}
+
+body.report-document-pdf {
+    color: var(--report-document-color);
+    font-family: var(--report-document-font-family);
+    font-size: var(--report-document-font-size);
+    line-height: var(--report-document-line-height);
+}
+
+body.report-document-pdf .report-document-flow {
+    margin: 0;
+    padding: 0;
+}
+
 .report-document-flow {
     margin: 0;
     padding: 0;

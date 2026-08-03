@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html lang="pt-BR" class="report-document-pdf-root">
+<head>
+    <meta charset="utf-8">
+    <title>{{ report.title }}</title>
+    <style>{{ document_styles|safe }}</style>
+</head>
+<body class="report-document report-document-pdf">
+    <main class="report-document-flow">
+        <div class="report-document-body">
+            {% for section in sections %}
+                {% include "reports/includes/report_document_block.html" with section=section %}
+            {% empty %}
+                <p class="report-document-unsupported">Este laudo ainda não possui conteúdo.</p>
+            {% endfor %}
+        </div>
+    </main>
+</body>
+</html>
