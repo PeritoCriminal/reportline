@@ -1,26 +1,42 @@
 /**
  * Estilos de leitura do laudo (preview e PDF).
  *
- * Tipografia Times 11pt alinhada ao corpo do editor; sem paginação (@page)
- * nesta fase — apenas fluxo contínuo para visualização de documento.
+ * Formatação alinhada à ABNT NBR 14724 (A4, Times 12pt, margens assimétricas,
+ * espaçamento 1,5 no corpo e 10pt em legendas/tabelas). Regras @page alimentam
+ * impressão e Playwright; o preview em tela espelha margens via padding.
  */
 
 .report-document {
     --report-document-font-family: "Times New Roman", Times, serif;
-    --report-document-font-size: 11pt;
-    --report-document-line-height: 1.6;
-    --report-document-color: #212529;
-    --report-document-muted: #6c757d;
+    --report-document-font-size: 12pt;
+    --report-document-line-height: 1.5;
+    --report-document-small-font-size: 10pt;
+    --report-document-small-line-height: 1;
+    --report-document-color: #000;
+    --report-document-muted: #444;
     --report-document-link: #0d6efd;
-    --report-document-border: #dee2e6;
+    --report-document-border: #000;
     --report-document-indent-step: 1.25cm;
     --report-document-first-line-indent: 1.25cm;
     --report-document-page-width: 210mm;
-    --report-document-page-bg: #fafaf8;
+    --report-document-page-height: 297mm;
+    --report-document-page-margin-top: 3cm;
+    --report-document-page-margin-right: 2cm;
+    --report-document-page-margin-bottom: 2cm;
+    --report-document-page-margin-left: 3cm;
+    --report-document-page-bg: #fff;
     --report-document-preview-canvas-bg: #1e1e1e;
 }
 
-/* --- Preview: folha A4 centralizada --- */
+/* --- Paginação ABNT (@page) --- */
+
+@page {
+    size: A4 portrait;
+    /* ABNT NBR 14724: superior/esquerda 3cm; inferior/direita 2cm */
+    margin: 3cm 2cm 2cm 3cm;
+}
+
+/* --- Preview: folha A4 centralizada (margens espelham @page) --- */
 
 html.report-document-preview-root,
 body.report-document-preview {
@@ -46,15 +62,24 @@ body.report-document-preview {
     box-sizing: border-box;
     width: var(--report-document-page-width);
     max-width: 100%;
-    min-height: 297mm;
+    min-height: var(--report-document-page-height);
     margin: 0 auto;
-    padding: 2.5cm 2cm;
+    padding:
+        var(--report-document-page-margin-top)
+        var(--report-document-page-margin-right)
+        var(--report-document-page-margin-bottom)
+        var(--report-document-page-margin-left);
     background-color: var(--report-document-page-bg);
     color: var(--report-document-color);
     box-shadow: 0 0.25rem 1.25rem rgba(0, 0, 0, 0.45);
     font-family: var(--report-document-font-family);
     font-size: var(--report-document-font-size);
     line-height: var(--report-document-line-height);
+}
+
+.report-document-flow {
+    margin: 0;
+    padding: 0;
 }
 
 .report-document-body {
@@ -176,11 +201,32 @@ body.report-document-preview {
 /* --- Blocos --- */
 
 .report-document-block {
-    margin: 0 0 1rem;
+    margin: 0 0 0.75rem;
 }
 
 .report-document-block:last-child {
     margin-bottom: 0;
+}
+
+/* --- Quebras de página --- */
+
+.report-document-block--heading,
+.report-document-heading-wrap {
+    break-after: avoid-page;
+    page-break-after: avoid;
+}
+
+.report-document-block--table,
+.report-document-table-wrap,
+.report-document-block--image,
+.report-document-figure {
+    break-inside: avoid-page;
+    page-break-inside: avoid;
+}
+
+.report-document-block--horizontal_rule {
+    break-before: auto;
+    page-break-before: auto;
 }
 
 /* --- Alinhamento (paridade com editor) --- */
@@ -323,19 +369,19 @@ body.report-document-preview {
 
 .report-document-heading-wrap[data-level="0"] .report-document-heading,
 .report-document-heading-wrap--main .report-document-heading {
-    font-size: 16.5pt;
+    font-size: 18pt;
 }
 
 .report-document-heading-wrap[data-level="1"] .report-document-heading {
-    font-size: 13.75pt;
+    font-size: 15pt;
 }
 
 .report-document-heading-wrap[data-level="2"] .report-document-heading {
-    font-size: 12.375pt;
+    font-size: 13.5pt;
 }
 
 .report-document-heading-wrap[data-level="3"] .report-document-heading {
-    font-size: 11pt;
+    font-size: 12pt;
 }
 
 .report-document-heading-wrap[data-level="4"] .report-document-heading,
@@ -344,13 +390,13 @@ body.report-document-preview {
 .report-document-heading-wrap[data-level="7"] .report-document-heading,
 .report-document-heading-wrap[data-level="8"] .report-document-heading,
 .report-document-heading-wrap[data-level="9"] .report-document-heading {
-    font-size: 10.3125pt;
+    font-size: 11.25pt;
 }
 
 /* --- Parágrafos --- */
 
 .report-document-paragraph {
-    margin: 0 0 1rem;
+    margin: 0 0 0.75rem;
     white-space: pre-wrap;
     word-break: break-word;
 }
@@ -362,9 +408,10 @@ body.report-document-preview {
 /* --- Legendas --- */
 
 .report-document-block[data-is-caption="true"] .report-document-caption-wrap {
-    font-size: 9.625pt;
+    font-size: var(--report-document-small-font-size);
+    line-height: var(--report-document-small-line-height);
     color: var(--report-document-muted);
-    margin-bottom: 1rem;
+    margin-bottom: 0.75rem;
     text-indent: 0;
 }
 
@@ -449,7 +496,8 @@ body.report-document-preview {
     width: 100%;
     border-collapse: collapse;
     table-layout: fixed;
-    font-size: 9.625pt;
+    font-size: var(--report-document-small-font-size);
+    line-height: var(--report-document-small-line-height);
     color: var(--report-document-color);
 }
 
@@ -574,7 +622,8 @@ body.report-document-preview {
     display: block;
     color: var(--report-document-muted);
     font-style: italic;
-    font-size: 9.625pt;
+    font-size: var(--report-document-small-font-size);
+    line-height: var(--report-document-small-line-height);
 }
 
 /* --- Linha horizontal --- */
@@ -630,7 +679,36 @@ body.report-document-preview {
 /* --- Fallback --- */
 
 .report-document-unsupported {
-    margin: 0 0 1rem;
-    font-size: 9.625pt;
+    margin: 0 0 0.75rem;
+    font-size: var(--report-document-small-font-size);
     color: var(--report-document-muted);
+}
+
+/* --- Impressão e PDF (Playwright) --- */
+
+@media print {
+    html.report-document-preview-root,
+    body.report-document-preview {
+        background: #fff;
+    }
+
+    .report-document-preview-canvas {
+        padding: 0;
+        background: #fff;
+    }
+
+    .report-document-page {
+        width: auto;
+        max-width: none;
+        min-height: auto;
+        margin: 0;
+        padding: 0;
+        box-shadow: none;
+        background: transparent;
+    }
+
+    .report-document-page-header.report-page-header-root {
+        break-after: avoid-page;
+        page-break-after: avoid;
+    }
 }

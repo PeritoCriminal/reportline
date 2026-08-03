@@ -261,6 +261,19 @@ class ReportDocumentContextTests(TestCase):
 
         self.assertIn(".report-document {", styles)
         self.assertIn("Times New Roman", styles)
+        self.assertIn("@page", styles)
+        self.assertIn("size: A4 portrait", styles)
+        self.assertIn("12pt", styles)
+
+    def test_document_styles_follow_abnt_page_margins(self):
+        """Garante margens assimétricas ABNT (3cm sup./esq.; 2cm inf./dir.) no CSS."""
+        styles = load_report_document_styles()
+
+        self.assertIn("margin: 3cm 2cm 2cm 3cm", styles)
+        self.assertIn("--report-document-page-margin-top: 3cm", styles)
+        self.assertIn("--report-document-page-margin-left: 3cm", styles)
+        self.assertIn("--report-document-page-margin-bottom: 2cm", styles)
+        self.assertIn("--report-document-page-margin-right: 2cm", styles)
 
     def test_build_context_includes_document_styles(self):
         """Garante contexto completo com estilos inline para o template do documento."""
