@@ -20,19 +20,26 @@
             <div class="card border-secondary-subtle shadow-sm">
                 <div class="list-group list-group-flush">
                     {% for report in reports %}
-                        <a class="list-group-item list-group-item-action py-3"
-                           href="{% url 'reports:edit' pk=report.pk %}">
+                        <div class="list-group-item py-3">
                             <div class="d-flex flex-wrap align-items-start justify-content-between gap-2">
-                                <div>
+                                <a class="flex-grow-1 text-decoration-none text-body"
+                                   href="{% url 'reports:edit' pk=report.pk %}">
                                     <h2 class="h6 mb-1">{{ report.title }}</h2>
                                     <p class="text-muted small mb-0">
                                         Criado em {{ report.created_at|date:"d/m/Y H:i" }}
                                         · Atualizado em {{ report.updated_at|date:"d/m/Y H:i" }}
                                     </p>
+                                </a>
+                                <div class="d-flex align-items-center gap-2 flex-shrink-0">
+                                    <span class="badge text-bg-secondary">{{ report.get_status_display }}</span>
+                                    <a class="btn btn-sm btn-outline-danger"
+                                       href="{% url 'reports:delete' pk=report.pk %}"
+                                       aria-label="Excluir relatório {{ report.title }}">
+                                        <i class="bi bi-trash" aria-hidden="true"></i>
+                                    </a>
                                 </div>
-                                <span class="badge text-bg-secondary">{{ report.get_status_display }}</span>
                             </div>
-                        </a>
+                        </div>
                     {% endfor %}
                 </div>
             </div>
