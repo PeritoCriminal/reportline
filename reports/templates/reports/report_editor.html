@@ -74,6 +74,7 @@
 <script src="{% versioned_static 'reports/js/report_editor.js' %}" defer></script>
 <script src="{% versioned_static 'reports/js/report_table_insert.js' %}" defer></script>
 <script src="{% versioned_static 'reports/js/report_table_selection.js' %}" defer></script>
+<script src="{% versioned_static 'reports/js/report_table_navigation.js' %}" defer></script>
 <script src="{% versioned_static 'reports/js/report_table_clipboard.js' %}" defer></script>
 <script src="{% versioned_static 'reports/js/report_table_structure.js' %}" defer></script>
 <script src="{% versioned_static 'reports/js/report_table_column_resize.js' %}" defer></script>
@@ -111,6 +112,9 @@
         }
         if (window.ReportLineTableSelection) {
             window.ReportLineTableSelection.init();
+        }
+        if (window.ReportLineTableNavigation) {
+            window.ReportLineTableNavigation.init();
         }
         if (window.ReportLineTableClipboard) {
             window.ReportLineTableClipboard.init();
