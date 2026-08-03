@@ -1,0 +1,48 @@
+{% load report_inline_text %}
+{% with footer=page_layout.footer %}
+{% if footer.enabled %}
+<div class="report-page-footer-root report-document-page-footer">
+    <div class="report-page-footer report-page-footer--active report-page-footer--read"
+         role="region"
+         aria-label="Rodapé do documento">
+        <div class="report-page-footer-row">
+            {% for cell in footer.cells %}
+                <div class="report-page-footer-cell{% if cell.type == 'text' %} report-page-footer-cell--text{% elif forloop.first %} report-page-footer-cell--logo-start{% elif forloop.last %} report-page-footer-cell--logo-end{% else %} report-page-footer-cell--logo-start{% endif %}"
+                     {% if cell.type == "text" %}style="text-align: {{ cell.align|default:'left' }};"{% endif %}>
+                    {% if cell.type == "logo" %}
+                        {% if cell.url %}
+                        <div class="report-page-footer-logo-slot has-image">
+                            <div class="report-page-footer-logo-frame">
+                                <img src="{{ cell.url }}"
+                                     alt="{{ cell.alt|default:'' }}"
+                                     class="report-page-footer-logo-img"
+                                     {% if cell.width and cell.height %}
+                                     width="{{ cell.width }}"
+                                     height="{{ cell.height }}"
+                                     style="width: {{ cell.width }}px; height: {{ cell.height }}px;"
+                                     {% endif %}>
+                            </div>
+                        </div>
+                        {% endif %}
+                    {% else %}
+                        <div class="report-page-footer-text report-page-footer-text--read"
+                             data-text-align="{{ cell.align|default:'left' }}"
+                             data-indent-level="{{ cell.indent_level|default:0 }}"
+                             data-first-line-indent="{% if cell.first_line_indent %}true{% else %}false{% endif %}">
+                            {{ cell.text|default:""|header_text }}
+                            {% if cell.show_page_number %}
+                            <span class="report-document-page-number"
+                                  data-report-page-number
+                                  aria-label="Numeração de página">
+                                Página <span data-report-page-current>{{ page_number|default:1 }}</span> de <span data-report-page-total>{{ page_count|default:1 }}</span>
+                            </span>
+                            {% endif %}
+                        </div>
+                    {% endif %}
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endwith %}

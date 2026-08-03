@@ -281,6 +281,13 @@ class ReportDocumentContextTests(TestCase):
 
         self.assertIn(".report-document {", context["document_styles"])
 
+    def test_build_context_includes_document_script(self):
+        """Garante script de paginação embutido no HTML do preview."""
+        context = build_report_document_context(self.report, self._request())
+
+        self.assertIn("paginateDocument", context["document_script"])
+        self.assertIn("report-document-page-sheet", context["document_script"])
+
     def test_report_document_template_renders_standalone_html(self):
         """Garante HTML autônomo de leitura com CSS inline e blocos do laudo."""
         self._create_node(
@@ -295,7 +302,11 @@ class ReportDocumentContextTests(TestCase):
         self.assertIn("<!DOCTYPE html>", html)
         self.assertIn('<html lang="pt-BR" class="report-document-preview-root">', html)
         self.assertIn("<style>", html)
-        self.assertIn(".report-document-page {", html)
+        self.assertIn(".report-document-page-sheet {", html)
+        self.assertIn('id="report-document-pages"', html)
+        self.assertIn("report-document-pagination-source", html)
+        self.assertIn("<script>", html)
+        self.assertIn("paginateDocument", html)
         self.assertIn('class="report-document-block', html)
         self.assertIn("Introdução", html)
         self.assertNotIn("contenteditable", html)

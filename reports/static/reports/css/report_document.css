@@ -53,17 +53,24 @@ body.report-document-preview {
     min-height: 100vh;
     padding: 2rem 1rem;
     display: flex;
-    justify-content: center;
-    align-items: flex-start;
+    flex-direction: column;
+    align-items: center;
     background-color: var(--report-document-preview-canvas-bg);
 }
 
-.report-document-page {
+.report-document-pages {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2rem;
+    width: 100%;
+}
+
+.report-document-page-sheet {
     box-sizing: border-box;
     width: var(--report-document-page-width);
+    height: var(--report-document-page-height);
     max-width: 100%;
-    min-height: var(--report-document-page-height);
-    margin: 0 auto;
     padding:
         var(--report-document-page-margin-top)
         var(--report-document-page-margin-right)
@@ -75,6 +82,28 @@ body.report-document-preview {
     font-family: var(--report-document-font-family);
     font-size: var(--report-document-font-size);
     line-height: var(--report-document-line-height);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.report-document-page-sheet-header {
+    flex-shrink: 0;
+}
+
+.report-document-page-sheet-body {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: hidden;
+}
+
+.report-document-page-sheet-footer {
+    flex-shrink: 0;
+    margin-top: auto;
+}
+
+.report-document-pagination-source {
+    display: none !important;
 }
 
 .report-document-flow {
@@ -91,7 +120,129 @@ body.report-document-preview {
 
 .report-document-page-header.report-page-header-root {
     width: 100%;
-    margin-bottom: 1.5rem;
+    margin-bottom: 0.75rem;
+}
+
+/* --- Rodapé (repetido por página no preview) --- */
+
+.report-document-page-footer.report-page-footer-root {
+    width: 100%;
+    margin-top: 0.75rem;
+}
+
+.report-page-footer--read {
+    border: none;
+    border-radius: 0;
+    padding: 0;
+    background-color: transparent;
+    width: 100%;
+}
+
+.report-page-footer-row {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    gap: 0.35rem;
+}
+
+.report-page-footer-cell {
+    background-color: var(--report-document-page-bg);
+    min-width: 0;
+}
+
+.report-page-footer-cell--logo-start {
+    flex: 0 0 auto;
+    text-align: left;
+}
+
+.report-page-footer-cell--logo-end {
+    flex: 0 0 auto;
+    text-align: right;
+}
+
+.report-page-footer-cell--text {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.report-page-footer-cell--logo-start .report-page-footer-logo-slot {
+    justify-content: flex-start;
+    width: auto;
+    display: inline-flex;
+}
+
+.report-page-footer-cell--logo-end .report-page-footer-logo-slot {
+    justify-content: flex-end;
+    width: auto;
+    display: inline-flex;
+}
+
+.report-page-footer-logo-slot {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    min-height: 0;
+    padding: 0;
+    border: none;
+    background: var(--report-document-page-bg);
+}
+
+.report-page-footer-logo-frame {
+    position: relative;
+    display: inline-block;
+    max-width: 100%;
+    line-height: 0;
+}
+
+.report-page-footer-logo-img {
+    display: block;
+    max-width: 100%;
+    width: auto;
+    height: auto;
+    object-fit: contain;
+}
+
+.report-page-footer-text--read {
+    min-height: 0;
+    white-space: pre-wrap;
+    word-break: break-word;
+    background: var(--report-document-page-bg);
+    font-size: var(--report-document-small-font-size);
+    line-height: var(--report-document-small-line-height);
+}
+
+.report-page-footer-text--read[data-indent-level="1"] {
+    padding-left: var(--report-document-indent-step);
+}
+
+.report-page-footer-text--read[data-indent-level="2"] {
+    padding-left: calc(2 * var(--report-document-indent-step));
+}
+
+.report-page-footer-text--read[data-indent-level="3"] {
+    padding-left: calc(3 * var(--report-document-indent-step));
+}
+
+.report-page-footer-text--read[data-indent-level="4"] {
+    padding-left: calc(4 * var(--report-document-indent-step));
+}
+
+.report-page-footer-text--read[data-indent-level="5"] {
+    padding-left: calc(5 * var(--report-document-indent-step));
+}
+
+.report-page-footer-text--read[data-first-line-indent="true"] {
+    text-indent: var(--report-document-first-line-indent);
+}
+
+.report-document-page-number {
+    display: inline-block;
+    white-space: nowrap;
+}
+
+.report-document-page-number::before {
+    content: " ";
 }
 
 .report-page-header--read {
@@ -697,17 +848,29 @@ body.report-document-preview {
         background: #fff;
     }
 
-    .report-document-page {
+    .report-document-pages {
+        gap: 0;
+    }
+
+    .report-document-page-sheet {
         width: auto;
         max-width: none;
+        height: auto;
         min-height: auto;
         margin: 0;
         padding: 0;
         box-shadow: none;
         background: transparent;
+        page-break-after: always;
+        break-after: page;
     }
 
-    .report-document-page-header.report-page-header-root {
+    .report-document-page-sheet:last-child {
+        page-break-after: auto;
+        break-after: auto;
+    }
+
+    .report-document-page-sheet-header {
         break-after: avoid-page;
         page-break-after: avoid;
     }

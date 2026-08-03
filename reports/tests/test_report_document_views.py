@@ -10,7 +10,9 @@ from django.urls import reverse
 
 from reports.models import Report, ReportBlock, ReportBlockType, ReportNode
 from reports.services.report_page_layout import (
+    FOOTER_TEMPLATE_TEXT_ONLY,
     HEADER_TEMPLATE_LOGO_LEFT_TEXT_RIGHT,
+    apply_footer_template,
     apply_header_template,
     update_logo_cell_from_image,
 )
@@ -83,8 +85,10 @@ class ReportDocumentPreviewViewTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "<!DOCTYPE html>")
         self.assertContains(response, "report-document-preview")
-        self.assertContains(response, "report-document-page")
-        self.assertContains(response, "report-document-preview-canvas")
+        self.assertContains(response, "report-document-pages")
+        self.assertContains(response, "report-document-pagination-source")
+        self.assertContains(response, "report-document-page-sheet")
+        self.assertContains(response, "paginateDocument")
         self.assertContains(response, "Histórico")
         self.assertContains(response, "Descrição dos fatos.")
         self.assertContains(response, "report-document-block")
@@ -107,8 +111,25 @@ class ReportDocumentPreviewViewTests(TestCase):
         self.assertContains(response, "Este laudo ainda não possui conteúdo.")
         self.assertNotContains(response, "contenteditable")
 
-    def test_preview_renders_page_header_once_when_enabled(self):
-        """Garante cabeçalho configurado exibido uma vez no preview de leitura."""
+    def test_preview_renders_footer_with_page_number_template(self):
+        """Garante rodapé read-only com template de numeração no preview."""
+        layout = apply_footer_template({}, FOOTER_TEMPLATE_TEXT_ONLY)
+        layout["footer"]["cells"][0]["text"] = "Secretaria"
+        self.report.page_layout = layout
+        self.report.save(update_fields=["page_layout"])
+
+        self.client.login(username="autor_preview", password="senha-segura")
+        response = self.client.get(self._preview_url())
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "report-page-footer--read")
+        self.assertContains(response, "Secretaria")
+        self.assertContains(response, "data-report-page-current")
+        self.assertContains(response, "data-report-page-total")
+        self.assertContains(response, "report-document-footer-template")
+
+    def test_preview_renders_page_header_template_when_enabled(self):
+        """Garante template de cabeçalho disponível para paginação do preview."""
         layout = apply_header_template({}, HEADER_TEMPLATE_LOGO_LEFT_TEXT_RIGHT)
         layout = update_logo_cell_from_image(
             layout,
@@ -129,8 +150,8 @@ class ReportDocumentPreviewViewTests(TestCase):
         response = self.client.get(self._preview_url())
 
         self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "report-document-header-template")
         self.assertContains(response, "report-document-page-header")
-        self.assertContains(response, 'aria-label="Cabeçalho do documento"')
         self.assertContains(response, "Instituto de Criminalística")
         self.assertContains(response, "reports/1/logo.png")
         self.assertNotContains(response, "contenteditable")

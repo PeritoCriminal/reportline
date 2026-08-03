@@ -8,18 +8,23 @@
 </head>
 <body class="report-document report-document-preview">
     <div class="report-document-preview-canvas">
-        <main class="report-document-page">
-            <div class="report-document-flow">
-                {% include "reports/includes/report_page_header_read.html" %}
-                <div class="report-document-body">
-                {% for section in sections %}
-                    {% include "reports/includes/report_document_block.html" with section=section %}
-                {% empty %}
-                    <p class="report-document-unsupported">Este laudo ainda não possui conteúdo.</p>
-                {% endfor %}
-                </div>
-            </div>
-        </main>
+        <div class="report-document-pages" id="report-document-pages"></div>
     </div>
+    <div class="report-document-pagination-source" hidden aria-hidden="true">
+        <template id="report-document-header-template">
+            {% include "reports/includes/report_page_header_read.html" %}
+        </template>
+        <template id="report-document-footer-template">
+            {% include "reports/includes/report_page_footer_read.html" with page_number=1 page_count=1 %}
+        </template>
+        <div class="report-document-body">
+            {% for section in sections %}
+                {% include "reports/includes/report_document_block.html" with section=section %}
+            {% empty %}
+                <p class="report-document-unsupported">Este laudo ainda não possui conteúdo.</p>
+            {% endfor %}
+        </div>
+    </div>
+    <script>{{ document_script|safe }}</script>
 </body>
 </html>

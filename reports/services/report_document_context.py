@@ -72,7 +72,20 @@ def build_report_document_context(report: Report, request: HttpRequest) -> dict[
             request,
         ),
         "document_styles": load_report_document_styles(),
+        "document_script": load_report_document_script(),
     }
+
+
+def load_report_document_script() -> str:
+    """
+    Carrega script de paginação do preview para embutir inline no HTML.
+
+    Mantém o documento autônomo (sem dependência de cache de estático externo).
+    """
+    script_path = finders.find("reports/js/report_document_pagination.js")
+    if not script_path:
+        raise FileNotFoundError("Arquivo reports/js/report_document_pagination.js não encontrado.")
+    return Path(script_path).read_text(encoding="utf-8")
 
 
 def load_report_document_styles() -> str:
