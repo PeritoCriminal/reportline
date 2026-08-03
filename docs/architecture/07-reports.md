@@ -13,7 +13,7 @@ tipados. Base para laudos periciais e outros documentos produzidos no ReportLine
 |---|---|
 | **Problema** | Documentos periciais exigem seções aninhadas, tipos de conteúdo distintos e formatação consistente |
 | **Solução** | `Report` + árvore `ReportNode` + bloco genérico `ReportBlock` 1:1 por nó |
-| **Fora do escopo (fase atual)** | Renderização PDF/HTML de leitura, fórmulas matemáticas (KaTeX), painel de propriedades do bloco (layout/paginação por bloco), templates de laudo pericial específicos, publicação/arquivamento na UI |
+| **Fora do escopo (fase atual)** | Fórmulas matemáticas (KaTeX), painel de propriedades do bloco (layout/paginação por bloco), templates de laudo pericial específicos, publicação/arquivamento na UI |
 | **Consumidor futuro** | Camada de laudo pericial (mapeia papéis semânticos → blocos genéricos) |
 
 ---
@@ -31,13 +31,14 @@ tipados. Base para laudos periciais e outros documentos produzidos no ReportLine
 | **7 — Sumário interativo** | Drag-and-drop de títulos, refresh parcial do outline, accordion |
 | **8 — Tabelas e imagens** | Inserção de tabela/imagem, estrutura de linhas/colunas, bordas/cabeçalho opcionais, larguras de coluna, resize de imagem, células com imagem |
 | **9 — Formatação e links** | Negrito/itálico/sublinhado/sobrescrito/subscrito, alinhamento, recuo, link inline (modal), sanitização HTML bilateral |
-| **10 — Layout de página** | Cabeçalho/rodapé tabular (`page_layout` JSON), templates logo+texto, numeração “Página N de T” só no PDF |
+| **10 — Layout de página** | Cabeçalho/rodapé tabular (`page_layout` JSON), templates logo+texto, numeração “Página N de T” no preview e no PDF |
 | **11 — Configuração do laudo** | Modal: numeração de títulos/legendas, recuo de 1ª linha; API PATCH; preferências do usuário |
 | **12 — Linha horizontal e legendas** | Bloco HR, atalho `---`+Enter, parágrafos legenda após imagem, numeração automática de figuras |
 | **13 — Undo/redo** | Pilha cliente (Ctrl+Z/Y): texto, blocos, listas, tabelas, imagens, cabeçalho/rodapé, config, reorder sumário |
 | **14 — Sumário assíncrono** | DnD sem reload; API reorder retorna ordem do corpo + HTML do sumário; expansão de seções no POST |
+| **15 — Renderização de leitura** | Preview paginado (`/preview/`), export PDF Playwright (`/document/`), contexto `sections[]`, ABNT, cabeçalho/rodapé repetidos — ver [08-report-document-render.md](./08-report-document-render.md) |
 
-> **Próximo marco:** pipeline de renderização HTML paginado → PDF — ver [08-report-document-render.md](./08-report-document-render.md).
+> **Próximo marco:** fórmulas matemáticas (KaTeX, Fase 3 do pipeline de render) — ver [08-report-document-render.md](./08-report-document-render.md).
 
 ---
 
@@ -64,17 +65,25 @@ reports/
 │   ├── report_creation.py
 │   ├── report_editor_bootstrap.py
 │   ├── report_editor_context.py
+│   ├── report_document_context.py
+│   ├── report_document_page_layout.py
+│   ├── report_document_pdf.py
+│   ├── report_document_pdf_fragments.py
 │   ├── report_heading_numbering.py
 │   ├── report_image_processing.py
 │   ├── report_image_upload.py
+│   ├── report_page_layout.py
 │   ├── report_table_cell_content.py
 │   ├── report_table_column_widths.py
 │   ├── report_table_structure.py
 │   └── report_tree.py
 ├── signals.py
 ├── static/reports/
-│   ├── css/report_editor.css
+│   ├── css/
+│   │   ├── report_editor.css
+│   │   └── report_document.css
 │   └── js/
+│       ├── report_document_pagination.js
 │       ├── report_editor.js
 │       ├── report_editor_dev_ipsum.js
 │       ├── report_image_insert.js
@@ -89,13 +98,22 @@ reports/
 │   ├── report_form.html
 │   ├── report_list.html
 │   ├── report_editor.html
+│   ├── document/
+│   │   ├── report_document.html
+│   │   ├── report_document_pdf.html
+│   │   └── unavailable.html
 │   └── includes/
 │       ├── report_block_editable.html
 │       ├── report_block_preview.html
+│       ├── report_document_block.html
 │       ├── report_editor_toolbar.html
 │       ├── report_outline_tree.html
 │       ├── report_outline_item.html
 │       ├── report_page_body.html
+│       ├── report_page_header_read.html
+│       ├── report_page_footer_read.html
+│       ├── report_page_header_pdf_fragment.html
+│       ├── report_page_footer_pdf_fragment.html
 │       ├── report_table_body_cell_editable.html
 │       └── report_table_insert_modal.html
 ├── templatetags/
@@ -107,6 +125,11 @@ reports/
 │   ├── test_report_creation.py
 │   ├── test_report_create_views.py
 │   ├── test_report_list_views.py
+│   ├── test_report_document_context.py
+│   ├── test_report_document_views.py
+│   ├── test_report_document_page_layout.py
+│   ├── test_report_document_pdf_views.py
+│   ├── test_report_page_layout_pdf_fragments.py
 │   ├── test_report_editor_bootstrap.py
 │   ├── test_report_editor_context.py
 │   ├── test_report_editor_views.py
@@ -126,6 +149,7 @@ reports/
 ├── urls.py
 └── views/
     ├── report_create_views.py
+    ├── report_document_views.py
     ├── report_editor_views.py
     ├── report_image_api_views.py
     ├── report_list_views.py
@@ -153,6 +177,8 @@ reports/
 | `GET /reports/` | `reports:list` | `ReportListView` | Listagem dos relatórios do autor |
 | `GET/POST /reports/new/` | `reports:new` | `ReportCreateView` | Formulário de título; cria rascunho e redireciona ao editor |
 | `GET /reports/<uuid:pk>/edit/` | `reports:edit` | `ReportEditorView` | Editor visual (somente autor) |
+| `GET /reports/<uuid:pk>/preview/` | `reports:preview` | `ReportDocumentPreviewView` | Visualização read-only paginada (somente autor) |
+| `GET /reports/<uuid:pk>/document/` | `reports:document` | `ReportDocumentPdfView` | Export PDF inline; `?html=1` para debug HTML (somente autor) |
 | `GET/PATCH /reports/<uuid:pk>/config/` | `reports:config` | `ReportConfigView` | Configuração do laudo (numeração, recuo) |
 | `PATCH /reports/<uuid:pk>/page-layout/` | `reports:page_layout` | `ReportPageLayoutView` | Cabeçalho/rodapé de página (JSON) |
 | `GET /reports/<uuid:pk>/outline/` | `reports:outline` | `ReportEditorOutlineView` | HTML parcial do sumário (JSON) |
@@ -210,6 +236,21 @@ flowchart LR
 - **Permissão:** queryset restrito ao autor — demais usuários recebem 404
 - **Contexto:** `outline_tree`, `body_entries`, `autofocus_node_id`, `max_image_side_px`
 - **JS:** módulos em `static/reports/js/` inicializados via `extra_js` (ver seção Interface)
+
+### `ReportDocumentPreviewView`
+
+- **Template:** `reports/document/report_document.html` (HTML autônomo, CSS/JS inline)
+- **Permissão:** queryset restrito ao autor — demais usuários recebem 404
+- **Contexto:** `build_report_document_context()` → `sections[]`, `page_layout`, estilos embutidos
+- **Paginação:** client-side via `report_document_pagination.js` (cabeçalho/rodapé por folha)
+
+### `ReportDocumentPdfView`
+
+- **Saída padrão:** `application/pdf` inline (`Content-Disposition`)
+- **Debug:** `?html=1` retorna HTML contínuo (`report_document_pdf.html`) enviado ao Chromium
+- **Permissão:** autor only (404 para terceiros)
+- **Indisponibilidade:** HTTP 503 + `unavailable.html` sem Playwright/Chromium
+- **Serviço:** `render_report_document_pdf_bytes()` em `report_document_pdf.py`
 
 ### `ReportEditorOutlineView`
 
@@ -290,7 +331,7 @@ Layout de três colunas com toolbar superior. Navbar global permanece visível;
 
 | Região | Estado |
 |---|---|
-| Toolbar | Tipos de bloco, formatação inline, alinhamento, config do laudo, undo/redo, PDF (desabilitado até pipeline de render) |
+| Toolbar | Tipos de bloco, formatação inline, alinhamento, config, undo/redo, **visualizar** (`/preview/`), **PDF** (`/document/`) |
 | Sumário | Títulos em árvore numerada; accordion; DnD assíncrono; refresh via API |
 | Corpo | Blocos editáveis; cabeçalho/rodapé de página editáveis na folha (uma vez, scroll contínuo) |
 | Propriedades | Reservada (layout/paginação por bloco) |
@@ -539,6 +580,11 @@ Models registrados no Django Admin (complementar à UI web):
 | `test_report_tree.py` | Inserção, atualização, listas, exclusão |
 | `test_report_node_api_views.py` | API PATCH/POST/DELETE |
 | `test_report_outline_tags.py` | Template tags do sumário |
+| `test_report_document_context.py` | Contexto de leitura e template autônomo |
+| `test_report_document_views.py` | Preview paginado (auth, header/footer) |
+| `test_report_document_page_layout.py` | Fragmentos read-only de cabeçalho/rodapé |
+| `test_report_document_pdf_views.py` | Rota PDF, `?html=1`, fallback 503 |
+| `test_report_page_layout_pdf_fragments.py` | Adapter Playwright HF |
 
 Executar: `python manage.py test reports`
 
@@ -564,17 +610,19 @@ Executar: `python manage.py test reports`
 - [x] Linha horizontal, legendas e numeração de figuras
 - [x] Undo/redo no editor (fases 1–4)
 - [x] Sumário DnD assíncrono (sem reload)
+- [x] Preview paginado de leitura (`/preview/`)
+- [x] Export PDF via Playwright (`/document/`, runbook em [runbook_pdf.md](../runbook_pdf.md))
+- [ ] Fórmulas matemáticas (KaTeX) — Fase 3 do pipeline de render
 - [ ] Painel de propriedades do bloco (layout e paginação por bloco)
 - [ ] Publicação/arquivamento na UI
 - [ ] Camada de laudo pericial (mapeamento semântico → blocos)
-- [ ] Renderização HTML paginado + PDF ([plano](./08-report-document-render.md))
-- [ ] Fórmulas matemáticas (KaTeX) — após pipeline de render
 
 ---
 
 ## Referências
 
-- [Renderização HTML/PDF (planejamento)](./08-report-document-render.md)
+- [Renderização HTML/PDF](./08-report-document-render.md)
+- [Runbook PDF](../runbook_pdf.md)
 - [ADR-0002](../decisions/0002-report-node-structure.md)
 - [Modelo de dados](./02-data-model.md)
 - [Mapa de apps](./03-apps-map.md)

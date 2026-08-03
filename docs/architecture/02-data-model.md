@@ -187,7 +187,7 @@ já implementada.
 |---|---|---|
 | Templates de laudo | Mapeamento semântico (ex.: `report_number` → bloco `heading` nível 0) | 🟡 |
 | Editor web | CBVs de criação/edição da árvore de nós | 🟡 |
-| Renderização | PDF/HTML interpretando `ReportBlock` e opções de layout | 🟡 |
+| Renderização | PDF/HTML interpretando `ReportBlock` e opções de layout | ✅ (preview + PDF; KaTeX pendente) |
 | Versionamento | Imutabilidade de blocos após publicação | 🟡 em discussão |
 
 A decisão de **não** separar app `blocks` na fase inicial está registrada no

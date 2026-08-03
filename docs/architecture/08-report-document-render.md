@@ -1,10 +1,10 @@
 # Renderização de documento — HTML paginado e PDF
 
-Planejamento da **visualização de leitura** e **exportação PDF** do laudo,
-com pipeline único HTML → PDF. Complementa [07-reports.md](./07-reports.md).
+Pipeline de **visualização de leitura** e **exportação PDF** do laudo,
+com HTML canônico compartilhado entre preview e PDF. Complementa [07-reports.md](./07-reports.md).
 
-> **Status:** 🟡 Planejado (não implementado).  
-> **Referência de conceito:** pith (`modelo_conceito/pith/reports/services/pdf.py`) — adaptar, não copiar.
+> **Status:** ✅ Fases 0–2 implementadas · 🟡 Fase 3 (KaTeX) pendente  
+> **Runbook operacional:** [runbook_pdf.md](../runbook_pdf.md)
 
 ---
 
@@ -12,152 +12,203 @@ com pipeline único HTML → PDF. Complementa [07-reports.md](./07-reports.md).
 
 | Meta | Descrição |
 |---|---|
-| **Pipeline único** | Um HTML canônico alimenta preview paginado e PDF |
-| **Paridade visual** | Preview de leitura idêntico ao PDF (margens, quebras, cabeçalho/rodapé) |
+| **Pipeline único** | Contexto e blocos de leitura compartilhados entre preview e PDF |
+| **Paridade visual** | Margens ABNT, tipografia e cabeçalho/rodapé alinhados entre modos |
 | **Editor separado** | `/edit/` permanece `contenteditable` em scroll contínuo; paginação só na visualização |
 | **Fórmulas depois** | KaTeX entra após o pipeline estável (modal no editor; render na leitura) |
 
 ---
 
-## Arquitetura alvo
+## Arquitetura implementada
 
 ```mermaid
 flowchart LR
-  subgraph persist [Persistência — existe]
+  subgraph persist [Persistência]
     R[Report]
     N[ReportNode + ReportBlock]
     PL[page_layout JSON]
   end
 
-  subgraph pipeline [Novo]
+  subgraph pipeline [Serviços]
     C[report_document_context.py]
+    L[report_document_page_layout.py]
+    F[report_document_pdf_fragments.py]
     P[report_document_pdf.py]
   end
 
   subgraph out [Saídas]
-    HTML[report_document.html]
     PRE[GET /preview/]
-    PDF[GET /document/ Playwright]
+    PDF[GET /document/]
   end
 
   R --> C
   N --> C
   PL --> C
-  C --> HTML
-  HTML --> PRE
-  HTML --> PDF
+  C --> PRE
+  C --> P
+  PL --> L
+  PL --> F
+  F --> P
+  P --> PDF
 ```
 
-**Motor PDF proposto:** Playwright + Chromium (como no pith), com cabeçalho/rodapé via
-`header_template` / `footer_template` e logos inlined como data URI.
+**Preview:** HTML autônomo (`report_document.html`) + paginação **client-side**
+(`report_document_pagination.js`) com cabeçalho/rodapé clonados por folha.
 
-**Alternativa descartada por ora:** WeasyPrint (menor footprint, validar paridade com tabelas/layout tabular depois).
+**PDF:** HTML contínuo (`report_document_pdf.html`) + **Playwright/Chromium** com
+`header_template` / `footer_template`; logos inlined como data URI.
 
----
-
-## O que reaproveitar do pith
-
-| Pith | ReportLine |
-|---|---|
-| `build_report_pdf_context()` | `build_report_document_context()` — a partir de `body_entries` |
-| `build_report_pdf_html()` / `render_report_pdf_bytes()` | `build_report_document_html()` / `render_report_document_pdf_bytes()` |
-| `report_body_sections.html` | `report_document_block.html` (evoluir `report_block_preview.html`) |
-| `report_pdf.css` | `report_document.css` |
-| CSS inline no HTML (`pdf_inline_styles`) | Evitar cache stale no Chromium headless |
-| Fragmentos header/footer Playwright | Adapter de `Report.page_layout` (já no editor) |
-| `?html=1` para debug | Mesma rota PDF com query string |
-| KaTeX antes de `page.pdf()` | Fase posterior; usar `data-latex`, não delimitadores no texto |
-| `ReportPdfUnavailable` → HTTP 503 | Tratamento quando Chromium ausente |
-
-## O que não copiar do pith
-
-- Toast UI / MathLive / Markdown (`rich-text-markdown-katex.js`)
-- LaTeX como delimitadores visíveis (`\(...\)`, `$$`) no fluxo de edição
-- `ReportDisplayView` contínuo como preview oficial (não pagina)
-- Models `ReportHeader` / `ReportFooter` — ReportLine usa `page_layout` JSON
-- Anexos PDF merged (`pypdf`) — fase posterior
+**Motor PDF:** Playwright + Chromium. Alternativa descartada por ora: WeasyPrint.
 
 ---
 
-## Mapa de arquivos (alvo)
+## Rotas
+
+| Rota | View | Name | Descrição |
+|---|---|---|---|
+| `GET /reports/<pk>/preview/` | `ReportDocumentPreviewView` | `reports:preview` | HTML paginado (leitura); autor only |
+| `GET /reports/<pk>/document/` | `ReportDocumentPdfView` | `reports:document` | PDF inline; autor only |
+| `GET /reports/<pk>/document/?html=1` | `ReportDocumentPdfView` | `reports:document` | HTML enviado ao Chromium (debug) |
+
+Sem Playwright/Chromium instalado, `/document/` retorna **HTTP 503** com
+`reports/document/unavailable.html`.
+
+**Toolbar do editor:** links para preview (ícone olho) e PDF (ícone PDF), em nova aba.
+
+---
+
+## Mapa de arquivos
 
 ```
 reports/
 ├── services/
-│   ├── report_document_context.py    # contexto de leitura (sections[])
-│   ├── report_document_pdf.py          # HTML + Playwright + fragmentos HF
-│   └── report_block_render.py          # opcional: bloco → HTML de leitura
+│   ├── report_document_context.py       # build_report_document_context(), sections[]
+│   ├── report_document_page_layout.py   # fragmentos read-only HF (preview)
+│   ├── report_document_pdf_fragments.py # adapter page_layout → Playwright HF
+│   └── report_document_pdf.py           # HTML PDF + render_report_document_pdf_bytes()
 ├── views/
-│   └── report_document_views.py        # preview + pdf + ?html=1
+│   └── report_document_views.py         # ReportDocumentPreviewView, ReportDocumentPdfView
 ├── templates/reports/
 │   ├── document/
-│   │   ├── report_document.html
-│   │   ├── report_document_pdf_viewer.html   # opcional (iframe)
-│   │   └── unavailable.html
+│   │   ├── report_document.html         # preview paginado (JS)
+│   │   ├── report_document_pdf.html     # corpo contínuo (Playwright)
+│   │   └── unavailable.html             # fallback 503
 │   └── includes/
-│       ├── report_document_block.html        # evolui report_block_preview.html
+│       ├── report_document_block.html
 │       ├── report_page_header_read.html
-│       └── report_page_footer_read.html
-├── static/reports/css/
-│   └── report_document.css
+│       ├── report_page_footer_read.html
+│       ├── report_page_header_pdf_fragment.html
+│       └── report_page_footer_pdf_fragment.html
+├── static/reports/
+│   ├── css/report_document.css
+│   └── js/report_document_pagination.js
 └── tests/
     ├── test_report_document_context.py
+    ├── test_report_document_views.py
+    ├── test_report_document_page_layout.py
     ├── test_report_document_pdf_views.py
     └── test_report_page_layout_pdf_fragments.py
+
+requirements-server.txt                  # playwright (além de requirements.txt)
+docs/runbook_pdf.md                      # instalação Chromium em servidor
 ```
 
-### Rotas propostas
+---
 
-| Rota | View | Descrição |
+## Fases de implementação
+
+| Fase | Status | Entrega |
 |---|---|---|
-| `GET /reports/<pk>/preview/` | `ReportDocumentPreviewView` | HTML paginado (leitura) |
-| `GET /reports/<pk>/document/` | `ReportDocumentPdfView` | PDF inline ou download |
-| `GET /reports/<pk>/document/?html=1` | idem | HTML enviado ao Chromium (debug) |
+| **0** | ✅ | Contexto de leitura, blocos read-only, rota `/preview/`, CSS inline |
+| **1.1** | ✅ | `@page` ABNT (A4, margens 3/2/2/3 cm, Times 12pt, entrelinhas 1,5) |
+| **1.2** | ✅ | Paginação JS no preview; cabeçalho/rodapé repetidos; numeração “Página N de T” |
+| **2** | ✅ | Export PDF Playwright, rota `/document/`, toolbar, runbook, testes, 503 |
+| **3** | 🟡 | Fórmulas (KaTeX) — modal no editor + render no pipeline |
+
+### Detalhes por fase
+
+**Fase 0 — Preview read-only**
+- `build_report_document_context()` reutiliza `build_report_editor_context()`
+- `ReportDocumentSection` com HTML sanitizado e URLs absolutas de mídia
+- Template autônomo com CSS embutido (sem dependência de cache de estático externo)
+
+**Fase 1.1 — CSS ABNT**
+- `report_document.css`: `@page`, quebras de página, legendas/tabelas 10pt
+- Preview em tela espelha margens via variáveis CSS
+
+**Fase 1.2 — Paginação no preview**
+- `report_document_pagination.js` distribui blocos em `.report-document-page-sheet`
+- Header/footer clonados de `<template>`; numeração via `data-report-page-current/total`
+
+**Fase 2 — PDF Playwright**
+- `build_report_document_html()` — corpo contínuo sem script de paginação
+- `build_playwright_header_template()` / `build_playwright_footer_template()`
+- Numeração PDF: `<span class="pageNumber">` / `<span class="totalPages">`
+- `ReportPdfUnavailable` → HTTP 503
 
 ---
 
-## Ordem cronológica de implementação
+## Contrato de `sections[]`
 
-| Fase | Entrega | Arquivos principais |
-|---|---|---|
-| **0** | Contexto + template contínuo (sem paginação) | `report_document_context.py`, `report_document_block.html`, rota `/preview/` |
-| **1** | Paginação + cabeçalho/rodapé repetidos | `report_document_pdf.py`, adapter `page_layout`, `report_document.css` |
-| **2** | Export PDF (Playwright) | view PDF, toolbar, `requirements-server.txt`, `docs/runbook_pdf.md` |
-| **3** | Fórmulas (KaTeX) | modal editor + render no pipeline; **depois** das fases 0–2 |
-
----
-
-## Contrato de `sections[]` (rascunho)
-
-Cada item representa um bloco do corpo em ordem de leitura:
+Cada item representa um bloco do corpo em ordem de leitura (`ReportDocumentSection`):
 
 | Campo | Tipo | Descrição |
 |---|---|---|
-| `node_id` | UUID (str) | Âncora `#report-block-{id}` |
+| `node_id` | UUID | Âncora `#report-block-{id}` |
 | `block_type` | str | `heading`, `paragraph`, `table`, … |
 | `body_html` | str | HTML sanitizado (`inline_text`) |
 | `heading_number` | str | Numeração automática (se ativa) |
 | `caption_number` | int | Legenda de imagem (se aplicável) |
-| `figures` | list | Imagens com URL absoluta e largura |
-| `needs_math` | bool | Fase 3 — conteúdo com `data-latex` |
+| `figures` | list | Imagens com URL absoluta e dimensões |
+| `content` | dict | Payload enriquecido (tabelas, imagens) |
+| `text_align`, `indent_level`, `first_line_indent` | — | Paridade com editor |
 
-Montagem inicial reutiliza `build_report_editor_context()` e enriquecimento já existente
-(`report_table_cell_content`, `report_caption_numbering`, etc.).
+Montagem via `build_report_editor_context()` + sanitização em
+`report_document_context.py` (`report_table_cell_content`, numeração de títulos/legendas, etc.).
+
+Campo **`needs_math`** (Fase 3): conteúdo com `data-latex` — ainda não implementado.
 
 ---
 
-## Preview vs editor
+## Preview vs editor vs PDF
 
-| Modo | URL | Paginação | Editável |
-|---|---|---|---|
-| Editor | `/edit/` | Não (scroll contínuo) | Sim |
-| Preview | `/preview/` | Sim | Não |
-| PDF | `/document/` | Sim (Playwright) | Não |
+| Modo | URL | Paginação | Cabeçalho/rodapé | Editável |
+|---|---|---|---|---|
+| Editor | `/edit/` | Não (scroll contínuo) | Uma vez na folha | Sim |
+| Preview | `/preview/` | Sim (JS client-side) | Repetidos por folha | Não |
+| PDF | `/document/` | Sim (Playwright) | Repetidos via HF templates | Não |
+
+O preview e o PDF usam o **mesmo contexto de blocos**, mas templates distintos:
+preview pagina no navegador; PDF delega paginação ao Chromium.
+
+---
+
+## Dependências e operação
+
+| Ambiente | Pacotes | Comportamento |
+|---|---|---|
+| Desenvolvimento | `requirements.txt` | Preview OK; PDF retorna 503 |
+| Servidor | `requirements-server.txt` + `playwright install chromium` | Preview e PDF |
+
+Ver [runbook_pdf.md](../runbook_pdf.md) para procedimento completo.
+
+---
+
+## Pendências e evoluções
+
+| Item | Status |
+|---|---|
+| KaTeX (Fase 3) | 🟡 |
+| Viewer PDF em iframe (`report_document_pdf_viewer.html`) | 🟡 opcional |
+| `report_block_render.py` dedicado | 🟡 opcional (lógica hoje em `report_document_context.py`) |
+| Anexos PDF merged (`pypdf`) | 🟡 fase posterior |
+| Paridade pixel-perfect preview ↔ PDF | 🟡 validar quebras longas (tabelas, figuras) |
 
 ---
 
 ## Referências
 
-- [07-reports.md](./07-reports.md) — editor e modelos atuais
+- [07-reports.md](./07-reports.md) — editor e modelos
+- [runbook_pdf.md](../runbook_pdf.md) — implantação Playwright
 - [ADR-0002](../decisions/0002-report-node-structure.md) — árvore de nós
-- pith: `reports/services/pdf.py`, `docs/runbook_pdf.md` (material de consulta local)
+- [Playwright — page.pdf()](https://playwright.dev/python/docs/api/class-page#page-pdf)
