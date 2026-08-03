@@ -1366,6 +1366,21 @@ body.report-editor-table-width-resize-active {
     word-break: break-word;
 }
 
+.report-editor-block-table th.is-table-cell-selected,
+.report-editor-block-table td.is-table-cell-selected {
+    background-color: rgba(var(--bs-primary-rgb), 0.12);
+    box-shadow: inset 0 0 0 2px rgba(var(--bs-primary-rgb), 0.45);
+}
+
+.report-editor-block.is-table-cell-dragging .report-editor-table-cell {
+    user-select: none;
+    cursor: cell;
+}
+
+.report-editor-block.is-table-cell-dragging .report-editor-table-cell-image {
+    pointer-events: none;
+}
+
 .report-editor-block-table td.report-editor-table-cell-has-image {
     padding: 0;
     line-height: 0;

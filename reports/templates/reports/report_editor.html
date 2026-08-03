@@ -73,6 +73,8 @@
 <script src="{% versioned_static 'reports/js/report_undo.js' %}" defer></script>
 <script src="{% versioned_static 'reports/js/report_editor.js' %}" defer></script>
 <script src="{% versioned_static 'reports/js/report_table_insert.js' %}" defer></script>
+<script src="{% versioned_static 'reports/js/report_table_selection.js' %}" defer></script>
+<script src="{% versioned_static 'reports/js/report_table_clipboard.js' %}" defer></script>
 <script src="{% versioned_static 'reports/js/report_table_structure.js' %}" defer></script>
 <script src="{% versioned_static 'reports/js/report_table_column_resize.js' %}" defer></script>
 <script src="{% versioned_static 'reports/js/report_table_width_resize.js' %}" defer></script>
@@ -106,6 +108,12 @@
         }
         if (window.ReportLineTableInsert) {
             window.ReportLineTableInsert.init();
+        }
+        if (window.ReportLineTableSelection) {
+            window.ReportLineTableSelection.init();
+        }
+        if (window.ReportLineTableClipboard) {
+            window.ReportLineTableClipboard.init();
         }
         if (window.ReportLineTableStructure) {
             window.ReportLineTableStructure.init();

@@ -296,6 +296,7 @@
         setHtml,
         getHtml,
         getPlainText,
+        getPlainTextWithNewlinesFromHtml,
         splitHtmlAtSelection,
         getLastLinePlainTextFromHtml,
         removeLastLineFromHtml,

@@ -6,6 +6,7 @@
 
     let tableOptionsToggle = null;
     let deleteRowButton = null;
+    let deleteColButton = null;
     let toggleBordersButton = null;
     let toggleHeaderButton = null;
     let tableToolbarGroup = null;
@@ -107,19 +108,64 @@
         }
     }
 
+    function getTableMultiSelection() {
+        if (!window.ReportLineTableSelection || !window.ReportLineTableSelection.getSelection) {
+            return null;
+        }
+        return window.ReportLineTableSelection.getSelection();
+    }
+
+    function resolveTableToolbarContext() {
+        const context = resolveTableCellContext();
+        const selection = getTableMultiSelection();
+        if (selection && selection.isMulti) {
+            return {
+                block: selection.block,
+                part: selection.includesHeader && selection.bodyRowIndices.length === 0
+                    ? "header"
+                    : "cell",
+                rowIndex: selection.bodyRowIndices.length > 0
+                    ? selection.bodyRowIndices[0]
+                    : 0,
+                colIndex: selection.range.minCol,
+                multiSelection: selection,
+            };
+        }
+        return context;
+    }
+
+    function canDeleteTableRows(context) {
+        if (!context || !context.block) {
+            return false;
+        }
+        if (context.multiSelection && context.multiSelection.bodyRowIndices.length > 0) {
+            return true;
+        }
+        return context.part === "cell";
+    }
+
+    function canDeleteTableColumns(context) {
+        return Boolean(context && context.block);
+    }
+
     function updateToolbarVisibility(context) {
-        const inTable = Boolean(context && context.block);
+        const toolbarContext = context || resolveTableToolbarContext();
+        const inTable = Boolean(toolbarContext && toolbarContext.block);
 
         setOptionsToggleState(tableOptionsToggle, inTable);
 
         if (deleteRowButton) {
-            deleteRowButton.disabled = !inTable || context.part !== "cell";
+            deleteRowButton.disabled = !canDeleteTableRows(toolbarContext);
         }
 
-        if (context && context.block) {
-            updateBorderToggleState(context.block);
-            updateHeaderToggleState(context.block);
-            updateTableAlignMenuState(context.block);
+        if (deleteColButton) {
+            deleteColButton.disabled = !canDeleteTableColumns(toolbarContext);
+        }
+
+        if (toolbarContext && toolbarContext.block) {
+            updateBorderToggleState(toolbarContext.block);
+            updateHeaderToggleState(toolbarContext.block);
+            updateTableAlignMenuState(toolbarContext.block);
         }
     }
 
@@ -158,6 +204,7 @@
         tableToolbarGroup = document.querySelector(".report-editor-toolbar-table-group");
         tableOptionsToggle = document.querySelector("[data-report-table-options-toggle]");
         deleteRowButton = document.querySelector("[data-report-table-delete-row]");
+        deleteColButton = document.querySelector("[data-report-table-delete-col]");
         toggleBordersButton = document.querySelector("[data-report-table-toggle-borders]");
         toggleHeaderButton = document.querySelector("[data-report-table-toggle-header]");
         const page = document.getElementById("report-editor-page");
@@ -251,6 +298,10 @@
                 return;
             }
             refreshToolbarFromFocus(event.target);
+        });
+
+        document.addEventListener("reportline:table-selection-changed", () => {
+            updateToolbarVisibility(resolveTableToolbarContext());
         });
     }
 

@@ -2901,6 +2901,9 @@
             return context.target.dataset.textAlign
                 || (context.kind === "table-cell-image" ? "center" : "left");
         }
+        if (context.kind === "table-multi") {
+            return context.target.dataset.textAlign || "left";
+        }
         if (context.block.dataset.blockType === "image") {
             return context.block.dataset.textAlign || "center";
         }
@@ -2953,11 +2956,74 @@
     }
 
     function refreshAlignmentToolbarState() {
+        const multiAlign = resolveTableMultiAlignContext();
+        if (multiAlign) {
+            updateAlignmentToolbar(getCurrentTextAlign(multiAlign));
+            return;
+        }
         updateAlignmentToolbar(getCurrentTextAlign(resolveAlignmentContext()));
+    }
+
+    function resolveTableMultiAlignContext() {
+        if (
+            !window.ReportLineTableSelection
+            || !window.ReportLineTableSelection.hasMultiCellSelection
+            || !window.ReportLineTableSelection.hasMultiCellSelection()
+        ) {
+            return null;
+        }
+
+        const selection = window.ReportLineTableSelection.getSelection();
+        const targets = window.ReportLineTableSelection.getSelectedAlignTargets();
+        if (!selection || targets.length === 0) {
+            return null;
+        }
+
+        return {
+            kind: "table-multi",
+            block: selection.block,
+            targets,
+            target: targets[0].element,
+        };
+    }
+
+    async function applyBatchTableCellAlign(context, align) {
+        const cellAlign = ["left", "center", "right"].includes(align) ? align : "left";
+        const beforeContent = cloneTableContent(collectBlockContent(context.block));
+        const tableFocus = {
+            part: context.targets[0].element.dataset.tablePart || "cell",
+            rowIndex: context.targets[0].element.dataset.tablePart === "cell"
+                ? Number.parseInt(context.targets[0].element.dataset.rowIndex || "0", 10)
+                : -1,
+            colIndex: Number.parseInt(context.targets[0].element.dataset.colIndex || "0", 10),
+        };
+
+        context.targets.forEach((entry) => {
+            applyTextAlignToTableTarget(entry.element, cellAlign);
+            if (entry.kind === "image") {
+                applyTableCellImageAlignVisual(entry.element, cellAlign);
+            }
+        });
+
+        clearSaveTimer(context.block.dataset.nodeId);
+        await saveBlock(context.block, { skipHistory: true });
+        recordTableContentHistory(
+            context.block.dataset.nodeId,
+            beforeContent,
+            cloneTableContent(collectBlockContent(context.block)),
+            tableFocus
+        );
+        updateAlignmentToolbar(cellAlign);
     }
 
     async function setTextAlign(align) {
         if (!TEXT_ALIGN_VALUES.has(align)) {
+            return;
+        }
+
+        const multiAlignContext = resolveTableMultiAlignContext();
+        if (multiAlignContext) {
+            await applyBatchTableCellAlign(multiAlignContext, align);
             return;
         }
 
@@ -3522,6 +3588,10 @@
             refreshAlignmentToolbarState();
         });
 
+        document.addEventListener("reportline:table-selection-changed", () => {
+            refreshAlignmentToolbarState();
+        });
+
         page.addEventListener("focusout", (event) => {
             const block = event.target.closest(".report-editor-block");
             if (block && !block.contains(event.relatedTarget)) {
@@ -3670,6 +3740,21 @@
         return next;
     }
 
+    function deleteRowsContent(content, rowIndices) {
+        const uniqueRows = [...new Set(rowIndices)]
+            .filter((index) => index >= 0)
+            .sort((left, right) => right - left);
+        if (uniqueRows.length === 0) {
+            throw new Error("Nenhuma linha selecionada para exclusão.");
+        }
+
+        let next = cloneTableContent(content);
+        for (const rowIndex of uniqueRows) {
+            next = deleteRowContent(next, rowIndex);
+        }
+        return next;
+    }
+
     function insertColumnAfterContent(content, colIndex) {
         const next = cloneTableContent(content);
         if (colIndex < 0 || colIndex >= next.headers.length) {
@@ -3706,6 +3791,38 @@
         next.headers.splice(colIndex, 1);
         next.rows = next.rows.map((row) => row.filter((_, index) => index !== colIndex));
         return next;
+    }
+
+    function deleteColumnsContent(content, colIndices) {
+        const uniqueCols = [...new Set(colIndices)]
+            .filter((index) => index >= 0)
+            .sort((left, right) => right - left);
+        if (uniqueCols.length === 0) {
+            throw new Error("Nenhuma coluna selecionada para exclusão.");
+        }
+
+        let next = cloneTableContent(content);
+        for (const colIndex of uniqueCols) {
+            next = deleteColumnContent(next, colIndex);
+        }
+        return next;
+    }
+
+    function getTableMultiSelection() {
+        if (!window.ReportLineTableSelection || !window.ReportLineTableSelection.getSelection) {
+            return null;
+        }
+        const selection = window.ReportLineTableSelection.getSelection();
+        if (!selection || !selection.isMulti) {
+            return null;
+        }
+        return selection;
+    }
+
+    function clearTableMultiSelection() {
+        if (window.ReportLineTableSelection && window.ReportLineTableSelection.clearSelection) {
+            window.ReportLineTableSelection.clearSelection();
+        }
     }
 
     function isTableToolbarControl(element) {
@@ -3887,18 +4004,40 @@
     }
 
     async function deleteTableRowAtCursor() {
+        const multiSelection = getTableMultiSelection();
         const context = resolveTableCellContext();
-        if (!context || context.part !== "cell") {
+        if (!context && !multiSelection) {
             return null;
         }
 
-        const content = collectBlockContent(context.block);
-        const newContent = deleteRowContent(content, context.rowIndex);
-        const focusRow = Math.min(context.rowIndex, newContent.rows.length - 1);
-        return patchTableContent(context.block, newContent, {
+        const block = multiSelection ? multiSelection.block : context.block;
+        const content = collectBlockContent(block);
+        let newContent;
+        let focusRow;
+        let focusCol;
+
+        if (multiSelection && multiSelection.bodyRowIndices.length > 0) {
+            newContent = deleteRowsContent(content, multiSelection.bodyRowIndices);
+            const remainingRows = new Set(
+                content.rows.map((_, index) => index)
+                    .filter((index) => !multiSelection.bodyRowIndices.includes(index))
+            );
+            focusRow = remainingRows.size > 0 ? Math.min(...remainingRows) : 0;
+            focusCol = multiSelection.range.minCol;
+            clearTableMultiSelection();
+        } else {
+            if (!context || context.part !== "cell") {
+                return null;
+            }
+            newContent = deleteRowContent(content, context.rowIndex);
+            focusRow = Math.min(context.rowIndex, newContent.rows.length - 1);
+            focusCol = context.colIndex;
+        }
+
+        return patchTableContent(block, newContent, {
             part: "cell",
             rowIndex: focusRow,
-            colIndex: context.colIndex,
+            colIndex: focusCol,
         });
     }
 
@@ -3920,18 +4059,46 @@
     }
 
     async function deleteTableColumnAtCursor() {
+        const multiSelection = getTableMultiSelection();
         const context = resolveTableCellContext();
-        if (!context) {
+        if (!context && !multiSelection) {
             return null;
         }
 
-        const content = collectBlockContent(context.block);
-        const newContent = deleteColumnContent(content, context.colIndex);
-        const focusCol = Math.min(context.colIndex, newContent.headers.length - 1);
-        const focusPart = context.part === "header" ? "header" : "cell";
-        return patchTableContent(context.block, newContent, {
+        const block = multiSelection ? multiSelection.block : context.block;
+        const content = collectBlockContent(block);
+        let newContent;
+        let focusPart;
+        let focusRow;
+        let focusCol;
+
+        if (multiSelection && multiSelection.colIndices.length > 0) {
+            newContent = deleteColumnsContent(content, multiSelection.colIndices);
+            const remainingCols = new Set(
+                content.headers.map((_, index) => index)
+                    .filter((index) => !multiSelection.colIndices.includes(index))
+            );
+            focusCol = remainingCols.size > 0 ? Math.min(...remainingCols) : 0;
+            focusPart = multiSelection.includesHeader && multiSelection.range.minRow <= -1
+                ? "header"
+                : "cell";
+            focusRow = focusPart === "cell"
+                ? Math.max(0, multiSelection.range.minRow)
+                : undefined;
+            clearTableMultiSelection();
+        } else {
+            if (!context) {
+                return null;
+            }
+            newContent = deleteColumnContent(content, context.colIndex);
+            focusCol = Math.min(context.colIndex, newContent.headers.length - 1);
+            focusPart = context.part === "header" ? "header" : "cell";
+            focusRow = context.part === "cell" ? context.rowIndex : undefined;
+        }
+
+        return patchTableContent(block, newContent, {
             part: focusPart,
-            rowIndex: context.part === "cell" ? context.rowIndex : undefined,
+            rowIndex: focusRow,
             colIndex: focusCol,
         });
     }
@@ -3976,6 +4143,184 @@
             rowIndex: focusRow,
             colIndex: focusCol,
         });
+    }
+
+    function extractTableCellClipboardData(block, part, rowIndex, colIndex) {
+        if (!block) {
+            return null;
+        }
+
+        if (part === "header") {
+            const editable = block.querySelector(
+                `th[data-col-index="${colIndex}"] .report-editor-table-cell[data-table-part="header"]`
+            );
+            if (!editable) {
+                return null;
+            }
+            return {
+                type: "text",
+                html: getEditableHtml(editable),
+                align: editable.dataset.textAlign || "left",
+            };
+        }
+
+        const cellContainer = block.querySelector(
+            `td[data-row-index="${rowIndex}"][data-col-index="${colIndex}"]`
+        );
+        if (!cellContainer) {
+            return null;
+        }
+
+        const imageWrapper = cellContainer.querySelector('[data-cell-type="image"]');
+        if (imageWrapper) {
+            const img = imageWrapper.querySelector("img");
+            return {
+                type: "image",
+                alt: img ? (img.getAttribute("alt") || "") : "",
+                file: imageWrapper.dataset.file || "",
+                image_id: imageWrapper.dataset.imageId || "",
+                width: Number.parseInt(imageWrapper.dataset.imageWidth || "0", 10) || 0,
+                height: Number.parseInt(imageWrapper.dataset.imageHeight || "0", 10) || 0,
+                align: imageWrapper.dataset.textAlign || "center",
+                url: img ? (img.getAttribute("src") || "") : "",
+            };
+        }
+
+        const textCell = cellContainer.querySelector('[data-table-part="cell"]');
+        if (!textCell) {
+            return null;
+        }
+
+        return {
+            type: "text",
+            html: getEditableHtml(textCell),
+            align: textCell.dataset.textAlign || "left",
+        };
+    }
+
+    async function applyTableCellClipboardData(block, part, rowIndex, colIndex, cellData) {
+        if (!block || !cellData) {
+            return false;
+        }
+
+        if (part === "header") {
+            if (cellData.type !== "text") {
+                return false;
+            }
+            const editable = block.querySelector(
+                `th[data-col-index="${colIndex}"] .report-editor-table-cell[data-table-part="header"]`
+            );
+            if (!editable) {
+                return false;
+            }
+            setEditableHtml(editable, cellData.html || "");
+            applyTextAlignToTableTarget(editable, cellData.align || "left");
+            return true;
+        }
+
+        const cellContainer = block.querySelector(
+            `td[data-row-index="${rowIndex}"][data-col-index="${colIndex}"]`
+        );
+        if (!cellContainer) {
+            return false;
+        }
+
+        if (cellData.type === "image" && cellData.file) {
+            const usableWidth = Math.max(32, cellContainer.clientWidth);
+            const displaySize = computeImageSizeForCell(cellData, usableWidth);
+            cellContainer.classList.add("report-editor-table-cell-has-image");
+            cellContainer.innerHTML = buildTableCellImageHtml(
+                cellData,
+                displaySize.width,
+                displaySize.height
+            );
+            const imageWrapper = cellContainer.querySelector(".report-editor-table-cell-image");
+            if (imageWrapper) {
+                applyTextAlignToTableTarget(imageWrapper, cellData.align || "center");
+                applyTableCellImageAlignVisual(imageWrapper, cellData.align || "center");
+            }
+            return true;
+        }
+
+        if (cellData.type !== "text") {
+            return false;
+        }
+
+        cellContainer.classList.remove("report-editor-table-cell-has-image");
+        let textCell = cellContainer.querySelector('[data-table-part="cell"]');
+        if (!textCell) {
+            cellContainer.innerHTML = `
+                <div class="report-editor-block-editable report-editor-table-cell"
+                     contenteditable="true"
+                     data-table-part="cell"
+                     data-row-index="${rowIndex}"
+                     data-col-index="${colIndex}"
+                     data-text-align="${cellData.align || "left"}"
+                     data-placeholder="Célula"></div>
+            `;
+            textCell = cellContainer.querySelector('[data-table-part="cell"]');
+        }
+
+        if (!textCell) {
+            return false;
+        }
+
+        setEditableHtml(textCell, cellData.html || "");
+        applyTextAlignToTableTarget(textCell, cellData.align || "left");
+        return true;
+    }
+
+    async function pasteTableCellGrid(block, startRow, startCol, grid) {
+        if (!block || !grid || grid.length === 0) {
+            return false;
+        }
+
+        const beforeContent = cloneTableContent(collectBlockContent(block));
+        const tableFocus = {
+            part: startRow === -1 ? "header" : "cell",
+            rowIndex: startRow,
+            colIndex: startCol,
+        };
+
+        let applied = false;
+        for (let rowOffset = 0; rowOffset < grid.length; rowOffset += 1) {
+            const absRow = startRow + rowOffset;
+            const part = absRow === -1 ? "header" : "cell";
+            const rowIndex = absRow;
+
+            for (let colOffset = 0; colOffset < grid[rowOffset].length; colOffset += 1) {
+                const colIndex = startCol + colOffset;
+                const cellData = grid[rowOffset][colOffset];
+                if (!cellData) {
+                    continue;
+                }
+
+                const success = await applyTableCellClipboardData(
+                    block,
+                    part,
+                    rowIndex,
+                    colIndex,
+                    cellData
+                );
+                if (success) {
+                    applied = true;
+                }
+            }
+        }
+
+        if (!applied) {
+            return false;
+        }
+
+        clearSaveTimer(block.dataset.nodeId);
+        await saveBlock(block, { skipHistory: true });
+        recordTableContentHistory(
+            block.dataset.nodeId,
+            beforeContent,
+            cloneTableContent(collectBlockContent(block)),
+            tableFocus
+        );
+        return true;
     }
 
     function init(options) {
@@ -4026,5 +4371,8 @@
         increaseParagraphIndent,
         decreaseParagraphIndent,
         toggleParagraphFirstLineIndent,
+        extractTableCellClipboardData,
+        applyTableCellClipboardData,
+        pasteTableCellGrid,
     };
 })();

@@ -108,7 +108,83 @@
         lastFormatContext = null;
     }
 
+    function resolveTableMultiFormatContext() {
+        if (
+            !window.ReportLineTableSelection
+            || !window.ReportLineTableSelection.hasMultiCellSelection
+            || !window.ReportLineTableSelection.hasMultiCellSelection()
+        ) {
+            return null;
+        }
+
+        const selection = window.ReportLineTableSelection.getSelection();
+        const editables = window.ReportLineTableSelection.getSelectedTextEditables();
+        if (!selection || editables.length === 0) {
+            return null;
+        }
+
+        return {
+            block: selection.block,
+            editable: editables[0],
+            editables,
+            tableMulti: true,
+        };
+    }
+
+    function selectAllContents(element) {
+        element.focus();
+        const selection = window.getSelection();
+        if (!selection) {
+            return;
+        }
+        const range = document.createRange();
+        range.selectNodeContents(element);
+        selection.removeAllRanges();
+        selection.addRange(range);
+    }
+
+    function applyFormatToTableMultiSelection(format) {
+        const context = resolveTableMultiFormatContext();
+        const command = FORMAT_COMMANDS[format];
+        if (!context || !command) {
+            return false;
+        }
+
+        const inlineText = getInlineText();
+        if (
+            window.ReportLineEditor
+            && window.ReportLineEditor.beginBlockContentRecording
+        ) {
+            window.ReportLineEditor.beginBlockContentRecording(context.block, context.editable);
+        }
+
+        context.editables.forEach((editable) => {
+            selectAllContents(editable);
+            try {
+                document.execCommand(command, false, null);
+            } catch (_error) {
+                return;
+            }
+
+            if (inlineText) {
+                editable.innerHTML = inlineText.sanitize(editable.innerHTML);
+            }
+        });
+
+        if (window.ReportLineEditor && window.ReportLineEditor.scheduleDebouncedSave) {
+            window.ReportLineEditor.scheduleDebouncedSave(context.block);
+        }
+
+        return true;
+    }
+
     function resolveFormattableContext() {
+        const multiContext = resolveTableMultiFormatContext();
+        if (multiContext) {
+            rememberFormatContext(multiContext);
+            return multiContext;
+        }
+
         const fromSelection = resolveFormattableContextFromSelection();
         if (fromSelection) {
             rememberFormatContext(fromSelection);
@@ -195,6 +271,16 @@
             return;
         }
 
+        if (context && context.tableMulti) {
+            formatToolbarGroup.querySelectorAll("[data-report-text-format]").forEach((button) => {
+                const format = button.dataset.reportTextFormat;
+                if (FORMATS_REQUIRING_SELECTION.has(format)) {
+                    button.disabled = false;
+                }
+            });
+            return;
+        }
+
         const hasSelection = hasMeaningfulSelection(context);
         formatToolbarGroup.querySelectorAll("[data-report-text-format]").forEach((button) => {
             const format = button.dataset.reportTextFormat;
@@ -243,11 +329,16 @@
     }
 
     function refreshToolbar(context) {
-        const hasContext = Boolean(context && context.editable);
+        const multiContext = resolveTableMultiFormatContext();
+        const effectiveContext = multiContext || context;
+        const hasContext = Boolean(
+            multiContext
+            || (context && context.editable)
+        );
         setFormatButtonsEnabled(hasContext);
         if (hasContext) {
-            updateFormatButtonStates(context);
-            updateSelectionRequiredButtons(context);
+            updateFormatButtonStates(effectiveContext);
+            updateSelectionRequiredButtons(effectiveContext);
         } else {
             updateFormatButtonStates(null);
         }
@@ -272,6 +363,11 @@
     }
 
     function applyFormat(format) {
+        if (applyFormatToTableMultiSelection(format)) {
+            refreshToolbar(resolveTableMultiFormatContext());
+            return Promise.resolve();
+        }
+
         const context = resolveFormattableContext();
         const command = FORMAT_COMMANDS[format];
         if (!context || !command) {
@@ -335,7 +431,7 @@
                 return;
             }
 
-            const context = resolveFormattableContext();
+            const context = resolveTableMultiFormatContext() || resolveFormattableContext();
             if (!context) {
                 return;
             }
@@ -411,11 +507,16 @@
         });
 
         document.addEventListener("selectionchange", () => {
-            const context = resolveFormattableContextFromSelection()
+            const context = resolveTableMultiFormatContext()
+                || resolveFormattableContextFromSelection()
                 || resolveFormattableContext();
             if (context) {
                 refreshToolbar(context);
             }
+        });
+
+        document.addEventListener("reportline:table-selection-changed", () => {
+            refreshToolbar(resolveTableMultiFormatContext() || resolveFormattableContext());
         });
 
         document.addEventListener("focusin", (event) => {
