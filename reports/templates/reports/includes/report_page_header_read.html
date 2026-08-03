@@ -1,0 +1,39 @@
+{% load report_inline_text %}
+{% with header=page_layout.header %}
+{% if header.enabled %}
+<div class="report-page-header-root report-document-page-header">
+    <div class="report-page-header report-page-header--active report-page-header--read"
+         role="region"
+         aria-label="Cabeçalho do documento">
+        <div class="report-page-header-row">
+            {% for cell in header.cells %}
+                <div class="report-page-header-cell{% if cell.type == 'text' %} report-page-header-cell--text{% elif forloop.first %} report-page-header-cell--logo-start{% elif forloop.last %} report-page-header-cell--logo-end{% else %} report-page-header-cell--logo-start{% endif %}"
+                     {% if cell.type == "text" %}style="text-align: {{ cell.align|default:'left' }};"{% endif %}>
+                    {% if cell.type == "logo" %}
+                        {% if cell.url %}
+                        <div class="report-page-header-logo-slot has-image">
+                            <div class="report-page-header-logo-frame">
+                                <img src="{{ cell.url }}"
+                                     alt="{{ cell.alt|default:'' }}"
+                                     class="report-page-header-logo-img"
+                                     {% if cell.width and cell.height %}
+                                     width="{{ cell.width }}"
+                                     height="{{ cell.height }}"
+                                     style="width: {{ cell.width }}px; height: {{ cell.height }}px;"
+                                     {% endif %}>
+                            </div>
+                        </div>
+                        {% endif %}
+                    {% else %}
+                        <div class="report-page-header-text report-page-header-text--read"
+                             data-text-align="{{ cell.align|default:'left' }}"
+                             data-indent-level="{{ cell.indent_level|default:0 }}"
+                             data-first-line-indent="{% if cell.first_line_indent %}true{% else %}false{% endif %}">{{ cell.text|default:""|header_text }}</div>
+                    {% endif %}
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endwith %}

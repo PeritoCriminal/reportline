@@ -1,0 +1,636 @@
+/**
+ * Estilos de leitura do laudo (preview e PDF).
+ *
+ * Tipografia Times 11pt alinhada ao corpo do editor; sem paginação (@page)
+ * nesta fase — apenas fluxo contínuo para visualização de documento.
+ */
+
+.report-document {
+    --report-document-font-family: "Times New Roman", Times, serif;
+    --report-document-font-size: 11pt;
+    --report-document-line-height: 1.6;
+    --report-document-color: #212529;
+    --report-document-muted: #6c757d;
+    --report-document-link: #0d6efd;
+    --report-document-border: #dee2e6;
+    --report-document-indent-step: 1.25cm;
+    --report-document-first-line-indent: 1.25cm;
+    --report-document-page-width: 210mm;
+    --report-document-page-bg: #fafaf8;
+    --report-document-preview-canvas-bg: #1e1e1e;
+}
+
+/* --- Preview: folha A4 centralizada --- */
+
+html.report-document-preview-root,
+body.report-document-preview {
+    margin: 0;
+    min-height: 100%;
+}
+
+body.report-document-preview {
+    background-color: var(--report-document-preview-canvas-bg);
+}
+
+.report-document-preview-canvas {
+    box-sizing: border-box;
+    min-height: 100vh;
+    padding: 2rem 1rem;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    background-color: var(--report-document-preview-canvas-bg);
+}
+
+.report-document-page {
+    box-sizing: border-box;
+    width: var(--report-document-page-width);
+    max-width: 100%;
+    min-height: 297mm;
+    margin: 0 auto;
+    padding: 2.5cm 2cm;
+    background-color: var(--report-document-page-bg);
+    color: var(--report-document-color);
+    box-shadow: 0 0.25rem 1.25rem rgba(0, 0, 0, 0.45);
+    font-family: var(--report-document-font-family);
+    font-size: var(--report-document-font-size);
+    line-height: var(--report-document-line-height);
+}
+
+.report-document-body {
+    margin: 0;
+    padding: 0;
+}
+
+/* --- Cabeçalho (uma vez no preview) --- */
+
+.report-document-page-header.report-page-header-root {
+    width: 100%;
+    margin-bottom: 1.5rem;
+}
+
+.report-page-header--read {
+    border: none;
+    border-radius: 0;
+    padding: 0;
+    background-color: transparent;
+    width: 100%;
+}
+
+.report-page-header-row {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    gap: 0.35rem;
+}
+
+.report-page-header-cell {
+    background-color: var(--report-document-page-bg);
+    min-width: 0;
+}
+
+.report-page-header-cell--logo-start {
+    flex: 0 0 auto;
+    text-align: left;
+}
+
+.report-page-header-cell--logo-end {
+    flex: 0 0 auto;
+    text-align: right;
+}
+
+.report-page-header-cell--text {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.report-page-header-cell--logo-start .report-page-header-logo-slot {
+    justify-content: flex-start;
+    width: auto;
+    display: inline-flex;
+}
+
+.report-page-header-cell--logo-end .report-page-header-logo-slot {
+    justify-content: flex-end;
+    width: auto;
+    display: inline-flex;
+}
+
+.report-page-header-logo-slot {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    min-height: 0;
+    padding: 0;
+    border: none;
+    background: var(--report-document-page-bg);
+}
+
+.report-page-header-logo-frame {
+    position: relative;
+    display: inline-block;
+    max-width: 100%;
+    line-height: 0;
+}
+
+.report-page-header-logo-img {
+    display: block;
+    max-width: 100%;
+    width: auto;
+    height: auto;
+    object-fit: contain;
+}
+
+.report-page-header-text--read {
+    min-height: 0;
+    white-space: pre-wrap;
+    word-break: break-word;
+    background: var(--report-document-page-bg);
+}
+
+.report-page-header-text--read[data-indent-level="1"] {
+    padding-left: var(--report-document-indent-step);
+}
+
+.report-page-header-text--read[data-indent-level="2"] {
+    padding-left: calc(2 * var(--report-document-indent-step));
+}
+
+.report-page-header-text--read[data-indent-level="3"] {
+    padding-left: calc(3 * var(--report-document-indent-step));
+}
+
+.report-page-header-text--read[data-indent-level="4"] {
+    padding-left: calc(4 * var(--report-document-indent-step));
+}
+
+.report-page-header-text--read[data-indent-level="5"] {
+    padding-left: calc(5 * var(--report-document-indent-step));
+}
+
+.report-page-header-text--read[data-first-line-indent="true"] {
+    text-indent: var(--report-document-first-line-indent);
+}
+
+/* --- Blocos --- */
+
+.report-document-block {
+    margin: 0 0 1rem;
+}
+
+.report-document-block:last-child {
+    margin-bottom: 0;
+}
+
+/* --- Alinhamento (paridade com editor) --- */
+
+.report-document-block[data-text-align="left"] {
+    text-align: left;
+}
+
+.report-document-block[data-text-align="center"] {
+    text-align: center;
+}
+
+.report-document-block[data-text-align="right"] {
+    text-align: right;
+}
+
+.report-document-block[data-text-align="justify"] {
+    text-align: justify;
+}
+
+.report-document-heading,
+.report-document-paragraph,
+.report-document-list,
+.report-document-link {
+    text-align: inherit;
+}
+
+.report-document-block[data-block-type="table"] {
+    text-align: initial;
+}
+
+.report-document-block[data-block-type="paragraph"][data-indent-level="1"] {
+    padding-left: var(--report-document-indent-step);
+}
+
+.report-document-block[data-block-type="paragraph"][data-indent-level="2"] {
+    padding-left: calc(2 * var(--report-document-indent-step));
+}
+
+.report-document-block[data-block-type="paragraph"][data-indent-level="3"] {
+    padding-left: calc(3 * var(--report-document-indent-step));
+}
+
+.report-document-block[data-block-type="paragraph"][data-indent-level="4"] {
+    padding-left: calc(4 * var(--report-document-indent-step));
+}
+
+.report-document-block[data-block-type="paragraph"][data-indent-level="5"] {
+    padding-left: calc(5 * var(--report-document-indent-step));
+}
+
+.report-document-block[data-text-align="left"] .report-document-table-wrap {
+    margin-left: 0;
+    margin-right: auto;
+}
+
+.report-document-block[data-text-align="center"] .report-document-table-wrap,
+.report-document-block[data-text-align="justify"] .report-document-table-wrap {
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.report-document-block[data-text-align="right"] .report-document-table-wrap {
+    margin-left: auto;
+    margin-right: 0;
+}
+
+.report-document-block[data-block-type="table"] .report-document-table-header[data-text-align="left"],
+.report-document-block[data-block-type="table"] .report-document-table-cell[data-text-align="left"] {
+    text-align: left;
+}
+
+.report-document-block[data-block-type="table"] .report-document-table-header[data-text-align="center"],
+.report-document-block[data-block-type="table"] .report-document-table-cell[data-text-align="center"] {
+    text-align: center;
+}
+
+.report-document-block[data-block-type="table"] .report-document-table-header[data-text-align="right"],
+.report-document-block[data-block-type="table"] .report-document-table-cell[data-text-align="right"] {
+    text-align: right;
+}
+
+.report-document-block[data-block-type="table"] .report-document-table-header[data-text-align="justify"],
+.report-document-block[data-block-type="table"] .report-document-table-cell[data-text-align="justify"] {
+    text-align: justify;
+}
+
+.report-document-block[data-text-align="left"] .report-document-image-wrap {
+    justify-content: flex-start;
+}
+
+.report-document-block[data-text-align="center"] .report-document-image-wrap,
+.report-document-block[data-text-align="justify"] .report-document-image-wrap {
+    justify-content: center;
+}
+
+.report-document-block[data-text-align="right"] .report-document-image-wrap {
+    justify-content: flex-end;
+}
+
+.report-document-block[data-text-align="left"] .report-document-image-frame {
+    margin-left: 0;
+    margin-right: auto;
+}
+
+.report-document-block[data-text-align="center"] .report-document-image-frame,
+.report-document-block[data-text-align="justify"] .report-document-image-frame {
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.report-document-block[data-text-align="right"] .report-document-image-frame {
+    margin-left: auto;
+    margin-right: 0;
+}
+
+/* --- Títulos --- */
+
+.report-document-heading-wrap {
+    display: flex;
+    align-items: baseline;
+    gap: 0.25rem;
+    margin: 0 0 0.75rem;
+}
+
+.report-document-heading-number {
+    flex-shrink: 0;
+    color: var(--report-document-muted);
+    font-weight: 600;
+    user-select: none;
+}
+
+.report-document-heading {
+    flex: 1 1 auto;
+    min-width: 0;
+    font-weight: 600;
+    line-height: 1.3;
+    margin: 0;
+}
+
+.report-document-heading-wrap[data-level="0"] .report-document-heading,
+.report-document-heading-wrap--main .report-document-heading {
+    font-size: 16.5pt;
+}
+
+.report-document-heading-wrap[data-level="1"] .report-document-heading {
+    font-size: 13.75pt;
+}
+
+.report-document-heading-wrap[data-level="2"] .report-document-heading {
+    font-size: 12.375pt;
+}
+
+.report-document-heading-wrap[data-level="3"] .report-document-heading {
+    font-size: 11pt;
+}
+
+.report-document-heading-wrap[data-level="4"] .report-document-heading,
+.report-document-heading-wrap[data-level="5"] .report-document-heading,
+.report-document-heading-wrap[data-level="6"] .report-document-heading,
+.report-document-heading-wrap[data-level="7"] .report-document-heading,
+.report-document-heading-wrap[data-level="8"] .report-document-heading,
+.report-document-heading-wrap[data-level="9"] .report-document-heading {
+    font-size: 10.3125pt;
+}
+
+/* --- Parágrafos --- */
+
+.report-document-paragraph {
+    margin: 0 0 1rem;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+.report-document-paragraph--first-line-indent {
+    text-indent: var(--report-document-first-line-indent);
+}
+
+/* --- Legendas --- */
+
+.report-document-block[data-is-caption="true"] .report-document-caption-wrap {
+    font-size: 9.625pt;
+    color: var(--report-document-muted);
+    margin-bottom: 1rem;
+    text-indent: 0;
+}
+
+.report-document-block[data-is-caption="true"][data-text-align="left"] .report-document-caption-wrap {
+    text-align: left;
+}
+
+.report-document-block[data-is-caption="true"][data-text-align="center"] .report-document-caption-wrap,
+.report-document-block[data-is-caption="true"]:not([data-text-align]) .report-document-caption-wrap {
+    text-align: center;
+}
+
+.report-document-block[data-is-caption="true"][data-text-align="right"] .report-document-caption-wrap {
+    text-align: right;
+}
+
+.report-document-caption-line {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 0;
+    max-width: 100%;
+    text-align: left;
+}
+
+.report-document-caption-text {
+    flex: 0 1 auto;
+    width: auto;
+    margin: 0;
+    text-indent: 0;
+}
+
+.report-document-caption-number {
+    white-space: nowrap;
+    margin-right: 0.35em;
+}
+
+/* --- Listas --- */
+
+.report-document-list {
+    margin: 0 0 1rem 1.25rem;
+    padding: 0;
+}
+
+.report-document-list-item {
+    margin: 0 0 0.25rem;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+.report-document-list-item:last-child {
+    margin-bottom: 0;
+}
+
+.report-document-list-item--empty {
+    color: var(--report-document-muted);
+    font-style: italic;
+}
+
+/* --- Links --- */
+
+.report-document-link {
+    margin: 0 0 1rem;
+}
+
+.report-document-link a {
+    color: var(--report-document-link);
+    text-decoration: underline;
+}
+
+.report-document-link-missing {
+    color: var(--report-document-muted);
+}
+
+/* --- Tabelas --- */
+
+.report-document-table-wrap {
+    margin-bottom: 1rem;
+    overflow-x: auto;
+}
+
+.report-document-table {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: fixed;
+    font-size: 9.625pt;
+    color: var(--report-document-color);
+}
+
+.report-document-table th,
+.report-document-table td {
+    vertical-align: top;
+    min-width: 0;
+    border: 1px solid var(--report-document-border);
+    padding: 0.375rem 0.5rem;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+}
+
+.report-document-table-header {
+    font-weight: 600;
+}
+
+.report-document-table--hide-borders th,
+.report-document-table--hide-borders td {
+    border-color: transparent;
+}
+
+.report-document-table--hide-header thead {
+    display: none;
+}
+
+.report-document-table-cell--image {
+    padding: 0;
+    line-height: 0;
+}
+
+.report-document-table-cell-image {
+    display: block;
+    width: 100%;
+    max-width: 100%;
+    margin: 0;
+    padding: 0;
+    line-height: 0;
+}
+
+.report-document-table-cell-image-frame {
+    position: relative;
+    display: inline-block;
+    max-width: 100%;
+    margin: 0;
+    line-height: 0;
+}
+
+.report-document-table-cell-image[data-text-align="left"] .report-document-table-cell-image-frame {
+    margin-right: auto;
+    margin-left: 0;
+}
+
+.report-document-table-cell-image[data-text-align="center"] .report-document-table-cell-image-frame {
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.report-document-table-cell-image[data-text-align="right"] .report-document-table-cell-image-frame {
+    margin-left: auto;
+    margin-right: 0;
+}
+
+.report-document-table-cell-image-img {
+    display: block;
+    max-width: 100%;
+    width: auto;
+    height: auto;
+    margin: 0;
+}
+
+.report-document-table-cell--empty {
+    color: var(--report-document-muted);
+    font-style: italic;
+}
+
+/* --- Figuras e imagens --- */
+
+.report-document-figure {
+    margin: 0 0 1rem;
+    padding: 0;
+}
+
+.report-document-image-wrap {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    min-height: 0;
+    margin: 0 0 1rem;
+}
+
+.report-document-image-wrap.has-image {
+    min-height: 0;
+    padding: 0;
+    border: none;
+    background: transparent;
+}
+
+.report-document-image-frame {
+    position: relative;
+    display: inline-block;
+    max-width: 100%;
+    margin: 0;
+    line-height: 0;
+}
+
+.report-document-image {
+    display: block;
+    max-width: 14cm;
+    max-height: 14cm;
+    width: auto;
+    height: auto;
+}
+
+.report-document-image-frame .report-document-image[style*="width"] {
+    max-width: none;
+    max-height: none;
+}
+
+.report-document-image-placeholder {
+    display: block;
+    color: var(--report-document-muted);
+    font-style: italic;
+    font-size: 9.625pt;
+}
+
+/* --- Linha horizontal --- */
+
+.report-document-horizontal-rule {
+    border: 0;
+    border-top: 1px solid var(--report-document-border);
+    margin: 0.75rem 0;
+    opacity: 1;
+}
+
+/* --- Formatação inline --- */
+
+.report-document-block strong,
+.report-document-block b {
+    font-weight: 700;
+}
+
+.report-document-block em,
+.report-document-block i {
+    font-style: italic;
+}
+
+.report-document-block u {
+    text-decoration: underline;
+}
+
+.report-document-block s,
+.report-document-block strike,
+.report-document-block del {
+    text-decoration: line-through;
+}
+
+.report-document-block a {
+    color: var(--report-document-link);
+    text-decoration: underline;
+}
+
+.report-page-header-text--read sup,
+.report-document-block sup {
+    font-size: 0.75em;
+    vertical-align: baseline;
+    position: relative;
+    top: -0.32em;
+}
+
+.report-page-header-text--read sub,
+.report-document-block sub {
+    vertical-align: sub;
+    font-size: 0.75em;
+}
+
+/* --- Fallback --- */
+
+.report-document-unsupported {
+    margin: 0 0 1rem;
+    font-size: 9.625pt;
+    color: var(--report-document-muted);
+}

@@ -8,6 +8,7 @@ from django.urls import path
 
 from reports.views.report_config_api_views import ReportConfigView
 from reports.views.report_create_views import ReportCreateView
+from reports.views.report_document_views import ReportDocumentPreviewView
 from reports.views.report_editor_views import ReportEditorOutlineView, ReportEditorView
 from reports.views.report_image_api_views import ReportImageUploadView
 from reports.views.report_list_views import ReportListView
@@ -40,6 +41,11 @@ urlpatterns = [
         "<uuid:pk>/edit/",
         ReportEditorView.as_view(),
         name="edit",
+    ),
+    path(
+        "<uuid:pk>/preview/",
+        ReportDocumentPreviewView.as_view(),
+        name="preview",
     ),
     path(
         "<uuid:pk>/outline/",

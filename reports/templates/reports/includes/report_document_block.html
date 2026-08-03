@@ -1,0 +1,142 @@
+{# Partial de bloco para renderização de leitura (preview/PDF). Espera variável ``section``. #}
+<div id="report-block-{{ section.node_id }}"
+     class="report-document-block report-document-block--{{ section.block_type }}"
+     data-block-type="{{ section.block_type }}"
+     {% if section.block_type == "image" %}
+     data-text-align="{{ section.text_align|default:'center' }}"
+     {% elif section.block_type == "table" %}
+     data-text-align="{{ section.text_align|default:'left' }}"
+     {% else %}
+     data-text-align="{{ section.text_align|default:'justify' }}"
+     {% endif %}
+     {% if section.block_type == "paragraph" %}
+     data-indent-level="{{ section.indent_level|default:0 }}"
+     {% endif %}
+     {% if section.is_caption %}data-is-caption="true"{% endif %}>
+    {% if section.block_type == "heading" %}
+        <div class="report-document-heading-wrap{% if section.is_main_title %} report-document-heading-wrap--main{% endif %}"
+             data-level="{{ section.title_level }}">
+            {% if section.heading_number %}
+            <span class="report-document-heading-number" aria-hidden="true">{{ section.heading_number }}.</span>
+            {% endif %}
+            <div class="report-document-heading"
+                 role="heading"
+                 aria-level="{{ section.title_level|add:1 }}">{{ section.body_html|default:"Título sem texto"|safe }}</div>
+        </div>
+    {% elif section.block_type == "paragraph" %}
+        {% if section.is_caption %}
+        <div class="report-document-caption-wrap">
+            <div class="report-document-caption-line">
+                {% if section.caption_number %}
+                <span class="report-document-caption-number">Figura {{ section.caption_number }} - </span>
+                {% endif %}
+                <p class="report-document-caption-text">{{ section.body_html|safe }}</p>
+            </div>
+        </div>
+        {% else %}
+        <p class="report-document-paragraph{% if section.first_line_indent != False %} report-document-paragraph--first-line-indent{% endif %}">{{ section.body_html|safe }}</p>
+        {% endif %}
+    {% elif section.block_type == "ordered_list" %}
+        <ol class="report-document-list report-document-list--ordered">
+            {% for item_html in section.list_items_html %}
+                <li class="report-document-list-item">{{ item_html|safe }}</li>
+            {% empty %}
+                <li class="report-document-list-item report-document-list-item--empty">Lista vazia</li>
+            {% endfor %}
+        </ol>
+    {% elif section.block_type == "unordered_list" %}
+        <ul class="report-document-list report-document-list--unordered">
+            {% for item_html in section.list_items_html %}
+                <li class="report-document-list-item">{{ item_html|safe }}</li>
+            {% empty %}
+                <li class="report-document-list-item report-document-list-item--empty">Lista vazia</li>
+            {% endfor %}
+        </ul>
+    {% elif section.block_type == "link" %}
+        <p class="report-document-link">
+            {% if section.content.url %}
+                <a href="{{ section.content.url }}" target="_blank" rel="noopener noreferrer">{{ section.body_html|default:section.content.url|safe }}</a>
+            {% else %}
+                <span class="report-document-link-missing">{{ section.body_html|default:"Link sem URL"|safe }}</span>
+            {% endif %}
+        </p>
+    {% elif section.block_type == "table" %}
+        <div class="report-document-table-wrap"
+             style="width: {{ section.content.display_width|default:100 }}%;">
+            <table class="report-document-table{% if section.content.show_borders == False %} report-document-table--hide-borders{% endif %}{% if section.content.show_header == False %} report-document-table--hide-header{% endif %}">
+                {% if section.content.column_widths %}
+                <colgroup>
+                    {% for width in section.content.column_widths %}
+                        <col style="width: {{ width }}%;">
+                    {% endfor %}
+                </colgroup>
+                {% endif %}
+                {% if section.content.show_header != False and section.content.headers %}
+                <thead>
+                    <tr>
+                        {% for header in section.content.headers %}
+                            <th scope="col"
+                                class="report-document-table-header"
+                                data-text-align="{{ header.align|default:'left' }}">{{ header.text|default:""|safe }}</th>
+                        {% endfor %}
+                    </tr>
+                </thead>
+                {% endif %}
+                <tbody>
+                    {% for row in section.content.rows %}
+                        <tr>
+                            {% for cell in row %}
+                                <td class="report-document-table-cell{% if cell.type == 'image' and cell.url %} report-document-table-cell--image{% endif %}"
+                                    data-text-align="{{ cell.align|default:'left' }}">
+                                    {% if cell.type == "image" and cell.url %}
+                                        <div class="report-document-table-cell-image"
+                                             data-text-align="{{ cell.align|default:'center' }}">
+                                            <div class="report-document-table-cell-image-frame">
+                                                <img src="{{ cell.url }}"
+                                                     alt="{{ cell.alt|default:'' }}"
+                                                     class="report-document-table-cell-image-img"
+                                                     width="{{ cell.width|default:0 }}"
+                                                     height="{{ cell.height|default:0 }}"
+                                                     {% if cell.width and cell.height %}style="width: {{ cell.width }}px; height: {{ cell.height }}px;"{% endif %}>
+                                            </div>
+                                        </div>
+                                    {% else %}
+                                        <span class="report-document-table-cell-text">{{ cell.text|default:""|safe }}</span>
+                                    {% endif %}
+                                </td>
+                            {% endfor %}
+                        </tr>
+                    {% empty %}
+                        <tr>
+                            <td class="report-document-table-cell report-document-table-cell--empty"
+                                colspan="{{ section.content.headers|length|default:1 }}">Tabela sem linhas</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% elif section.block_type == "image" %}
+        <figure class="report-document-figure">
+            {% with figure=section.figures.0 %}
+            <div class="report-document-image-wrap{% if figure %} has-image{% endif %}">
+                {% if figure %}
+                    <div class="report-document-image-frame">
+                        <img src="{{ figure.url }}"
+                             alt="{{ figure.alt|default:'' }}"
+                             class="report-document-image"
+                             width="{{ figure.width|default:0 }}"
+                             height="{{ figure.height|default:0 }}"
+                             {% if figure.width and figure.height %}style="width: {{ figure.width }}px; height: {{ figure.height }}px;"{% endif %}>
+                    </div>
+                {% elif section.content.alt %}
+                    <span class="report-document-image-placeholder">{{ section.content.alt }}</span>
+                {% endif %}
+            </div>
+            {% endwith %}
+        </figure>
+    {% elif section.block_type == "horizontal_rule" %}
+        <hr class="report-document-horizontal-rule" aria-hidden="true">
+    {% else %}
+        <p class="report-document-unsupported">{{ section.block_type }}</p>
+    {% endif %}
+</div>

@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="pt-BR" class="report-document-preview-root">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{{ report.title }} — Visualização</title>
+    <style>{{ document_styles|safe }}</style>
+</head>
+<body class="report-document report-document-preview">
+    <div class="report-document-preview-canvas">
+        <main class="report-document-page">
+            {% include "reports/includes/report_page_header_read.html" %}
+            <div class="report-document-body">
+                {% for section in sections %}
+                    {% include "reports/includes/report_document_block.html" with section=section %}
+                {% empty %}
+                    <p class="report-document-unsupported">Este laudo ainda não possui conteúdo.</p>
+                {% endfor %}
+            </div>
+        </main>
+    </div>
+</body>
+</html>
