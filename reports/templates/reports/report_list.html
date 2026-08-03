@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load report_tags %}
 
 {% block title %}Meus relatórios — ReportLine{% endblock %}
 
@@ -31,6 +32,9 @@
                                     </p>
                                 </a>
                                 <div class="d-flex align-items-center gap-2 flex-shrink-0">
+                                    {% if report|is_forensic_report %}
+                                        <span class="badge text-bg-info">Laudo pericial</span>
+                                    {% endif %}
                                     <span class="badge text-bg-secondary">{{ report.get_status_display }}</span>
                                     <a class="btn btn-sm btn-outline-danger"
                                        href="{% url 'reports:delete' pk=report.pk %}"

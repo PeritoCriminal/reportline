@@ -1,11 +1,19 @@
 """
 Rotas HTTP do app institution_ic_sp.
 
-Namespace reservado para futuras telas de consulta institucional.
+Inclui o fluxo de laudo pericial para servidores com perfil ForensicExaminerSP.
 """
 
-from django.urls import path
+from django.urls import include, path
 
 app_name = "institution_ic_sp"
 
-urlpatterns = []
+urlpatterns = [
+    path(
+        "forensic-report/",
+        include(
+            ("institution_ic_sp.forensic_report.urls", "forensic_report"),
+            namespace="forensic_report",
+        ),
+    ),
+]

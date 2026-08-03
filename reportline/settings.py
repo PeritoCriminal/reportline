@@ -79,6 +79,7 @@ TEMPLATES = [
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
                 'accounts.context_processors.auth_settings',
+                'institution_ic_sp.context_processors.forensic_examiner_context',
                 'reports.context_processors.report_editor_dev',
             ],
         },

@@ -1,0 +1,154 @@
+{% extends "base.html" %}
+
+{% block title %}Novo laudo pericial — ReportLine{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-9 col-xl-8">
+        <div class="mb-4">
+            <h1 class="h4 mb-1">Novo laudo pericial</h1>
+            <p class="text-muted small mb-0">
+                {{ workflow.description }}
+            </p>
+        </div>
+
+        <form method="post" enctype="multipart/form-data" novalidate>
+            {% csrf_token %}
+
+            <div class="card border-secondary-subtle shadow-sm mb-4">
+                <div class="card-body p-4">
+                    <h2 class="h6 mb-3">Documentos e contexto</h2>
+                    <p class="text-muted small">
+                        Anexe requisição, boletim ou outros documentos de referência.
+                        Informações complementares auxiliam a inferência futura de metadados por IA.
+                    </p>
+
+                    <div class="mb-3">
+                        <label for="id_documents" class="form-label">Documentos</label>
+                        <input type="file"
+                               class="form-control"
+                               id="id_documents"
+                               name="documents"
+                               multiple
+                               accept=".pdf,.png,.jpg,.jpeg,.webp,image/*,application/pdf">
+                        <div class="form-text">PDF ou imagens. Opcional nesta etapa.</div>
+                    </div>
+
+                    <div class="mb-0">
+                        <label for="{{ form.supplementary_prompt.id_for_label }}" class="form-label">
+                            {{ form.supplementary_prompt.label }}
+                        </label>
+                        {{ form.supplementary_prompt }}
+                        {% if form.supplementary_prompt.help_text %}
+                            <div class="form-text">{{ form.supplementary_prompt.help_text }}</div>
+                        {% endif %}
+                        {% for error in form.supplementary_prompt.errors %}
+                            <div class="invalid-feedback d-block">{{ error }}</div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+
+            <div class="card border-secondary-subtle shadow-sm mb-4">
+                <div class="card-body p-4">
+                    <h2 class="h6 mb-3">Identificação do laudo</h2>
+
+                    <div class="row g-3">
+                        <div class="col-md-8">
+                            <label for="{{ form.report_number.id_for_label }}" class="form-label">
+                                {{ form.report_number.label }}
+                            </label>
+                            {{ form.report_number }}
+                            {% if form.report_number.help_text %}
+                                <div class="form-text">{{ form.report_number.help_text }}</div>
+                            {% endif %}
+                            {% for error in form.report_number.errors %}
+                                <div class="invalid-feedback d-block">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                        <div class="col-md-4">
+                            <label for="{{ form.report_year.id_for_label }}" class="form-label">
+                                {{ form.report_year.label }}
+                            </label>
+                            {{ form.report_year }}
+                            {% for error in form.report_year.errors %}
+                                <div class="invalid-feedback d-block">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card border-secondary-subtle shadow-sm mb-4">
+                <div class="card-body p-4">
+                    <h2 class="h6 mb-3">Dados administrativos</h2>
+
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label for="{{ form.service_protocol.id_for_label }}" class="form-label">
+                                {{ form.service_protocol.label }}
+                            </label>
+                            {{ form.service_protocol }}
+                            {% for error in form.service_protocol.errors %}
+                                <div class="invalid-feedback d-block">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                        <div class="col-md-6">
+                            <label for="{{ form.requester.id_for_label }}" class="form-label">
+                                {{ form.requester.label }}
+                            </label>
+                            {{ form.requester }}
+                            {% for error in form.requester.errors %}
+                                <div class="invalid-feedback d-block">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                        <div class="col-md-6">
+                            <label for="{{ form.case_type.id_for_label }}" class="form-label">
+                                {{ form.case_type.label }}
+                            </label>
+                            {{ form.case_type }}
+                            {% for error in form.case_type.errors %}
+                                <div class="invalid-feedback d-block">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                        <div class="col-md-6">
+                            <label for="{{ form.bulletin_number.id_for_label }}" class="form-label">
+                                {{ form.bulletin_number.label }}
+                            </label>
+                            {{ form.bulletin_number }}
+                            {% for error in form.bulletin_number.errors %}
+                                <div class="invalid-feedback d-block">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                        <div class="col-12">
+                            <label for="{{ form.exam_objective.id_for_label }}" class="form-label">
+                                {{ form.exam_objective.label }}
+                            </label>
+                            {{ form.exam_objective }}
+                            {% for error in form.exam_objective.errors %}
+                                <div class="invalid-feedback d-block">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {% if form.non_field_errors %}
+                <div class="alert alert-danger" role="alert">
+                    {% for error in form.non_field_errors %}
+                        <div>{{ error }}</div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+
+            <div class="d-flex flex-wrap gap-2 justify-content-between">
+                <a class="btn btn-outline-secondary" href="{% url 'index' %}">Cancelar</a>
+                <button type="submit" class="btn btn-primary">
+                    <i class="bi bi-file-earmark-medical me-1" aria-hidden="true"></i>
+                    Gerar laudo e abrir editor
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

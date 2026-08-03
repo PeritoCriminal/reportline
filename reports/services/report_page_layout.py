@@ -464,6 +464,8 @@ def merge_page_layout(
 
 def normalize_page_layout(payload: Any) -> dict[str, Any]:
     """Normaliza layout completo de página do relatório."""
+    from reports.services.report_kind import REPORTLINE_META_KEY
+
     if payload in (None, ""):
         return default_page_layout()
     if not isinstance(payload, dict):
@@ -471,7 +473,13 @@ def normalize_page_layout(payload: Any) -> dict[str, Any]:
 
     header = normalize_header_layout(payload.get("header", _disabled_band_layout()))
     footer = normalize_footer_layout(payload.get("footer", _disabled_band_layout()))
-    return {"header": header, "footer": footer}
+    normalized: dict[str, Any] = {"header": header, "footer": footer}
+
+    meta = payload.get(REPORTLINE_META_KEY)
+    if isinstance(meta, dict):
+        normalized[REPORTLINE_META_KEY] = dict(meta)
+
+    return normalized
 
 
 def apply_header_template(
