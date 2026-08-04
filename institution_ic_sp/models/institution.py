@@ -47,6 +47,15 @@ class Institution(BaseModel):
         max_length=100,
         verbose_name="Município-sede",
     )
+    director_display = models.CharField(
+        max_length=512,
+        blank=True,
+        verbose_name="Diretor pericial (preâmbulo)",
+        help_text=(
+            "Linha exibida no preâmbulo do laudo como Perito Criminal Diretor "
+            "do Instituto de Criminalística."
+        ),
+    )
     is_provisional = models.BooleanField(
         default=True,
         verbose_name="Cadastro provisório",

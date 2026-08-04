@@ -43,7 +43,13 @@ class ForensicExaminerSPAdmin(admin.ModelAdmin):
         (
             None,
             {
-                "fields": ("user", "display_name", "job_title"),
+                "fields": (
+                    "user",
+                    "display_name",
+                    "job_title",
+                    "calling_gender",
+                    "director_display",
+                ),
             },
         ),
         (

@@ -1,1 +1,1 @@
-"""Serviços de domínio do app profiles."""
+"""Serviços do app profiles."""

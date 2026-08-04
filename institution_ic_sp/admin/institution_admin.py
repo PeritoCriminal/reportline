@@ -23,6 +23,7 @@ class InstitutionAdmin(admin.ModelAdmin):
                     "parent_organization",
                     "legal_reference",
                     "headquarters_city",
+                    "director_display",
                     "is_provisional",
                 ),
             },

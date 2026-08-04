@@ -28,25 +28,10 @@ class CaseIntakeForm(forms.Form):
         max_value=2100,
         initial=date.today().year,
     )
-    service_protocol = forms.CharField(
-        label="Protocolo de atendimento",
-        max_length=100,
+    designation_date = forms.DateField(
+        label="Data da designação",
         required=False,
-    )
-    requester = forms.CharField(
-        label="Solicitante",
-        max_length=255,
-        required=False,
-    )
-    case_type = forms.CharField(
-        label="Tipo de caso",
-        max_length=255,
-        required=False,
-    )
-    bulletin_number = forms.CharField(
-        label="Número do boletim de ocorrência",
-        max_length=100,
-        required=False,
+        widget=forms.DateInput(attrs={"type": "date", "class": "form-control"}),
     )
     exam_objective = forms.CharField(
         label="Objetivo do exame",
@@ -55,23 +40,99 @@ class CaseIntakeForm(forms.Form):
     )
     supplementary_prompt = forms.CharField(
         label="Informações complementares",
-        widget=forms.Textarea(attrs={"rows": 4}),
+        widget=forms.Textarea(attrs={"rows": 3}),
         required=False,
-        help_text=(
-            "Descreva o contexto do exame ou orientações adicionais. "
-            "Será considerado na inferência futura por IA."
+        help_text="Orientações adicionais para a inferência por IA a partir dos documentos.",
+    )
+    requesting_authority = forms.CharField(
+        label="Autoridade requisitante",
+        max_length=512,
+        required=False,
+    )
+    police_district = forms.CharField(
+        label="Distrito policial / Delegacia",
+        max_length=512,
+        required=False,
+    )
+    occurrence_report = forms.CharField(
+        label="Boletim de ocorrência",
+        max_length=512,
+        required=False,
+    )
+    police_inquiry = forms.CharField(
+        label="Inquérito policial",
+        max_length=512,
+        required=False,
+    )
+    occurrence_at = forms.DateTimeField(
+        label="Data e hora da ocorrência",
+        required=False,
+        widget=forms.DateTimeInput(
+            attrs={"type": "datetime-local", "class": "form-control"},
+            format="%Y-%m-%dT%H:%M",
         ),
     )
+    requisition_at = forms.DateTimeField(
+        label="Data e hora da requisição",
+        required=False,
+        widget=forms.DateTimeInput(
+            attrs={"type": "datetime-local", "class": "form-control"},
+            format="%Y-%m-%dT%H:%M",
+        ),
+    )
+    attendance_protocol = forms.CharField(
+        label="Número do protocolo",
+        max_length=512,
+        required=False,
+    )
+    examiner = forms.CharField(
+        label="Perito",
+        max_length=255,
+        required=False,
+    )
+    examination_at = forms.DateTimeField(
+        label="Data e hora do exame",
+        required=False,
+        widget=forms.DateTimeInput(
+            attrs={"type": "datetime-local", "class": "form-control"},
+            format="%Y-%m-%dT%H:%M",
+        ),
+    )
+    photography = forms.CharField(
+        label="Fotógrafo",
+        max_length=512,
+        required=False,
+    )
+    scanning_3d = forms.CharField(
+        label="Escaneamento 3D",
+        max_length=512,
+        required=False,
+    )
+    sketch = forms.CharField(
+        label="Croqui",
+        max_length=512,
+        required=False,
+    )
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, examiner_display_name: str = "", **kwargs):
         super().__init__(*args, **kwargs)
-        for field in self.fields.values():
-            css_class = "form-control"
-            if isinstance(field.widget, forms.Textarea):
-                pass
-            field.widget.attrs.setdefault("class", css_class)
+        datetime_local_formats = [
+            "%Y-%m-%dT%H:%M",
+            "%Y-%m-%dT%H:%M:%S",
+            "%Y-%m-%d %H:%M:%S",
+        ]
+        for name in ("occurrence_at", "requisition_at", "examination_at"):
+            self.fields[name].input_formats = datetime_local_formats
 
-    def to_case_metadata(self, *, uploaded_file_names: list[str] | None = None):
+        for field in self.fields.values():
+            if isinstance(field.widget, forms.DateInput):
+                continue
+            field.widget.attrs.setdefault("class", "form-control")
+
+        if examiner_display_name and not self.initial.get("examiner"):
+            self.fields["examiner"].initial = examiner_display_name
+
+    def to_case_metadata(self) -> "CaseMetadata":
         """Converte dados validados em ``CaseMetadata``."""
         from institution_ic_sp.forensic_report.common.services.case_metadata import (
             CaseMetadata,
@@ -81,11 +142,19 @@ class CaseIntakeForm(forms.Form):
         return CaseMetadata(
             report_number=cleaned["report_number"],
             report_year=cleaned["report_year"],
-            service_protocol=cleaned.get("service_protocol", ""),
-            requester=cleaned.get("requester", ""),
-            case_type=cleaned.get("case_type", ""),
-            bulletin_number=cleaned.get("bulletin_number", ""),
+            designation_date=cleaned.get("designation_date"),
             exam_objective=cleaned.get("exam_objective", ""),
             supplementary_prompt=cleaned.get("supplementary_prompt", ""),
-            uploaded_file_names=uploaded_file_names or [],
+            requesting_authority=cleaned.get("requesting_authority", ""),
+            police_district=cleaned.get("police_district", ""),
+            occurrence_report=cleaned.get("occurrence_report", ""),
+            police_inquiry=cleaned.get("police_inquiry", ""),
+            occurrence_at=cleaned.get("occurrence_at"),
+            requisition_at=cleaned.get("requisition_at"),
+            attendance_protocol=cleaned.get("attendance_protocol", ""),
+            examiner=cleaned.get("examiner", ""),
+            examination_at=cleaned.get("examination_at"),
+            photography=cleaned.get("photography", ""),
+            scanning_3d=cleaned.get("scanning_3d", ""),
+            sketch=cleaned.get("sketch", ""),
         )

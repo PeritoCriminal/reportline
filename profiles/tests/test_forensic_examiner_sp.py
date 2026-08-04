@@ -13,7 +13,7 @@ from django.db.models import ProtectedError
 from django.test import TestCase
 
 from institution_ic_sp.models import ForensicNucleus, ForensicTeam
-from profiles.models import ForensicExaminerSP, ForensicJobTitle
+from profiles.models import ForensicExaminerSP, ForensicJobTitle, GenderCalling
 
 User = get_user_model()
 
@@ -113,8 +113,8 @@ class ForensicExaminerSPModelTests(TestCase):
         self.assertTrue(perito.has_full_institution_access)
         self.assertFalse(fotografo.has_full_institution_access)
 
-    def test_is_profile_complete_requires_display_name_and_job_title(self):
-        """Garante que o perfil só seja considerado completo com nome e cargo informados."""
+    def test_is_profile_complete_requires_display_name_job_title_and_gender(self):
+        """Garante perfil completo apenas com nome, cargo e tratamento gramatical."""
         incomplete = ForensicExaminerSP.objects.create(
             user=self.user_one,
             forensic_team=self.team_centro,
@@ -123,6 +123,7 @@ class ForensicExaminerSPModelTests(TestCase):
             user=self.user_two,
             display_name="Dra. Perita Dois",
             job_title=ForensicJobTitle.DESENHISTA_TECNICO,
+            calling_gender=GenderCalling.FEMALE,
             forensic_team=self.team_norte,
         )
 

@@ -2,12 +2,28 @@
 Extração de metadados de caso a partir de documentos e prompt.
 
 Interface preparada para integração com IA; a implementação atual
-reutiliza apenas os valores já informados pelo perito no formulário.
+retorna metadados vazios na inferência, preservando merge com o formulário.
 """
 
 from __future__ import annotations
 
 from institution_ic_sp.forensic_report.common.services.case_metadata import CaseMetadata
+from institution_ic_sp.forensic_report.common.services.metadata_merge import merge_case_metadata
+
+
+def infer_case_metadata_from_documents(
+    *,
+    uploaded_files: list | None = None,
+    supplementary_prompt: str = "",
+) -> CaseMetadata:
+    """
+    Infere metadados a partir de documentos em memória e prompt complementar.
+
+    Stub até integração com serviço de IA; não persiste arquivos recebidos.
+    """
+    _ = uploaded_files
+    _ = supplementary_prompt
+    return CaseMetadata()
 
 
 def extract_case_metadata(
@@ -18,18 +34,10 @@ def extract_case_metadata(
     """
     Enriquece metadados do caso com base em documentos e prompt.
 
-    Enquanto a integração de IA não estiver disponível, retorna cópia
-    dos dados informados manualmente pelo perito.
+    Valores informados manualmente pelo perito prevalecem sobre a inferência.
     """
-    _ = uploaded_files
-    return CaseMetadata(
-        report_number=form_data.report_number,
-        report_year=form_data.report_year,
-        service_protocol=form_data.service_protocol,
-        requester=form_data.requester,
-        case_type=form_data.case_type,
-        bulletin_number=form_data.bulletin_number,
-        exam_objective=form_data.exam_objective,
+    inferred = infer_case_metadata_from_documents(
+        uploaded_files=uploaded_files,
         supplementary_prompt=form_data.supplementary_prompt,
-        uploaded_file_names=list(form_data.uploaded_file_names),
     )
+    return merge_case_metadata(form_data, inferred)

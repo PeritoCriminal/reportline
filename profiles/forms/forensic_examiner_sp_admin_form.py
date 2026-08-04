@@ -9,6 +9,9 @@ from django import forms
 
 from institution_ic_sp.models import ForensicNucleus, ForensicTeam
 from profiles.models import ForensicExaminerSP
+from profiles.services.forensic_examiner_sp_defaults import (
+    default_institution_director_display,
+)
 
 
 class ForensicExaminerSPAdminForm(forms.ModelForm):
@@ -33,6 +36,8 @@ class ForensicExaminerSPAdminForm(forms.ModelForm):
             "user",
             "display_name",
             "job_title",
+            "calling_gender",
+            "director_display",
             "forensic_team",
         )
 
@@ -46,6 +51,15 @@ class ForensicExaminerSPAdminForm(forms.ModelForm):
         )
         self._configure_team_queryset()
         self._prefill_lotacao_nucleus()
+        self._prefill_director_display()
+
+    def _prefill_director_display(self):
+        """Sugere linha do diretor institucional quando o perfil ainda não define valor."""
+        if not (self.instance.director_display or "").strip():
+            self.initial.setdefault(
+                "director_display",
+                default_institution_director_display(),
+            )
 
     def _resolve_nucleus_id(self):
         """Obtém o núcleo informado no POST ou inferido da instância."""

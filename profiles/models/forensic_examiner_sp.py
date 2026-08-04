@@ -20,6 +20,13 @@ class ForensicJobTitle(models.TextChoices):
     FOTOGRAFO_TECNICO = "fotografo_tecnico", "Fotógrafo Técnico Pericial"
 
 
+class GenderCalling(models.TextChoices):
+    """Tratamento gramatical do servidor nos laudos (designação e preâmbulo)."""
+
+    MALE = "male", "Masculino"
+    FEMALE = "female", "Feminino"
+
+
 class ForensicExaminerSP(BaseModel):
     """
     Perfil profissional do servidor pericial de São Paulo.
@@ -49,6 +56,22 @@ class ForensicExaminerSP(BaseModel):
         blank=True,
         verbose_name="Cargo",
         help_text="Função exercida na lotação pericial.",
+    )
+    calling_gender = models.CharField(
+        max_length=10,
+        choices=GenderCalling.choices,
+        blank=True,
+        verbose_name="Tratamento gramatical",
+        help_text="Define concordância de gênero no preâmbulo e na designação pericial.",
+    )
+    director_display = models.CharField(
+        max_length=512,
+        blank=True,
+        verbose_name="Diretor pericial (preâmbulo)",
+        help_text=(
+            "Linha do Perito Criminal Diretor impressa no preâmbulo; "
+            "padrão copiado da instituição quando não informado."
+        ),
     )
     forensic_team = models.ForeignKey(
         "institution_ic_sp.ForensicTeam",
@@ -132,8 +155,8 @@ class ForensicExaminerSP(BaseModel):
 
     @property
     def is_profile_complete(self) -> bool:
-        """Indica se nome de exibição e cargo foram informados pelo servidor."""
-        return bool(self.display_name and self.job_title)
+        """Indica se campos obrigatórios do perfil foram informados pelo servidor."""
+        return bool(self.display_name and self.job_title and self.calling_gender)
 
     @property
     def has_full_institution_access(self) -> bool:

@@ -57,7 +57,31 @@
                         {% endfor %}
                     </div>
 
-                    <div class="mb-4">
+                    <div class="mb-3">
+                        <label for="{{ form.calling_gender.id_for_label }}" class="form-label">
+                            {{ form.calling_gender.label }}
+                        </label>
+                        <select
+                            name="{{ form.calling_gender.html_name }}"
+                            id="{{ form.calling_gender.id_for_label }}"
+                            class="form-select{% if form.calling_gender.errors %} is-invalid{% endif %}"
+                            required
+                        >
+                            {% for value, label in form.fields.calling_gender.choices %}
+                                <option value="{{ value }}"{% if form.calling_gender.value == value %} selected{% endif %}>
+                                    {{ label }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                        {% if form.calling_gender.help_text %}
+                            <div class="form-text">{{ form.calling_gender.help_text }}</div>
+                        {% endif %}
+                        {% for error in form.calling_gender.errors %}
+                            <div class="invalid-feedback d-block">{{ error }}</div>
+                        {% endfor %}
+                    </div>
+
+                    <div class="mb-3">
                         <label for="{{ form.job_title.id_for_label }}" class="form-label">
                             {{ form.job_title.label }}
                         </label>
@@ -77,6 +101,26 @@
                             <div class="form-text">{{ form.job_title.help_text }}</div>
                         {% endif %}
                         {% for error in form.job_title.errors %}
+                            <div class="invalid-feedback d-block">{{ error }}</div>
+                        {% endfor %}
+                    </div>
+
+                    <div class="mb-4">
+                        <label for="{{ form.director_display.id_for_label }}" class="form-label">
+                            {{ form.director_display.label }}
+                        </label>
+                        <input
+                            type="text"
+                            name="{{ form.director_display.html_name }}"
+                            id="{{ form.director_display.id_for_label }}"
+                            class="form-control{% if form.director_display.errors %} is-invalid{% endif %}"
+                            value="{{ form.director_display.value|default:'' }}"
+                            maxlength="512"
+                        >
+                        {% if form.director_display.help_text %}
+                            <div class="form-text">{{ form.director_display.help_text }}</div>
+                        {% endif %}
+                        {% for error in form.director_display.errors %}
                             <div class="invalid-feedback d-block">{{ error }}</div>
                         {% endfor %}
                     </div>

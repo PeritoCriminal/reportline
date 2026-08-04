@@ -81,11 +81,31 @@ def _signature_paragraph(examiner: ForensicExaminerSP) -> str:
     return "\n".join(lines)
 
 
-def _list_content(items: list[str]) -> dict:
-    """Monta payload de lista com marcadores."""
-    if items:
-        return {"items": items}
-    return {"items": [""]}
+def _append_section_with_optional_list(
+    report: Report,
+    *,
+    position: int,
+    heading: str,
+    list_items: list[str],
+) -> int:
+    """Insere título de seção e lista apenas quando houver itens."""
+    _create_report_node(
+        report,
+        position=position,
+        block_type=ReportBlockType.HEADING,
+        content={"text": heading},
+        title_level=0,
+    )
+    position += 1
+    if list_items:
+        _create_report_node(
+            report,
+            position=position,
+            block_type=ReportBlockType.UNORDERED_LIST,
+            content={"items": list_items},
+        )
+        position += 1
+    return position
 
 
 @transaction.atomic
@@ -131,7 +151,13 @@ def build_generic_forensic_report_draft(
         report,
         position=position,
         block_type=ReportBlockType.PARAGRAPH,
-        content={"text": build_preamble_paragraph(metadata)},
+        content={
+            "text": build_preamble_paragraph(
+                metadata,
+                examiner=examiner,
+                institution=institution,
+            )
+        },
     )
     position += 1
 
@@ -140,58 +166,31 @@ def build_generic_forensic_report_draft(
         position=position,
         block_type=ReportBlockType.HEADING,
         content={"text": "Objetivo do Exame"},
-        title_level=1,
+        title_level=0,
     )
     position += 1
 
-    objective_text = metadata.exam_objective.strip()
     _create_report_node(
         report,
         position=position,
         block_type=ReportBlockType.PARAGRAPH,
-        content={"text": objective_text},
+        content={"text": metadata.exam_objective.strip()},
     )
     position += 1
 
-    _create_report_node(
+    position = _append_section_with_optional_list(
         report,
         position=position,
-        block_type=ReportBlockType.HEADING,
-        content={"text": "Dados da Requisição"},
-        title_level=1,
+        heading="Dados da Requisição",
+        list_items=metadata.requisition_list_items(),
     )
-    position += 1
 
-    _create_report_node(
+    position = _append_section_with_optional_list(
         report,
         position=position,
-        block_type=ReportBlockType.UNORDERED_LIST,
-        content=_list_content(metadata.requisition_list_items()),
+        heading="Dados do Atendimento",
+        list_items=metadata.attendance_list_items(),
     )
-    position += 1
-
-    _create_report_node(
-        report,
-        position=position,
-        block_type=ReportBlockType.HEADING,
-        content={"text": "Dados do Atendimento"},
-        title_level=1,
-    )
-    position += 1
-
-    unit_label, city_label = get_examiner_assignment_labels(examiner)
-    _create_report_node(
-        report,
-        position=position,
-        block_type=ReportBlockType.UNORDERED_LIST,
-        content=_list_content(
-            metadata.attendance_list_items(
-                unit_label=unit_label,
-                city_label=city_label,
-            )
-        ),
-    )
-    position += 1
 
     _create_report_node(
         report,

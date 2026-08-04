@@ -5,6 +5,12 @@ Metadados de caso inferidos ou informados no intake de laudo pericial.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from datetime import date, datetime
+
+from institution_ic_sp.forensic_report.common.services.datetime_display import (
+    format_designation_date,
+    format_forensic_datetime,
+)
 
 
 @dataclass
@@ -18,13 +24,21 @@ class CaseMetadata:
 
     report_number: str = ""
     report_year: int = 0
-    service_protocol: str = ""
-    requester: str = ""
-    case_type: str = ""
-    bulletin_number: str = ""
+    designation_date: date | None = None
     exam_objective: str = ""
     supplementary_prompt: str = ""
-    uploaded_file_names: list[str] = field(default_factory=list)
+    requesting_authority: str = ""
+    police_district: str = ""
+    occurrence_report: str = ""
+    police_inquiry: str = ""
+    occurrence_at: datetime | None = None
+    requisition_at: datetime | None = None
+    attendance_protocol: str = ""
+    examiner: str = ""
+    examination_at: datetime | None = None
+    photography: str = ""
+    scanning_3d: str = ""
+    sketch: str = ""
 
     @property
     def main_title_text(self) -> str:
@@ -48,24 +62,46 @@ class CaseMetadata:
             return f"Laudo pericial {number}"
         return "Laudo pericial"
 
-    def requisition_list_items(self) -> list[str]:
-        """Itens para a seção Dados da Requisição."""
+    def _labeled_items(self, pairs: list[tuple[str, str]]) -> list[str]:
+        """Monta itens de lista omitindo pares com valor vazio."""
         items: list[str] = []
-        if self.requester.strip():
-            items.append(f"Solicitante: {self.requester.strip()}")
-        if self.case_type.strip():
-            items.append(f"Tipo de caso: {self.case_type.strip()}")
-        if self.bulletin_number.strip():
-            items.append(f"Boletim de ocorrência nº: {self.bulletin_number.strip()}")
+        for label, value in pairs:
+            cleaned = value.strip() if isinstance(value, str) else value
+            if cleaned:
+                items.append(f"{label}: {cleaned}")
         return items
 
-    def attendance_list_items(self, *, unit_label: str, city_label: str) -> list[str]:
+    def requisition_list_items(self) -> list[str]:
+        """Itens para a seção Dados da Requisição."""
+        return self._labeled_items(
+            [
+                ("Autoridade requisitante", self.requesting_authority),
+                ("Distrito policial / Delegacia", self.police_district),
+                ("Boletim de ocorrência", self.occurrence_report),
+                ("Inquérito policial", self.police_inquiry),
+                (
+                    "Data e hora da ocorrência",
+                    format_forensic_datetime(self.occurrence_at),
+                ),
+                (
+                    "Data e hora da requisição",
+                    format_forensic_datetime(self.requisition_at),
+                ),
+            ]
+        )
+
+    def attendance_list_items(self) -> list[str]:
         """Itens para a seção Dados do Atendimento."""
-        items: list[str] = []
-        if self.service_protocol.strip():
-            items.append(f"Protocolo de atendimento: {self.service_protocol.strip()}")
-        if unit_label.strip():
-            items.append(f"Unidade pericial: {unit_label.strip()}")
-        if city_label.strip():
-            items.append(f"Município: {city_label.strip()}")
-        return items
+        return self._labeled_items(
+            [
+                ("Número do protocolo", self.attendance_protocol),
+                ("Perito", self.examiner),
+                (
+                    "Data e hora do exame",
+                    format_forensic_datetime(self.examination_at),
+                ),
+                ("Fotógrafo", self.photography),
+                ("Escaneamento 3D", self.scanning_3d),
+                ("Croqui", self.sketch),
+            ]
+        )

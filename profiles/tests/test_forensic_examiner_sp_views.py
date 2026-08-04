@@ -7,7 +7,7 @@ from django.test import TestCase
 from django.urls import reverse
 
 from institution_ic_sp.models import ForensicNucleus, ForensicTeam
-from profiles.models import ForensicExaminerSP, ForensicJobTitle
+from profiles.models import ForensicExaminerSP, ForensicJobTitle, GenderCalling
 
 User = get_user_model()
 
@@ -65,6 +65,8 @@ class ForensicExaminerSPProfileViewTests(TestCase):
             {
                 "display_name": "Dr. Servidor Um",
                 "job_title": ForensicJobTitle.PERITO_CRIMINAL,
+                "calling_gender": GenderCalling.MALE,
+                "director_display": "Dr. Diretor Institucional",
             },
         )
 
@@ -72,6 +74,7 @@ class ForensicExaminerSPProfileViewTests(TestCase):
         self.examiner.refresh_from_db()
         self.assertEqual(self.examiner.display_name, "Dr. Servidor Um")
         self.assertEqual(self.examiner.job_title, ForensicJobTitle.PERITO_CRIMINAL)
+        self.assertEqual(self.examiner.calling_gender, GenderCalling.MALE)
         self.assertTrue(self.examiner.is_profile_complete)
 
     def test_missing_required_fields_show_inline_errors(self):

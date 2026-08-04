@@ -2,8 +2,11 @@
 Testes do builder de laudo pericial genérico.
 """
 
+from datetime import date, datetime
+
 from django.contrib.auth import get_user_model
 from django.test import TestCase
+from django.utils import timezone
 
 from institution_ic_sp.forensic_report.common.services.case_metadata import CaseMetadata
 from institution_ic_sp.forensic_report.workflows.generic.services.report_draft_builder import (
@@ -11,7 +14,7 @@ from institution_ic_sp.forensic_report.workflows.generic.services.report_draft_b
     build_generic_forensic_report_draft,
 )
 from institution_ic_sp.models import ForensicTeam, Institution
-from profiles.models import ForensicExaminerSP, ForensicJobTitle
+from profiles.models import ForensicExaminerSP, ForensicJobTitle, GenderCalling
 from reports.models import ReportBlockType
 from reports.services.report_kind import is_forensic_report
 
@@ -34,14 +37,19 @@ class GenericForensicReportBuilderTests(TestCase):
             forensic_team=cls.team,
             display_name="Dr. Builder",
             job_title=ForensicJobTitle.PERITO_CRIMINAL,
+            calling_gender=GenderCalling.MALE,
+            director_display="Dr. Diretor",
         )
         cls.metadata = CaseMetadata(
             report_number="42",
             report_year=2026,
-            service_protocol="2026/001234",
-            requester="Delegacia Central",
-            case_type="Furto qualificado",
-            bulletin_number="BO-987654",
+            designation_date=date(2026, 3, 10),
+            requesting_authority="Dr. Delegado Central",
+            police_district="DEIC",
+            occurrence_report="BO-987654",
+            attendance_protocol="2026/001234",
+            examiner="Dr. Builder",
+            examination_at=timezone.make_aware(datetime(2026, 3, 11, 9, 15)),
             exam_objective="Determinar vestígios papiloscópicos.",
         )
 
@@ -63,26 +71,56 @@ class GenericForensicReportBuilderTests(TestCase):
 
         self.assertEqual(report.title, "Laudo pericial 42/2026")
         self.assertTrue(is_forensic_report(report))
-        self.assertEqual(len(blocks), 11)
 
         main_title = blocks[0]
-        self.assertEqual(main_title[0], ReportBlockType.HEADING)
-        self.assertEqual(main_title[2], 0)
         self.assertEqual(main_title[1]["text"], "LAUDO PERICIAL Nº 42/2026")
 
+        preamble_text = blocks[1][1]["text"]
+        self.assertIn("Aos 10 de março de 2026", preamble_text)
+        self.assertIn("pelo Exmo. Sr. Delegado de Polícia Dr. Delegado Central", preamble_text)
+
         headings = [
-            content["text"]
-            for block_type, content, _level in blocks
-            if block_type == ReportBlockType.HEADING and content["text"] != "LAUDO PERICIAL Nº 42/2026"
+            (content["text"], level)
+            for block_type, content, level in blocks
+            if block_type == ReportBlockType.HEADING
+            and content["text"] != "LAUDO PERICIAL Nº 42/2026"
         ]
         self.assertEqual(
-            headings,
+            [text for text, _level in headings],
             ["Objetivo do Exame", "Dados da Requisição", "Dados do Atendimento"],
         )
+        self.assertTrue(all(level == 0 for _text, level in headings))
 
-        closing_blocks = [content["text"] for block_type, content, _ in blocks if block_type == ReportBlockType.PARAGRAPH]
+        list_blocks = [
+            content["items"]
+            for block_type, content, _ in blocks
+            if block_type == ReportBlockType.UNORDERED_LIST
+        ]
+        all_list_items = [item for items in list_blocks for item in items]
+        self.assertIn("Boletim de ocorrência: BO-987654", all_list_items)
+        self.assertTrue(any("Número do protocolo" in item for item in all_list_items))
+
+        closing_blocks = [
+            content["text"] for block_type, content, _ in blocks if block_type == ReportBlockType.PARAGRAPH
+        ]
         self.assertIn(CLOSING_PHRASE, closing_blocks)
-        self.assertIn("Dr. Builder", closing_blocks[-1])
+
+    def test_builder_omits_empty_list_sections(self):
+        """Garante ausência de lista quando seção não possui itens preenchidos."""
+        sparse_metadata = CaseMetadata(
+            report_number="1",
+            report_year=2026,
+            designation_date=date(2026, 1, 1),
+        )
+        report = build_generic_forensic_report_draft(
+            author=self.author,
+            examiner=self.examiner,
+            metadata=sparse_metadata,
+        )
+        list_count = report.nodes.filter(
+            block__block_type=ReportBlockType.UNORDERED_LIST,
+        ).count()
+        self.assertEqual(list_count, 0)
 
     def test_builder_enables_institution_page_layout(self):
         """Garante cabeçalho institucional ativo no laudo gerado."""
