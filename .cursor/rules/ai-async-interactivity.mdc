@@ -1,0 +1,53 @@
+---
+description: Padrão de UI para ações assíncronas com IA — botão, status e animações sutis
+alwaysApply: true
+---
+
+# Interatividade — Ações Assíncronas com IA
+
+Referência canônica: `case_intake.html`, `case_intake_analyze.js`, `case_intake_analyze.css`.
+
+## Quando usar
+
+- Operações disparadas por botão que chamam IA ou processamento assíncrono (extração, inferência, análise).
+- **Não** usar para submit normal de formulário nem para ações instantâneas.
+
+## Botão
+
+- Texto em **português**, deixando explícito o uso de **IA** e o que será lido/processado.
+- Ícone `bi-stars` dentro de `.ai-analyze-icon`.
+- Classes: `btn btn-outline-primary btn-ai-analyze`.
+- Posicionar **abaixo** dos campos de contexto relacionados (documentos, prompt, orientações).
+- `type="button"`; desabilitar e aplicar `.is-analyzing` durante a requisição.
+- `aria-busy="true"` e `aria-describedby` apontando para o painel de status.
+
+```django
+<button type="button" class="btn btn-outline-primary btn-ai-analyze" aria-describedby="…-status">
+    <span class="ai-analyze-icon me-1" aria-hidden="true"><i class="bi bi-stars"></i></span>
+    Ler documentos e orientações com IA
+</button>
+```
+
+## Painel de status
+
+- Exibir **abaixo do botão**, oculto por padrão (`hidden`).
+- Estrutura: `.analyze-status-panel` + três `.analyze-status-dot` + `.analyze-status-text`.
+- `role="status"`; mensagens em português descrevendo a etapa atual.
+- Rotacionar 2–3 mensagens (~2 s) enquanto aguarda; transição suave com `.is-changing` na troca de texto.
+
+## Estilo e animação
+
+- Reutilizar classes de `case_intake_analyze.css` ou extrair para CSS compartilhado se houver segundo uso.
+- Animações **sutis**: brilho no ícone, halo no botão, pontos pulsando, fade-in do painel.
+- **Proibido**: spinners agressivos, `alert()`, overlays bloqueantes, bibliotecas extras de animação.
+
+## JavaScript
+
+- IIFE; togglar `is-analyzing`, `disabled` e visibilidade do painel em `try/finally`.
+- Feedback de resultado via toasts Bootstrap (`user_toasts` / padrão existente), não via status panel.
+- Validar pré-condições (ex.: arquivos selecionados) antes de iniciar; avisar com toast.
+
+## Testes
+
+- Template: assertContains no rótulo do botão, script e CSS da feature.
+- Comportamento crítico de negócio: testes dedicados; animação/CSS não precisa de teste E2E.

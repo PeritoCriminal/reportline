@@ -8,12 +8,20 @@
     const form = document.getElementById("forensic-intake-form");
     const analyzeButton = document.getElementById("btn-analyze-documents");
     const documentsInput = document.getElementById("id_documents");
-    const statusLabel = document.getElementById("analyze-documents-status");
+    const statusPanel = document.getElementById("analyze-documents-status");
+    const statusText = document.getElementById("analyze-status-text");
     const toastContainer = document.getElementById("intake-analyze-toast-container");
 
     if (!form || !analyzeButton || !documentsInput) {
         return;
     }
+
+    const ANALYZE_STATUS_MESSAGES = [
+        "Lendo documentos…",
+        "Considerando orientações complementares…",
+        "Extraindo metadados administrativos…",
+    ];
+    const STATUS_ROTATE_MS = 2200;
 
     const fieldNames = [
         "report_number",
@@ -34,6 +42,9 @@
         "scanning_3d",
         "sketch",
     ];
+
+    let statusRotateTimer = null;
+    let statusMessageIndex = 0;
 
     function getField(name) {
         return form.querySelector(`[name="${name}"]`);
@@ -99,11 +110,48 @@
         toastElement.addEventListener("hidden.bs.toast", () => toastElement.remove());
     }
 
+    function setStatusMessage(message) {
+        if (!statusText) {
+            return;
+        }
+        statusText.classList.add("is-changing");
+        window.setTimeout(() => {
+            statusText.textContent = message;
+            statusText.classList.remove("is-changing");
+        }, 120);
+    }
+
+    function startStatusRotation() {
+        statusMessageIndex = 0;
+        setStatusMessage(ANALYZE_STATUS_MESSAGES[0]);
+        statusRotateTimer = window.setInterval(() => {
+            statusMessageIndex = (statusMessageIndex + 1) % ANALYZE_STATUS_MESSAGES.length;
+            setStatusMessage(ANALYZE_STATUS_MESSAGES[statusMessageIndex]);
+        }, STATUS_ROTATE_MS);
+    }
+
+    function stopStatusRotation() {
+        if (statusRotateTimer !== null) {
+            window.clearInterval(statusRotateTimer);
+            statusRotateTimer = null;
+        }
+    }
+
     function setAnalyzing(isAnalyzing) {
         analyzeButton.disabled = isAnalyzing;
-        if (statusLabel) {
-            statusLabel.hidden = !isAnalyzing;
+        analyzeButton.classList.toggle("is-analyzing", isAnalyzing);
+        analyzeButton.setAttribute("aria-busy", isAnalyzing ? "true" : "false");
+
+        if (statusPanel) {
+            statusPanel.hidden = !isAnalyzing;
         }
+
+        if (isAnalyzing) {
+            startStatusRotation();
+            return;
+        }
+
+        stopStatusRotation();
     }
 
     analyzeButton.addEventListener("click", async () => {
