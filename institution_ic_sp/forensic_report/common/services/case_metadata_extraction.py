@@ -1,43 +1,56 @@
 """
 Extração de metadados de caso a partir de documentos e prompt.
 
-Interface preparada para integração com IA; a implementação atual
-retorna metadados vazios na inferência, preservando merge com o formulário.
+A inferência é acionada pela análise prévia de documentos no intake comum;
+o submit final usa apenas os dados revisados pelo perito.
 """
 
 from __future__ import annotations
 
+from django.core.files.uploadedfile import UploadedFile
+
 from institution_ic_sp.forensic_report.common.services.case_metadata import CaseMetadata
 from institution_ic_sp.forensic_report.common.services.metadata_merge import merge_case_metadata
+from institution_ic_sp.forensic_report.registry import (
+    GENERIC_WORKFLOW,
+    get_metadata_inference_callable,
+    get_workflow,
+)
 
 
 def infer_case_metadata_from_documents(
     *,
-    uploaded_files: list | None = None,
+    uploaded_files: list[UploadedFile] | None = None,
     supplementary_prompt: str = "",
+    workflow_slug: str = GENERIC_WORKFLOW.slug,
 ) -> CaseMetadata:
     """
     Infere metadados a partir de documentos em memória e prompt complementar.
 
-    Stub até integração com serviço de IA; não persiste arquivos recebidos.
+    Delega ao handler registrado para o workflow informado.
     """
-    _ = uploaded_files
-    _ = supplementary_prompt
-    return CaseMetadata()
+    workflow = get_workflow(workflow_slug)
+    inference = get_metadata_inference_callable(workflow)
+    return inference(
+        uploaded_files=uploaded_files,
+        supplementary_prompt=supplementary_prompt,
+    )
 
 
-def extract_case_metadata(
+def analyze_case_metadata_from_documents(
     *,
-    form_data: CaseMetadata,
-    uploaded_files: list | None = None,
+    manual: CaseMetadata,
+    uploaded_files: list[UploadedFile] | None = None,
+    workflow_slug: str = GENERIC_WORKFLOW.slug,
 ) -> CaseMetadata:
     """
-    Enriquece metadados do caso com base em documentos e prompt.
+    Combina formulário parcial com inferência documental para pré-preenchimento.
 
-    Valores informados manualmente pelo perito prevalecem sobre a inferência.
+    Valores já informados manualmente pelo perito prevalecem sobre a IA.
     """
     inferred = infer_case_metadata_from_documents(
         uploaded_files=uploaded_files,
-        supplementary_prompt=form_data.supplementary_prompt,
+        supplementary_prompt=manual.supplementary_prompt,
+        workflow_slug=workflow_slug,
     )
-    return merge_case_metadata(form_data, inferred)
+    return merge_case_metadata(manual, inferred)

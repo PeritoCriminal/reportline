@@ -10,9 +10,6 @@ from django.views.generic import FormView
 
 from common.user_messages import notify_success
 from institution_ic_sp.forensic_report.common.forms.case_intake_form import CaseIntakeForm
-from institution_ic_sp.forensic_report.common.services.case_metadata_extraction import (
-    extract_case_metadata,
-)
 from institution_ic_sp.forensic_report.mixins import ForensicExaminerSPRequiredMixin
 from institution_ic_sp.forensic_report.registry import GENERIC_WORKFLOW
 from institution_ic_sp.forensic_report.workflows.generic.services.report_draft_builder import (
@@ -43,16 +40,14 @@ class CaseIntakeView(ForensicExaminerSPRequiredMixin, FormView):
         context = super().get_context_data(**kwargs)
         context["workflow"] = GENERIC_WORKFLOW
         context["examiner_profile"] = self.examiner_profile
+        context["analyze_documents_url"] = reverse(
+            "institution_ic_sp:forensic_report:analyze_documents",
+        )
         return context
 
     def form_valid(self, form):
-        """Processa intake, gera laudo e redireciona ao editor."""
-        uploaded_files = self.request.FILES.getlist("documents")
-        form_metadata = form.to_case_metadata()
-        metadata = extract_case_metadata(
-            form_data=form_metadata,
-            uploaded_files=uploaded_files,
-        )
+        """Processa intake revisado pelo perito, gera laudo e redireciona ao editor."""
+        metadata = form.to_case_metadata()
         report = build_generic_forensic_report_draft(
             author=self.request.user,
             examiner=self.examiner_profile,

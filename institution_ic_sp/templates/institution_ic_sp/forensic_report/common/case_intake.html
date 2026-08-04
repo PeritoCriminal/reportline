@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load static %}
 
 {% block title %}Novo laudo pericial — ReportLine{% endblock %}
 
@@ -10,7 +11,11 @@
             <p class="text-muted small mb-0">{{ workflow.description }}</p>
         </div>
 
-        <form method="post" enctype="multipart/form-data" novalidate>
+        <form method="post"
+              enctype="multipart/form-data"
+              novalidate
+              id="forensic-intake-form"
+              data-analyze-url="{{ analyze_documents_url }}">
             {% csrf_token %}
 
             <div class="card border-secondary-subtle shadow-sm mb-4">
@@ -28,6 +33,17 @@
                                name="documents"
                                multiple
                                accept=".pdf,.png,.jpg,.jpeg,.webp,image/*,application/pdf">
+                    </div>
+                    <div class="d-flex flex-wrap gap-2 mb-3">
+                        <button type="button"
+                                class="btn btn-outline-primary"
+                                id="btn-analyze-documents">
+                            <i class="bi bi-stars me-1" aria-hidden="true"></i>
+                            Analisar documentos
+                        </button>
+                        <span class="text-muted small align-self-center" id="analyze-documents-status" hidden>
+                            Lendo documentos…
+                        </span>
                     </div>
                     <div class="mb-0">
                         <label for="{{ form.supplementary_prompt.id_for_label }}" class="form-label">
@@ -175,4 +191,13 @@
         </form>
     </div>
 </div>
+<div class="toast-container position-fixed top-0 end-0 p-3"
+     id="intake-analyze-toast-container"
+     style="z-index: 1080;"
+     aria-live="polite"
+     aria-atomic="true"></div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'institution_ic_sp/js/case_intake_analyze.js' %}"></script>
 {% endblock %}

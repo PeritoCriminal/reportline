@@ -1,0 +1,69 @@
+{
+  "type": "object",
+  "properties": {
+    "report_number": {
+      "type": "string",
+      "description": "Numeração sequencial do laudo, sem o ano."
+    },
+    "report_year": {
+      "type": "integer",
+      "description": "Ano do laudo (quatro dígitos)."
+    },
+    "designation_date": {
+      "type": "string",
+      "description": "Data da designação pericial no formato AAAA-MM-DD."
+    },
+    "exam_objective": {
+      "type": "string",
+      "description": "Objetivo do exame pericial."
+    },
+    "requesting_authority": {
+      "type": "string",
+      "description": "Autoridade requisitante; incluir Dr. ou Dra. quando constar."
+    },
+    "police_district": {
+      "type": "string",
+      "description": "Distrito policial ou delegacia."
+    },
+    "occurrence_report": {
+      "type": "string",
+      "description": "Número ou referência do boletim de ocorrência."
+    },
+    "police_inquiry": {
+      "type": "string",
+      "description": "Número ou referência do inquérito policial."
+    },
+    "occurrence_at": {
+      "type": "string",
+      "description": "Data e hora da ocorrência em ISO 8601 ou AAAA-MM-DDTHH:MM."
+    },
+    "requisition_at": {
+      "type": "string",
+      "description": "Data e hora da requisição em ISO 8601 ou AAAA-MM-DDTHH:MM."
+    },
+    "attendance_protocol": {
+      "type": "string",
+      "description": "Protocolo de atendimento pericial."
+    },
+    "examiner": {
+      "type": "string",
+      "description": "Nome do perito designado, se constar nos documentos."
+    },
+    "examination_at": {
+      "type": "string",
+      "description": "Data e hora do exame em ISO 8601 ou AAAA-MM-DDTHH:MM."
+    },
+    "photography": {
+      "type": "string",
+      "description": "Nome do fotógrafo técnico, se houver."
+    },
+    "scanning_3d": {
+      "type": "string",
+      "description": "Responsável ou referência de escaneamento 3D."
+    },
+    "sketch": {
+      "type": "string",
+      "description": "Responsável ou referência de croqui."
+    }
+  }
+}
