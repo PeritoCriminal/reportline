@@ -61,6 +61,22 @@ class ForensicNucleus(BaseModel):
         blank=True,
         verbose_name="Município-sede",
     )
+    phone = models.CharField(
+        max_length=30,
+        blank=True,
+        verbose_name="Telefone",
+        help_text="Telefone institucional de contato do núcleo.",
+    )
+    institutional_email = models.EmailField(
+        blank=True,
+        verbose_name="E-mail institucional",
+        help_text="Endereço de e-mail oficial do núcleo pericial.",
+    )
+    address = models.TextField(
+        blank=True,
+        verbose_name="Endereço",
+        help_text="Endereço físico ou referência de localização da sede.",
+    )
     sort_order = models.PositiveSmallIntegerField(
         default=0,
         verbose_name="Ordem de exibição",

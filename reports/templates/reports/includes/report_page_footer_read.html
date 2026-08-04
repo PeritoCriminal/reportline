@@ -16,11 +16,7 @@
                                 <img src="{{ cell.url }}"
                                      alt="{{ cell.alt|default:'' }}"
                                      class="report-page-footer-logo-img"
-                                     {% if cell.width and cell.height %}
-                                     width="{{ cell.width }}"
-                                     height="{{ cell.height }}"
-                                     style="width: {{ cell.width }}px; height: {{ cell.height }}px;"
-                                     {% endif %}>
+                                     {% if cell.display_size_style %}style="{{ cell.display_size_style }}"{% endif %}>
                             </div>
                         </div>
                         {% endif %}

@@ -25,7 +25,10 @@ from reports.services.report_inline_text import (
     sanitize_header_text_html,
     sanitize_inline_text_html,
 )
-from reports.services.report_page_layout import enrich_page_layout_for_editor
+from reports.services.report_page_layout import (
+    enrich_page_layout_for_editor,
+    prepare_logo_cell_for_document,
+)
 
 
 @dataclass
@@ -257,7 +260,10 @@ def _prepare_page_layout_for_document(
         if not band.get("enabled"):
             continue
 
-        cells = [_prepare_page_layout_cell(cell, request) for cell in band.get("cells", [])]
+        cells = [
+            _prepare_page_layout_cell(cell, request, page_layout=prepared, band=band_key)
+            for cell in band.get("cells", [])
+        ]
         prepared_band = {**band, "cells": cells}
         if band_key == "header":
             prepared_band["extra_rows"] = [
@@ -277,9 +283,15 @@ def _prepare_page_layout_extra_row(row: dict[str, Any], request: HttpRequest) ->
     return prepared
 
 
-def _prepare_page_layout_cell(cell: dict[str, Any], request: HttpRequest) -> dict[str, Any]:
+def _prepare_page_layout_cell(
+    cell: dict[str, Any],
+    request: HttpRequest,
+    *,
+    page_layout: dict[str, Any] | None = None,
+    band: str = "header",
+) -> dict[str, Any]:
     """Sanitiza célula de faixa de layout e resolve URL absoluta de logos."""
-    prepared = dict(cell)
+    prepared = prepare_logo_cell_for_document(cell, page_layout, band=band)
     if prepared.get("type") == "logo" and prepared.get("url"):
         prepared["url"] = _absolute_url(request, prepared["url"])
     if prepared.get("type") == "text":

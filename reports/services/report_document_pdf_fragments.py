@@ -22,6 +22,7 @@ from reports.services.report_document_page_layout import (
     page_layout_band_enabled,
 )
 from reports.services.report_inline_text import sanitize_header_text_html
+from reports.services.report_page_layout import prepare_logo_cell_for_document
 
 
 PLAYWRIGHT_EMPTY_FRAGMENT = "<div></div>"
@@ -40,7 +41,7 @@ def build_playwright_header_template(
         return PLAYWRIGHT_EMPTY_FRAGMENT
 
     header_layout = page_layout.get("header", {})
-    cells = _prepare_pdf_band_cells(header_layout)
+    cells = _prepare_pdf_band_cells(header_layout, page_layout, band="header")
     extra_rows = _prepare_pdf_header_extra_rows(header_layout)
     if not cells and not extra_rows:
         return PLAYWRIGHT_EMPTY_FRAGMENT
@@ -60,7 +61,7 @@ def build_playwright_footer_template(
     if not page_layout_band_enabled(page_layout, "footer"):
         return PLAYWRIGHT_EMPTY_FRAGMENT
 
-    cells = _prepare_pdf_band_cells(page_layout.get("footer", {}))
+    cells = _prepare_pdf_band_cells(page_layout.get("footer", {}), page_layout, band="footer")
     if not cells:
         return PLAYWRIGHT_EMPTY_FRAGMENT
 
@@ -99,14 +100,19 @@ def logo_cell_data_uri(cell: dict[str, Any]) -> str:
     return f"data:{mime_type};base64,{encoded}"
 
 
-def _prepare_pdf_band_cells(band_layout: dict[str, Any]) -> list[dict[str, Any]]:
+def _prepare_pdf_band_cells(
+    band_layout: dict[str, Any],
+    page_layout: dict[str, Any] | None,
+    *,
+    band: str,
+) -> list[dict[str, Any]]:
     """Normaliza células de faixa para templates PDF com logos inlined."""
     prepared_cells: list[dict[str, Any]] = []
     for cell in band_layout.get("cells", []):
         if not isinstance(cell, dict):
             continue
 
-        prepared = deepcopy(cell)
+        prepared = prepare_logo_cell_for_document(deepcopy(cell), page_layout, band=band)
         if prepared.get("type") == "logo":
             prepared["logo_data_uri"] = logo_cell_data_uri(prepared)
             if not prepared["logo_data_uri"]:

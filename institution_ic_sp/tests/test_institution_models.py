@@ -223,3 +223,46 @@ class ForensicTeamContactFieldTests(TestCase):
         self.assertEqual(team.phone, "(19) 3733-1000")
         self.assertEqual(team.institutional_email, "epc-cps@policiacientifica.sp.gov.br")
         self.assertEqual(team.address, "Rua Exemplo, 100 — Campinas/SP")
+
+
+@override_settings(MEDIA_ROOT="test_media")
+class ForensicNucleusContactFieldTests(TestCase):
+    """Testes dos campos de contato opcionais do núcleo pericial."""
+
+    @classmethod
+    def setUpTestData(cls):
+        load_ic_sp_institution_data()
+
+    def test_contact_fields_are_optional(self):
+        """Garante que telefone, e-mail e endereço possam ficar em branco."""
+        nucleus = ForensicNucleus.objects.get(code="NPC-AME")
+
+        self.assertEqual(nucleus.phone, "")
+        self.assertEqual(nucleus.institutional_email, "")
+        self.assertEqual(nucleus.address, "")
+
+    def test_contact_fields_persist_when_informed(self):
+        """Garante persistência de telefone, e-mail institucional e endereço."""
+        nucleus = ForensicNucleus.objects.get(code="NPC-AME")
+        nucleus.phone = "(19) 3406-5155"
+        nucleus.institutional_email = "americana.ic@policiacientifica.sp.gov.br"
+        nucleus.address = "Av. Ângelo Pascote, 90. CEP 13.478-800 - Americana - SP"
+        nucleus.save(
+            update_fields=[
+                "phone",
+                "institutional_email",
+                "address",
+                "updated_at",
+            ]
+        )
+
+        nucleus.refresh_from_db()
+        self.assertEqual(nucleus.phone, "(19) 3406-5155")
+        self.assertEqual(
+            nucleus.institutional_email,
+            "americana.ic@policiacientifica.sp.gov.br",
+        )
+        self.assertEqual(
+            nucleus.address,
+            "Av. Ângelo Pascote, 90. CEP 13.478-800 - Americana - SP",
+        )

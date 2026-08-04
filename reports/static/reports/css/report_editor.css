@@ -449,6 +449,7 @@ body.report-editor-active main {
     padding: 2.5rem 2rem;
     background-color: var(--report-page-bg);
     color: var(--report-page-color);
+    font-family: var(--report-page-font-family);
     box-shadow: none;
 }
 
@@ -1776,6 +1777,7 @@ body.report-editor-table-width-resize-active {
     --report-canvas-bg: #f9f8f6;
     --report-page-bg: #fafaf8;
     --report-page-color: #212529;
+    --report-page-font-family: Arial, Helvetica, sans-serif;
     --report-page-muted: #6c757d;
     --report-paragraph-indent-step: 1.25cm;
     --report-paragraph-first-line-indent: 1.25cm;
@@ -1788,6 +1790,7 @@ body.report-editor-table-width-resize-active {
     --report-canvas-bg: #212529;
     --report-page-bg: #2b3035;
     --report-page-color: #f5f5f5;
+    --report-page-font-family: Arial, Helvetica, sans-serif;
     --report-page-muted: #adb5bd;
     --report-page-link: #9ec5fe;
     --report-page-border: #495057;

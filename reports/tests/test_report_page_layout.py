@@ -3,12 +3,14 @@
 from django.core.exceptions import ValidationError
 from django.test import TestCase
 
+from reports.services.report_kind import merge_reportline_meta
 from reports.services.report_page_layout import (
     FOOTER_TEMPLATE_LOGO_LEFT_TEXT_RIGHT,
     FOOTER_TEMPLATE_LOGO_TEXT_LOGO,
     FOOTER_TEMPLATE_TEXT_ONLY,
     HEADER_EXTRA_ROW_TYPE_RULE,
     HEADER_LOGO_INITIAL_HEIGHT_PX,
+    HEADER_LOGO_INITIAL_WIDTH_PX,
     HEADER_TEMPLATE_LOGO_LEFT_TEXT_RIGHT,
     HEADER_TEMPLATE_LOGO_TEXT_LOGO,
     MAX_HEADER_EXTRA_ROWS,
@@ -20,6 +22,10 @@ from reports.services.report_page_layout import (
     default_header_extra_text_row,
     default_page_layout,
     initial_header_logo_display_size,
+    initial_header_logo_display_size_by_width,
+    clamp_header_logo_display_size_by_width,
+    logo_display_size_style,
+    prepare_logo_cell_for_document,
     merge_page_layout,
     normalize_header_extra_rows,
     normalize_page_layout,
@@ -102,6 +108,63 @@ class ReportPageLayoutTests(TestCase):
         width, height = initial_header_logo_display_size(400, 200)
         self.assertEqual(height, HEADER_LOGO_INITIAL_HEIGHT_PX)
         self.assertEqual(width, HEADER_LOGO_INITIAL_HEIGHT_PX * 2)
+
+    def test_initial_header_logo_display_size_by_width_preserves_aspect_ratio(self):
+        """Garante largura inicial fixa de 2 cm com altura proporcional."""
+        width, height = initial_header_logo_display_size_by_width(400, 200)
+        self.assertEqual(width, HEADER_LOGO_INITIAL_WIDTH_PX)
+        self.assertEqual(height, HEADER_LOGO_INITIAL_WIDTH_PX // 2)
+
+    def test_update_logo_cell_honors_display_size_override(self):
+        """Garante uso de dimensões de exibição explícitas quando informadas."""
+        layout = apply_header_template(None, HEADER_TEMPLATE_LOGO_LEFT_TEXT_RIGHT)
+        updated = update_logo_cell_from_image(
+            layout,
+            cell_index=0,
+            image_payload={
+                "file": "reports/1/img.jpg",
+                "image_id": "uuid-1",
+                "width": 1200,
+                "height": 800,
+                "display_width": 50,
+                "display_height": 25,
+                "alt": "",
+            },
+        )
+
+        logo_cell = updated["header"]["cells"][0]
+        self.assertEqual(logo_cell["width"], 50)
+        self.assertEqual(logo_cell["height"], 25)
+
+    def test_logo_display_size_style_uses_physical_cm_units(self):
+        """Garante CSS inline em cm para escala correta no preview A4."""
+        style = logo_display_size_style(HEADER_LOGO_INITIAL_WIDTH_PX, 47)
+        self.assertIn("width: 2.01cm", style)
+        self.assertIn("height:", style)
+        self.assertNotIn("px", style)
+
+    def test_clamp_header_logo_display_size_by_width_scales_oversized_logos(self):
+        """Garante redução proporcional de logos acima de 2 cm de largura."""
+        width, height = clamp_header_logo_display_size_by_width(400, 200)
+        self.assertEqual(width, HEADER_LOGO_INITIAL_WIDTH_PX)
+        self.assertEqual(height, HEADER_LOGO_INITIAL_WIDTH_PX // 2)
+
+    def test_prepare_logo_cell_for_document_clamps_forensic_header_logos(self):
+        """Garante limite institucional de largura em laudos periciais na leitura."""
+        page_layout = merge_reportline_meta({}, workflow="generic")
+        prepared = prepare_logo_cell_for_document(
+            {
+                "type": "logo",
+                "file": "reports/1/logo.png",
+                "width": 400,
+                "height": 200,
+            },
+            page_layout,
+            band="header",
+        )
+        self.assertEqual(prepared["width"], HEADER_LOGO_INITIAL_WIDTH_PX)
+        self.assertIn("display_size_style", prepared)
+        self.assertIn("cm", prepared["display_size_style"])
 
     def test_normalize_rejects_invalid_template(self):
         """Garante rejeição de modelo de cabeçalho inválido."""

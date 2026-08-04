@@ -13,7 +13,7 @@ from institution_ic_sp.forensic_report.workflows.generic.services.report_draft_b
     CLOSING_PHRASE,
     build_generic_forensic_report_draft,
 )
-from institution_ic_sp.models import ForensicTeam, Institution
+from institution_ic_sp.models import ForensicTeam
 from profiles.models import ForensicExaminerSP, ForensicJobTitle, GenderCalling
 from reports.models import ReportBlockType
 from reports.services.report_kind import is_forensic_report
@@ -130,8 +130,13 @@ class GenericForensicReportBuilderTests(TestCase):
             metadata=self.metadata,
         )
 
-        institution = Institution.objects.get(acronym="IC-SP")
         header = report.page_layout["header"]
 
         self.assertTrue(header["enabled"])
-        self.assertIn(institution.name, header["cells"][1]["text"])
+        self.assertIn("SECRETARIA DA SEGURANÇA PÚBLICA", header["cells"][1]["text"])
+        self.assertEqual(len(header["extra_rows"]), 2)
+        self.assertEqual(
+            header["extra_rows"][1]["text"],
+            "LAUDO PERICIAL Nº 42/2026",
+        )
+        self.assertEqual(header["extra_rows"][1]["align"], "right")

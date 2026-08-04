@@ -22,9 +22,18 @@ from reports.services.report_page_layout import (
     LAYOUT_TEMPLATE_LOGO_TEXT_LOGO,
     apply_footer_template,
     apply_header_template,
-    initial_header_logo_display_size,
+    default_header_extra_rule_row,
+    default_header_extra_text_row,
+    initial_header_logo_display_size_by_width,
     normalize_text_cell,
     update_logo_cell_from_image,
+)
+
+INSTITUTION_HEADER_SECURITY_SECRETARIAT = "SECRETARIA DA SEGURANÇA PÚBLICA"
+INSTITUTION_HEADER_SPTC = "SUPERINTENDÊNCIA DA POLÍCIA TÉCNICO-CIENTÍFICA (SPTC)"
+INSTITUTION_HEADER_IC = "INSTITUTO DE CRIMINALÍSTICA"
+INSTITUTION_HEADER_NAMESAKE = (
+    '"PERITO CRIMINAL DR. OCTÁVIO EDUARDO DE BRITO ALVARENGA"'
 )
 
 
@@ -39,15 +48,59 @@ def _assignment_label(examiner: ForensicExaminerSP) -> tuple[str, str]:
     return "", ""
 
 
+def _header_unit_name(examiner: ForensicExaminerSP) -> str:
+    """Retorna o nome da unidade pericial exibido no cabeçalho institucional."""
+    nucleus = examiner.assigned_nucleus
+    if nucleus is not None:
+        return nucleus.name.strip()
+    _unit_label, _city = _assignment_label(examiner)
+    return _unit_label.strip()
+
+
+def _format_institutional_contact_line(phone: str, email: str) -> str:
+    """Monta linha de telefone e e-mail institucional da lotação pericial."""
+    cleaned_phone = phone.strip()
+    cleaned_email = email.strip()
+    if cleaned_phone and cleaned_email:
+        return f"Telefone: {cleaned_phone} - {cleaned_email}"
+    if cleaned_phone:
+        return f"Telefone: {cleaned_phone}"
+    return cleaned_email
+
+
+def _assignment_contact(examiner: ForensicExaminerSP) -> tuple[str, str, str]:
+    """Retorna endereço, telefone e e-mail da lotação do perito."""
+    if examiner.forensic_team_id is not None:
+        team = examiner.forensic_team
+        return team.address, team.phone, team.institutional_email
+    if examiner.forensic_nucleus_id is not None:
+        nucleus = examiner.forensic_nucleus
+        return nucleus.address, nucleus.phone, nucleus.institutional_email
+    return "", "", ""
+
+
 def _build_header_text(institution: Institution, examiner: ForensicExaminerSP) -> str:
     """Monta HTML do texto central do cabeçalho institucional."""
-    unit_label, _city = _assignment_label(examiner)
+    _ = institution
     lines = [
-        f"<strong>{institution.parent_organization}</strong>",
-        institution.name,
+        INSTITUTION_HEADER_SECURITY_SECRETARIAT,
+        INSTITUTION_HEADER_SPTC,
+        INSTITUTION_HEADER_IC,
+        INSTITUTION_HEADER_NAMESAKE,
     ]
-    if unit_label:
-        lines.append(unit_label)
+
+    unit_name = _header_unit_name(examiner)
+    if unit_name:
+        lines.append(unit_name)
+
+    address, phone, email = _assignment_contact(examiner)
+    cleaned_address = address.strip()
+    if cleaned_address:
+        lines.append(cleaned_address)
+    contact_line = _format_institutional_contact_line(phone, email)
+    if contact_line:
+        lines.append(contact_line)
+
     return sanitize_header_text_html("<br>".join(lines))
 
 
@@ -57,6 +110,16 @@ def _build_footer_text(institution: Institution) -> str:
     if institution.headquarters_city:
         lines.append(institution.headquarters_city)
     return sanitize_header_text_html(" — ".join(lines))
+
+
+def _build_header_extra_rows(main_title_text: str) -> list[dict[str, Any]]:
+    """Monta linha horizontal e número do laudo abaixo do cabeçalho principal."""
+    report_number_row = default_header_extra_text_row(align="right")
+    report_number_row["text"] = sanitize_header_text_html(main_title_text.strip())
+    return [
+        default_header_extra_rule_row(),
+        report_number_row,
+    ]
 
 
 def _copy_institution_logo_to_report(
@@ -107,15 +170,17 @@ def _copy_institution_logo_to_report(
 
 def _logo_payload(report_image: ReportImage) -> dict[str, Any]:
     """Monta payload de célula de logo a partir de ``ReportImage``."""
-    display_width, display_height = initial_header_logo_display_size(
+    display_width, display_height = initial_header_logo_display_size_by_width(
         report_image.width,
         report_image.height,
     )
     return {
         "file": report_image.image.name,
         "image_id": str(report_image.pk),
-        "width": display_width,
-        "height": display_height,
+        "width": report_image.width,
+        "height": report_image.height,
+        "display_width": display_width,
+        "display_height": display_height,
         "alt": report_image.original_filename,
     }
 
@@ -126,6 +191,7 @@ def build_institution_page_layout(
     institution: Institution,
     examiner: ForensicExaminerSP,
     workflow: str,
+    main_title_text: str = "",
 ) -> dict[str, Any]:
     """
     Monta layout de página com cabeçalho e rodapé institucionais.
@@ -136,7 +202,8 @@ def build_institution_page_layout(
     layout = apply_header_template({}, LAYOUT_TEMPLATE_LOGO_TEXT_LOGO)
     layout = apply_footer_template(layout, FOOTER_TEMPLATE_TEXT_ONLY)
 
-    header_cells = layout["header"]["cells"]
+    header = layout["header"]
+    header_cells = header["cells"]
     header_cells[1] = normalize_text_cell(
         {
             **header_cells[1],
@@ -144,6 +211,7 @@ def build_institution_page_layout(
             "align": "center",
         }
     )
+    header["extra_rows"] = _build_header_extra_rows(main_title_text)
 
     footer_cells = layout["footer"]["cells"]
     footer_cells[0] = normalize_text_cell(

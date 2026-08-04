@@ -19,6 +19,14 @@ def is_forensic_report(report: Report) -> bool:
     return isinstance(meta, dict) and meta.get("kind") == FORENSIC_REPORT_KIND
 
 
+def is_forensic_report_layout(page_layout: dict | None) -> bool:
+    """Indica se um layout de página pertence a laudo pericial."""
+    if not isinstance(page_layout, dict):
+        return False
+    meta = page_layout.get(REPORTLINE_META_KEY, {})
+    return isinstance(meta, dict) and meta.get("kind") == FORENSIC_REPORT_KIND
+
+
 def forensic_report_meta(*, workflow: str) -> dict[str, dict[str, str]]:
     """Monta metadados de laudo pericial para inclusão em ``page_layout``."""
     return {

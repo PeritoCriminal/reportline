@@ -26,6 +26,42 @@ class ForensicNucleusAdmin(admin.ModelAdmin):
         "headquarters_city",
     )
     list_filter = ("nucleus_type", "organizational_center", "institution")
-    search_fields = ("code", "name", "headquarters_city")
+    search_fields = (
+        "code",
+        "name",
+        "headquarters_city",
+        "phone",
+        "institutional_email",
+        "address",
+    )
     readonly_fields = ("id", "created_at", "updated_at")
     inlines = [ForensicTeamInline]
+    fieldsets = (
+        (
+            None,
+            {
+                "fields": (
+                    "institution",
+                    "code",
+                    "name",
+                    "nucleus_type",
+                    "organizational_center",
+                    "headquarters_city",
+                    "sort_order",
+                ),
+            },
+        ),
+        (
+            "Contato",
+            {
+                "fields": ("phone", "institutional_email", "address"),
+            },
+        ),
+        (
+            "Auditoria",
+            {
+                "fields": ("id", "created_at", "updated_at"),
+                "classes": ("collapse",),
+            },
+        ),
+    )

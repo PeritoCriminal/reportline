@@ -260,7 +260,7 @@ class ReportDocumentContextTests(TestCase):
         styles = load_report_document_styles()
 
         self.assertIn(".report-document {", styles)
-        self.assertIn("Times New Roman", styles)
+        self.assertIn("Arial", styles)
         self.assertIn("@page", styles)
         self.assertIn("size: A4 portrait", styles)
         self.assertIn("12pt", styles)

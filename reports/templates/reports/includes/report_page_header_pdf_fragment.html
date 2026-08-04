@@ -1,11 +1,11 @@
-<div style="font-size: 10pt; font-family: 'Times New Roman', Times, serif; width: 100%; box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact;">
+<div style="font-size: 10pt; font-family: Arial, Helvetica, sans-serif; width: 100%; box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact;">
     <div style="display: flex; align-items: center; width: 100%; gap: 0.35rem;">
         {% for cell in cells %}
             {% if cell.type == "logo" %}
                 <div style="flex: 0 0 auto; text-align: {% if forloop.first %}left{% elif forloop.last %}right{% else %}left{% endif %};">
                     <img src="{{ cell.logo_data_uri }}"
                          alt="{{ cell.alt|default:'' }}"
-                         style="display: block; max-width: 100%; width: auto; height: auto; object-fit: contain;{% if cell.width and cell.height %} width: {{ cell.width }}px; height: {{ cell.height }}px;{% endif %}">
+                         style="display: block;{% if cell.display_size_style %} {{ cell.display_size_style }}{% else %} max-width: 100%; width: auto; height: auto; object-fit: contain;{% endif %}">
                 </div>
             {% else %}
                 <div style="flex: 1 1 auto; min-width: 0; text-align: {{ cell.align|default:'left' }}; white-space: pre-wrap; word-break: break-word;">

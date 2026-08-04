@@ -132,6 +132,7 @@ def build_generic_forensic_report_draft(
         institution=institution,
         examiner=examiner,
         workflow=GENERIC_WORKFLOW.slug,
+        main_title_text=metadata.main_title_text,
     )
     report.page_layout = page_layout
     report.save(update_fields=["page_layout", "updated_at"])

@@ -93,7 +93,7 @@ class ReportDocumentPreviewViewTests(TestCase):
         self.assertContains(response, "Descrição dos fatos.")
         self.assertContains(response, "report-document-block")
         self.assertContains(response, "<style>")
-        self.assertContains(response, "Times New Roman")
+        self.assertContains(response, "Arial")
         self.assertNotContains(response, "contenteditable")
         self.assertNotContains(response, "report-editor-toolbar")
 

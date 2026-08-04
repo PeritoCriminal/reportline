@@ -24,6 +24,10 @@ HEADER_LOGO_INITIAL_HEIGHT_CM = 3
 HEADER_LOGO_INITIAL_HEIGHT_PX = round(
     HEADER_LOGO_INITIAL_HEIGHT_CM * DISPLAY_DPI / CM_PER_INCH
 )
+HEADER_LOGO_INITIAL_WIDTH_CM = 2
+HEADER_LOGO_INITIAL_WIDTH_PX = round(
+    HEADER_LOGO_INITIAL_WIDTH_CM * DISPLAY_DPI / CM_PER_INCH
+)
 PAGE_BAND_LOGO_INITIAL_HEIGHT_PX = HEADER_LOGO_INITIAL_HEIGHT_PX
 
 LAYOUT_TEMPLATE_TEXT_ONLY = "text_only"
@@ -224,6 +228,104 @@ def initial_header_logo_display_size(
     display_height = target_height
     display_width = max(1, round(display_height * aspect_ratio))
     return display_width, display_height
+
+
+def initial_header_logo_display_size_by_width(
+    natural_width: int,
+    natural_height: int,
+) -> tuple[int, int]:
+    """
+    Calcula dimensões iniciais de exibição da logo do cabeçalho.
+
+    Usa largura fixa equivalente a 2 cm (96 DPI); a altura preserva a proporção.
+    """
+    target_width = max(1, HEADER_LOGO_INITIAL_WIDTH_PX)
+    if natural_width <= 0 or natural_height <= 0:
+        return target_width, target_width
+
+    aspect_ratio = natural_width / natural_height
+    display_width = target_width
+    display_height = max(1, round(display_width / aspect_ratio))
+    return display_width, display_height
+
+
+def clamp_header_logo_display_size_by_width(
+    display_width: int,
+    display_height: int,
+) -> tuple[int, int]:
+    """
+    Limita dimensões de exibição da logo à largura institucional de 2 cm.
+
+    Preserva a proporção quando a logo persistida exceder a largura alvo.
+    """
+    width = max(0, int(display_width or 0))
+    height = max(0, int(display_height or 0))
+    if width <= 0 or height <= 0:
+        return width, height
+    if width <= HEADER_LOGO_INITIAL_WIDTH_PX:
+        return width, height
+
+    scale = HEADER_LOGO_INITIAL_WIDTH_PX / width
+    return (
+        HEADER_LOGO_INITIAL_WIDTH_PX,
+        max(1, round(height * scale)),
+    )
+
+
+def _format_css_cm(value_px: int) -> str:
+    """Converte pixels de referência (96 DPI) em unidade CSS ``cm``."""
+    value_cm = value_px * CM_PER_INCH / DISPLAY_DPI
+    formatted = f"{value_cm:.2f}".rstrip("0").rstrip(".")
+    return f"{formatted}cm"
+
+
+def logo_display_size_style(width_px: int, height_px: int) -> str:
+    """
+    Monta declarações CSS inline para logo com dimensões físicas corretas.
+
+    Usa ``cm`` em vez de ``px`` para que preview e PDF respeitem a escala da
+    folha A4 mesmo quando a viewport reduz a largura da página.
+    """
+    width = max(0, int(width_px or 0))
+    height = max(0, int(height_px or 0))
+    if width <= 0 or height <= 0:
+        return ""
+    return (
+        f"width: {_format_css_cm(width)}; "
+        f"height: {_format_css_cm(height)}; "
+        "max-width: 100%; object-fit: contain;"
+    )
+
+
+def prepare_logo_cell_for_document(
+    cell: dict[str, Any],
+    page_layout: dict[str, Any] | None,
+    *,
+    band: str,
+) -> dict[str, Any]:
+    """
+    Normaliza célula de logo para leitura/preview/PDF.
+
+    Em laudos periciais, limita emblemas institucionais à largura de 2 cm
+    e expõe ``display_size_style`` com unidades físicas.
+    """
+    from reports.services.report_kind import is_forensic_report_layout
+
+    prepared = dict(cell)
+    if prepared.get("type") != "logo":
+        return prepared
+
+    width = int(prepared.get("width", 0) or 0)
+    height = int(prepared.get("height", 0) or 0)
+    if band == "header" and is_forensic_report_layout(page_layout):
+        width, height = clamp_header_logo_display_size_by_width(width, height)
+        prepared["width"] = width
+        prepared["height"] = height
+
+    display_style = logo_display_size_style(width, height)
+    if display_style:
+        prepared["display_size_style"] = display_style
+    return prepared
 
 
 initial_footer_logo_display_size = initial_header_logo_display_size
@@ -676,12 +778,18 @@ def _update_band_logo_cell_from_image(
         raise ValidationError("A célula informada não é de logo.")
 
     logo_slot = cells[cell_index].get("logo_slot", "primary")
-    natural_width = int(image_payload.get("width", 0) or 0)
-    natural_height = int(image_payload.get("height", 0) or 0)
-    display_width, display_height = initial_header_logo_display_size(
-        natural_width,
-        natural_height,
-    )
+    display_width_override = image_payload.get("display_width")
+    display_height_override = image_payload.get("display_height")
+    if display_width_override is not None and display_height_override is not None:
+        display_width = max(1, int(display_width_override))
+        display_height = max(1, int(display_height_override))
+    else:
+        natural_width = int(image_payload.get("width", 0) or 0)
+        natural_height = int(image_payload.get("height", 0) or 0)
+        display_width, display_height = initial_header_logo_display_size(
+            natural_width,
+            natural_height,
+        )
     cells[cell_index] = normalize_logo_cell(
         {
             "type": "logo",
