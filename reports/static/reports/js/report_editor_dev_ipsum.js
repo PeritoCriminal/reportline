@@ -1,8 +1,17 @@
 /**
  * Atalho de desenvolvimento para preencher parágrafos vazios com lorem ipsum.
  *
- * Em um parágrafo vazio, digite ``ipsumN`` (ex.: ``ipsum120``) e pressione
- * Enter para gerar texto lorem com exatamente N caracteres.
+ * Em um parágrafo vazio do corpo do laudo, digite um comando e pressione Enter:
+ *
+ * - ``ipsum100`` — um parágrafo com 100 caracteres, ponto final, parágrafo vazio
+ *   seguinte com o cursor no início;
+ * - ``3ipsum100`` — três parágrafos de 100 caracteres (cada um com ponto final) e
+ *   parágrafo vazio no fim;
+ * - ``3ipsum100-300`` — três parágrafos com comprimento aleatório entre 100 e 300
+ *   caracteres, ponto final em cada um e parágrafo vazio no fim.
+ *
+ * Os números são exemplos; qualquer inteiro positivo vale. A contagem de parágrafos
+ * aceita no máximo um dígito; valores com mais dígitos geram 9 parágrafos.
  *
  * TODO(produção): remover este arquivo, a inclusão condicional em
  * ``reports/templates/reports/report_editor.html`` e qualquer referência a
@@ -11,7 +20,8 @@
 (function () {
     "use strict";
 
-    const IPSUM_PATTERN = /^ipsum(\d+)$/i;
+    const IPSUM_PATTERN = /^(\d*)ipsum(\d+)(?:-(\d+))?$/i;
+    const MAX_PARAGRAPH_COUNT = 9;
     const MAX_LENGTH = 10000;
     const LOREM_BASE =
         "Lorem ipsum dolor sit amet consectetur adipiscing elit sed do eiusmod tempor " +
@@ -39,38 +49,97 @@
         return text.slice(0, targetLength);
     }
 
-    function placeCaretAtEnd(element) {
-        const selection = window.getSelection();
-        if (!selection) {
-            return;
+    function randomInt(min, max) {
+        const lower = Math.min(min, max);
+        const upper = Math.max(min, max);
+        return lower + Math.floor(Math.random() * (upper - lower + 1));
+    }
+
+    function parseParagraphCount(rawCount) {
+        if (!rawCount) {
+            return 1;
         }
-        const range = document.createRange();
-        range.selectNodeContents(element);
-        range.collapse(false);
-        selection.removeAllRanges();
-        selection.addRange(range);
+        if (rawCount.length > 1) {
+            return MAX_PARAGRAPH_COUNT;
+        }
+        const parsed = Number.parseInt(rawCount, 10);
+        if (!Number.isFinite(parsed) || parsed < 1) {
+            return 1;
+        }
+        return Math.min(parsed, MAX_PARAGRAPH_COUNT);
+    }
+
+    function parseIpsumCommand(text) {
+        const match = text.match(IPSUM_PATTERN);
+        if (!match) {
+            return null;
+        }
+
+        const count = parseParagraphCount(match[1]);
+        const minLen = Number.parseInt(match[2], 10);
+        let maxLen = match[3] ? Number.parseInt(match[3], 10) : minLen;
+
+        if (!Number.isFinite(minLen) || minLen < 0) {
+            return null;
+        }
+        if (!Number.isFinite(maxLen) || maxLen < 0) {
+            maxLen = minLen;
+        }
+
+        return {
+            count,
+            minLen: Math.min(minLen, maxLen),
+            maxLen: Math.max(minLen, maxLen),
+        };
+    }
+
+    function generateParagraphText(minLen, maxLen) {
+        const length = minLen === maxLen ? minLen : randomInt(minLen, maxLen);
+        return `${generateLorem(length)}.`;
     }
 
     function paragraphText(editable) {
         return editable.textContent.replace(/\u00a0/g, " ").trim();
     }
 
-    function tryGenerateIpsum(editable) {
-        if (!emptyOnFocus.get(editable)) {
-            return false;
+    function buildParagraphTexts(spec) {
+        const texts = [];
+        for (let index = 0; index < spec.count; index += 1) {
+            texts.push(generateParagraphText(spec.minLen, spec.maxLen));
+        }
+        return texts;
+    }
+
+    async function applyIpsum(editable, spec) {
+        const block = editable.closest(".report-editor-block");
+        if (!block) {
+            return;
         }
 
-        const match = paragraphText(editable).match(IPSUM_PATTERN);
-        if (!match) {
-            return false;
-        }
+        const texts = buildParagraphTexts(spec);
+        const editor = window.ReportLineEditor;
 
-        const length = Number.parseInt(match[1], 10);
-        editable.textContent = generateLorem(length);
+        editable.textContent = texts[0];
         emptyOnFocus.set(editable, false);
-        placeCaretAtEnd(editable);
         editable.dispatchEvent(new InputEvent("input", { bubbles: true }));
-        return true;
+
+        if (editor && editor.saveBlock) {
+            await editor.saveBlock(block, { skipHistory: true });
+        }
+
+        let referenceBlock = block;
+        if (editor && editor.insertParagraphAfter) {
+            for (let index = 1; index < texts.length; index += 1) {
+                referenceBlock = await editor.insertParagraphAfter(referenceBlock, {
+                    content: { text: texts[index] },
+                });
+            }
+
+            await editor.insertParagraphAfter(referenceBlock, {
+                content: { text: "" },
+                caretAtStart: true,
+            });
+        }
     }
 
     function bindDevIpsumShortcut(page) {
@@ -104,26 +173,38 @@
             }
         });
 
-        page.addEventListener("keydown", (event) => {
-            if (event.key !== "Enter" || event.shiftKey) {
-                return;
-            }
+        page.addEventListener(
+            "keydown",
+            (event) => {
+                if (event.key !== "Enter" || event.shiftKey) {
+                    return;
+                }
 
-            const editable = event.target.closest(".report-editor-block-editable");
-            if (!editable) {
-                return;
-            }
+                const editable = event.target.closest(".report-editor-block-editable");
+                if (!editable) {
+                    return;
+                }
 
-            const block = editable.closest(".report-editor-block");
-            if (!block || block.dataset.blockType !== "paragraph") {
-                return;
-            }
+                const block = editable.closest(".report-editor-block");
+                if (!block || block.dataset.blockType !== "paragraph") {
+                    return;
+                }
 
-            if (tryGenerateIpsum(editable)) {
+                if (!emptyOnFocus.get(editable)) {
+                    return;
+                }
+
+                const spec = parseIpsumCommand(paragraphText(editable));
+                if (!spec) {
+                    return;
+                }
+
                 event.preventDefault();
                 event.stopPropagation();
-            }
-        }, true);
+                applyIpsum(editable, spec).catch(console.error);
+            },
+            true
+        );
     }
 
     document.addEventListener("DOMContentLoaded", function () {

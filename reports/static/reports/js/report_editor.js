@@ -4397,10 +4397,18 @@
         focusInitialBlock(page);
     }
 
+    async function insertParagraphAfter(referenceBlock, options = {}) {
+        return createSiblingBlock(referenceBlock, "paragraph", {
+            skipHistory: true,
+            ...options,
+        });
+    }
+
     window.ReportLineEditor = {
         init,
         insertTableAtCursor,
         insertImageAtCursor,
+        insertParagraphAfter,
         saveBlock,
         scheduleDebouncedSave,
         beginBlockContentRecording,
