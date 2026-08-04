@@ -33,6 +33,11 @@
                 </div>
             {% endfor %}
         </div>
+        {% if header.extra_rows %}
+            <div class="report-page-header-extra-rows">
+                {% include "reports/includes/report_page_header_extra_rows_read.html" with header=header %}
+            </div>
+        {% endif %}
     </div>
 </div>
 {% endif %}

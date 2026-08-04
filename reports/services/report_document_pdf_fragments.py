@@ -39,13 +39,15 @@ def build_playwright_header_template(
     if not page_layout_band_enabled(page_layout, "header"):
         return PLAYWRIGHT_EMPTY_FRAGMENT
 
-    cells = _prepare_pdf_band_cells(page_layout.get("header", {}))
-    if not cells:
+    header_layout = page_layout.get("header", {})
+    cells = _prepare_pdf_band_cells(header_layout)
+    extra_rows = _prepare_pdf_header_extra_rows(header_layout)
+    if not cells and not extra_rows:
         return PLAYWRIGHT_EMPTY_FRAGMENT
 
     return render_to_string(
         "reports/includes/report_page_header_pdf_fragment.html",
-        {"cells": cells},
+        {"cells": cells, "extra_rows": extra_rows},
         request=request,
     )
 
@@ -118,3 +120,22 @@ def _prepare_pdf_band_cells(band_layout: dict[str, Any]) -> list[dict[str, Any]]
         prepared_cells.append(prepared)
 
     return prepared_cells
+
+
+def _prepare_pdf_header_extra_rows(band_layout: dict[str, Any]) -> list[dict[str, Any]]:
+    """Normaliza linhas extras do cabeçalho para o fragmento PDF."""
+    prepared_rows: list[dict[str, Any]] = []
+    for row in band_layout.get("extra_rows", []):
+        if not isinstance(row, dict):
+            continue
+
+        prepared = deepcopy(row)
+        row_type = prepared.get("type")
+        if row_type == "text":
+            prepared["text_html"] = sanitize_header_text_html(str(prepared.get("text", "")))
+        elif row_type != "rule":
+            continue
+
+        prepared_rows.append(prepared)
+
+    return prepared_rows

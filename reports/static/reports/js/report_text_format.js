@@ -62,7 +62,7 @@
 
         const block = editable.closest(".report-editor-block");
         if (!block) {
-            if (editable.matches("[data-report-page-header-text]")) {
+            if (editable.matches("[data-report-page-header-text], [data-report-page-header-extra-text]")) {
                 return { block: null, editable, headerText: true };
             }
             if (editable.matches("[data-report-page-footer-text]")) {
@@ -471,7 +471,7 @@
 
             const html = clipboard.getData("text/html");
             const plain = clipboard.getData("text/plain");
-            const isBandText = editable.matches("[data-report-page-header-text], [data-report-page-footer-text]");
+            const isBandText = editable.matches("[data-report-page-header-text], [data-report-page-header-extra-text], [data-report-page-footer-text]");
             const sanitizeFn = isBandText && inlineText.sanitizeHeader
                 ? inlineText.sanitizeHeader.bind(inlineText)
                 : inlineText.sanitize.bind(inlineText);

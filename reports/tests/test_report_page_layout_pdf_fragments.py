@@ -64,6 +64,27 @@ class ReportPageLayoutPdfFragmentTests(TestCase):
         self.assertTrue(footer_layout_shows_page_number(layout))
         self.assertTrue(playwright_display_header_footer(layout))
 
+    def test_header_fragment_renders_extra_rows(self):
+        """Garante linhas extras no fragmento PDF do cabeçalho."""
+        layout = apply_header_template({}, "logo_left_text_right")
+        layout["header"]["extra_rows"] = [
+            {"type": "rule"},
+            {
+                "type": "text",
+                "text": "Laudo nº 123",
+                "align": "right",
+                "indent_level": 0,
+                "first_line_indent": False,
+                "muted": True,
+            },
+        ]
+
+        html = build_playwright_header_template(layout, self._request())
+
+        self.assertIn("Laudo nº 123", html)
+        self.assertIn("<hr", html)
+        self.assertIn("color: #666", html)
+
     def test_header_fragment_renders_text_cell(self):
         """Garante texto sanitizado no fragmento de cabeçalho."""
         layout = apply_header_template({}, "logo_left_text_right")

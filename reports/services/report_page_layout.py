@@ -57,6 +57,18 @@ FOOTER_TEMPLATE_IDS = frozenset(
     }
 )
 
+HEADER_EXTRA_ROW_TYPE_TEXT = "text"
+HEADER_EXTRA_ROW_TYPE_RULE = "rule"
+
+HEADER_EXTRA_ROW_TYPES = frozenset(
+    {
+        HEADER_EXTRA_ROW_TYPE_TEXT,
+        HEADER_EXTRA_ROW_TYPE_RULE,
+    }
+)
+
+MAX_HEADER_EXTRA_ROWS = 8
+
 HEADER_TEMPLATE_LABELS = {
     LAYOUT_TEMPLATE_LOGO_LEFT_TEXT_RIGHT: "Logo à esquerda, texto à direita",
     LAYOUT_TEMPLATE_TEXT_LEFT_LOGO_RIGHT: "Texto à esquerda, logo à direita",
@@ -128,6 +140,7 @@ def _disabled_band_layout() -> dict[str, Any]:
         "template_id": None,
         "column_widths": [],
         "cells": [],
+        "extra_rows": [],
     }
 
 
@@ -150,6 +163,28 @@ def default_logo_cell(*, logo_slot: str = "primary") -> dict[str, Any]:
         "height": 0,
         "alt": "",
     }
+
+
+def default_header_extra_rule_row() -> dict[str, Any]:
+    """Monta linha horizontal de largura total abaixo do cabeçalho principal."""
+    return {"type": HEADER_EXTRA_ROW_TYPE_RULE}
+
+
+def default_header_extra_text_row(
+    *,
+    align: str = "left",
+    muted: bool = False,
+    indent_level: int = 0,
+    first_line_indent: bool = False,
+) -> dict[str, Any]:
+    """Monta linha de texto de largura total abaixo do cabeçalho principal."""
+    cell = default_text_cell(
+        align=align,
+        indent_level=indent_level,
+        first_line_indent=first_line_indent,
+    )
+    cell["muted"] = muted
+    return cell
 
 
 def default_text_cell(
@@ -332,6 +367,46 @@ def normalize_text_cell(cell: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def normalize_header_extra_text_row(row: dict[str, Any]) -> dict[str, Any]:
+    """Valida e normaliza linha de texto extra do cabeçalho."""
+    normalized = normalize_text_cell(row)
+    normalized["muted"] = bool(row.get("muted", False))
+    return normalized
+
+
+def normalize_header_extra_rule_row(row: dict[str, Any]) -> dict[str, Any]:
+    """Valida e normaliza linha horizontal extra do cabeçalho."""
+    if row.get("type") != HEADER_EXTRA_ROW_TYPE_RULE:
+        raise ValidationError("Linha extra de cabeçalho inválida.")
+    return {"type": HEADER_EXTRA_ROW_TYPE_RULE}
+
+
+def normalize_header_extra_row(row: Any) -> dict[str, Any]:
+    """Normaliza uma linha extra abaixo da faixa principal do cabeçalho."""
+    if not isinstance(row, dict):
+        raise ValidationError("Cada linha extra do cabeçalho deve ser um objeto.")
+
+    row_type = row.get("type")
+    if row_type == HEADER_EXTRA_ROW_TYPE_TEXT:
+        return normalize_header_extra_text_row(row)
+    if row_type == HEADER_EXTRA_ROW_TYPE_RULE:
+        return normalize_header_extra_rule_row(row)
+    raise ValidationError("Tipo de linha extra de cabeçalho inválido.")
+
+
+def normalize_header_extra_rows(rows: Any) -> list[dict[str, Any]]:
+    """Normaliza linhas extras de largura total do cabeçalho."""
+    if rows in (None, ""):
+        return []
+    if not isinstance(rows, list):
+        raise ValidationError("Linhas extras do cabeçalho devem ser uma lista.")
+    if len(rows) > MAX_HEADER_EXTRA_ROWS:
+        raise ValidationError(
+            f"O cabeçalho aceita no máximo {MAX_HEADER_EXTRA_ROWS} linhas extras."
+        )
+    return [normalize_header_extra_row(row) for row in rows]
+
+
 def normalize_footer_text_cell(cell: dict[str, Any]) -> dict[str, Any]:
     """Valida e normaliza célula de texto do rodapé."""
     normalized = normalize_text_cell(cell)
@@ -402,12 +477,14 @@ def normalize_header_layout(header: Any) -> dict[str, Any]:
         column_widths_payload or spec["column_widths"],
         expected_len,
     )
+    extra_rows = normalize_header_extra_rows(header.get("extra_rows", []))
 
     return {
         "enabled": True,
         "template_id": template_id,
         "column_widths": column_widths,
         "cells": cells,
+        "extra_rows": extra_rows,
     }
 
 
@@ -492,6 +569,7 @@ def apply_header_template(
 
     current = normalize_page_layout(page_layout)
     existing_cells = current["header"].get("cells", [])
+    existing_extra_rows = current["header"].get("extra_rows", [])
     spec = HEADER_TEMPLATE_SPECS[template_id]
 
     current["header"] = {
@@ -502,6 +580,7 @@ def apply_header_template(
             template_id,
             existing_cells=existing_cells,
         ),
+        "extra_rows": normalize_header_extra_rows(existing_extra_rows),
     }
     return current
 

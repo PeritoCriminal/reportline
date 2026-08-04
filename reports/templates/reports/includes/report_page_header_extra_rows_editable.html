@@ -1,0 +1,23 @@
+{% load report_inline_text %}
+{% for row in header.extra_rows %}
+    <div class="report-page-header-extra-row"
+         data-report-page-header-extra-row
+         data-extra-row-index="{{ forloop.counter0 }}">
+        {% if row.type == "rule" %}
+            <hr class="report-page-header-extra-rule" aria-hidden="true">
+        {% else %}
+            <div class="report-page-header-extra-row-inner"
+                 style="text-align: {{ row.align|default:'left' }};">
+                <div class="report-editor-block-editable report-page-header-text report-page-header-extra-text{% if row.muted %} report-page-header-extra-text--muted{% endif %}"
+                     contenteditable="false"
+                     data-report-page-header-extra-text
+                     data-extra-row-index="{{ forloop.counter0 }}"
+                     data-text-align="{{ row.align|default:'left' }}"
+                     data-indent-level="{{ row.indent_level|default:0 }}"
+                     data-first-line-indent="{% if row.first_line_indent %}true{% else %}false{% endif %}"
+                     data-muted="{% if row.muted %}true{% else %}false{% endif %}"
+                     data-placeholder="Digite um parágrafo">{{ row.text|default:""|header_text }}</div>
+            </div>
+        {% endif %}
+    </div>
+{% endfor %}

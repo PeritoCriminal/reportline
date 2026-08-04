@@ -7,16 +7,21 @@ from reports.services.report_page_layout import (
     FOOTER_TEMPLATE_LOGO_LEFT_TEXT_RIGHT,
     FOOTER_TEMPLATE_LOGO_TEXT_LOGO,
     FOOTER_TEMPLATE_TEXT_ONLY,
+    HEADER_EXTRA_ROW_TYPE_RULE,
     HEADER_LOGO_INITIAL_HEIGHT_PX,
     HEADER_TEMPLATE_LOGO_LEFT_TEXT_RIGHT,
     HEADER_TEMPLATE_LOGO_TEXT_LOGO,
+    MAX_HEADER_EXTRA_ROWS,
     apply_footer_template,
     apply_header_template,
     build_footer_cells_for_template,
     build_header_cells_for_template,
+    default_header_extra_rule_row,
+    default_header_extra_text_row,
     default_page_layout,
     initial_header_logo_display_size,
     merge_page_layout,
+    normalize_header_extra_rows,
     normalize_page_layout,
     update_footer_logo_cell_from_image,
     update_logo_cell_from_image,
@@ -31,6 +36,7 @@ class ReportPageLayoutTests(TestCase):
         layout = default_page_layout()
         self.assertFalse(layout["header"]["enabled"])
         self.assertEqual(layout["header"]["cells"], [])
+        self.assertEqual(layout["header"]["extra_rows"], [])
         self.assertFalse(layout["footer"]["enabled"])
         self.assertEqual(layout["footer"]["cells"], [])
 
@@ -115,6 +121,36 @@ class ReportPageLayoutTests(TestCase):
         )
         self.assertFalse(normalized["header"]["enabled"])
         self.assertEqual(normalized["header"]["cells"], [])
+        self.assertEqual(normalized["header"]["extra_rows"], [])
+
+    def test_normalize_header_extra_rows_text_and_rule(self):
+        """Garante normalização de linhas extras de texto e horizontal."""
+        rows = normalize_header_extra_rows(
+            [
+                default_header_extra_rule_row(),
+                default_header_extra_text_row(align="right", muted=True),
+            ]
+        )
+        self.assertEqual(rows[0]["type"], HEADER_EXTRA_ROW_TYPE_RULE)
+        self.assertEqual(rows[1]["align"], "right")
+        self.assertTrue(rows[1]["muted"])
+
+    def test_normalize_header_extra_rows_respects_limit(self):
+        """Garante limite máximo de linhas extras no cabeçalho."""
+        too_many = [default_header_extra_rule_row() for _ in range(MAX_HEADER_EXTRA_ROWS + 1)]
+        with self.assertRaises(ValidationError):
+            normalize_header_extra_rows(too_many)
+
+    def test_apply_header_template_preserves_extra_rows(self):
+        """Garante preservação de linhas extras ao trocar modelo do cabeçalho."""
+        layout = apply_header_template(None, HEADER_TEMPLATE_LOGO_LEFT_TEXT_RIGHT)
+        layout["header"]["extra_rows"] = [
+            default_header_extra_rule_row(),
+            default_header_extra_text_row(align="right", muted=True),
+        ]
+        updated = apply_header_template(layout, HEADER_TEMPLATE_LOGO_TEXT_LOGO)
+        self.assertEqual(len(updated["header"]["extra_rows"]), 2)
+        self.assertTrue(updated["header"]["extra_rows"][1]["muted"])
 
     def test_apply_footer_template_text_only(self):
         """Garante modelo de rodapé apenas com texto e numeração."""

@@ -258,8 +258,22 @@ def _prepare_page_layout_for_document(
             continue
 
         cells = [_prepare_page_layout_cell(cell, request) for cell in band.get("cells", [])]
-        prepared[band_key] = {**band, "cells": cells}
+        prepared_band = {**band, "cells": cells}
+        if band_key == "header":
+            prepared_band["extra_rows"] = [
+                _prepare_page_layout_extra_row(row, request)
+                for row in band.get("extra_rows", [])
+            ]
+        prepared[band_key] = prepared_band
 
+    return prepared
+
+
+def _prepare_page_layout_extra_row(row: dict[str, Any], request: HttpRequest) -> dict[str, Any]:
+    """Sanitiza linha extra do cabeçalho para leitura e PDF."""
+    prepared = dict(row)
+    if prepared.get("type") == "text":
+        prepared["text"] = sanitize_header_text_html(str(prepared.get("text", "")))
     return prepared
 
 

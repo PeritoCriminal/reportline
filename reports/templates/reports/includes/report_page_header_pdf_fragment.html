@@ -14,4 +14,13 @@
             {% endif %}
         {% endfor %}
     </div>
+    {% for row in extra_rows %}
+        {% if row.type == "rule" %}
+            <hr style="margin: 0.15rem 0 0.1rem; border: 0; border-top: 1px solid #666;">
+        {% else %}
+            <div style="width: 100%; text-align: {{ row.align|default:'left' }}; white-space: pre-wrap; word-break: break-word;{% if row.muted %} color: #666;{% endif %}">
+                {{ row.text_html|default:""|safe }}
+            </div>
+        {% endif %}
+    {% endfor %}
 </div>

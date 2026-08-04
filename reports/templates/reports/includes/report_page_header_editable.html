@@ -65,6 +65,10 @@
                     </div>
                 {% endfor %}
             </div>
+            <div class="report-page-header-extra-rows"
+                 data-report-page-header-extra-rows>
+                {% include "reports/includes/report_page_header_extra_rows_editable.html" with header=header %}
+            </div>
         </div>
     {% else %}
         <button type="button"

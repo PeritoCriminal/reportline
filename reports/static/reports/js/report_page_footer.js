@@ -8,6 +8,38 @@
     const HISTORY_DEBOUNCE_MS = 400;
     const FOOTER_ALIGN_VALUES = new Set(["left", "center", "right"]);
 
+    const FOOTER_BAND_FOCUS = {
+        textSelector: "[data-report-page-footer-text]",
+    };
+
+    function getBandTextHelpers() {
+        return window.ReportLinePageBandText || null;
+    }
+
+    function captureFooterTextFocus(root) {
+        const bandText = getBandTextHelpers();
+        if (!bandText || !bandText.captureBandTextFocus) {
+            return null;
+        }
+        return bandText.captureBandTextFocus(root, {
+            ...FOOTER_BAND_FOCUS,
+            lastFocusedField: lastFocusedTextField,
+        });
+    }
+
+    function restoreFooterTextFocus(root, focusState) {
+        const bandText = getBandTextHelpers();
+        if (!bandText || !bandText.restoreBandTextFocus || !focusState) {
+            return null;
+        }
+        return bandText.restoreBandTextFocus(root, focusState, {
+            ...FOOTER_BAND_FOCUS,
+            onRestore: (field) => {
+                lastFocusedTextField = field;
+            },
+        });
+    }
+
     let updateUrl = "";
     let uploadUrl = "";
     let modal = null;
@@ -245,7 +277,7 @@
         }
         textField.dataset.showPageNumber = enabled ? "true" : "false";
         updatePageNumberControlUI(textField);
-        flushFooterSave().catch(console.error);
+        flushFooterSave({ skipHtmlReplace: true }).catch(console.error);
     }
 
     function syncLastFocusedTextField(root) {
@@ -272,12 +304,20 @@
             return;
         }
 
+        const focusState = wasEditing
+            ? (opts.focusState || captureFooterTextFocus(currentRoot))
+            : null;
+
         currentRoot.insertAdjacentHTML("afterend", html);
         currentRoot.remove();
         footerRoot = document.getElementById("report-page-footer-root");
         bindFooterRoot(footerRoot);
         setEditingState(footerRoot, wasEditing);
-        syncLastFocusedTextField(footerRoot);
+        if (focusState) {
+            restoreFooterTextFocus(footerRoot, focusState);
+        } else {
+            syncLastFocusedTextField(footerRoot);
+        }
     }
 
     function openTemplateModal() {
@@ -366,7 +406,7 @@
         }
         saveTimer = window.setTimeout(() => {
             saveTimer = null;
-            flushFooterSave().catch(console.error);
+            flushFooterSave({ skipHtmlReplace: true }).catch(console.error);
         }, DEBOUNCE_MS);
     }
 
@@ -378,7 +418,8 @@
         finalizeFooterLayoutRecording();
     }
 
-    async function flushFooterSave() {
+    async function flushFooterSave(options) {
+        const opts = options || {};
         const root = document.getElementById("report-page-footer-root");
         if (!root || root.dataset.footerEnabled !== "true") {
             return null;
@@ -396,7 +437,9 @@
         }
 
         const data = await patchPageLayout(buildPageLayoutPayload(root));
-        replaceFooterHtml(data.footer_html, { preserveEditing: isEditing });
+        if (!opts.skipHtmlReplace) {
+            replaceFooterHtml(data.footer_html || data.html, { preserveEditing: isEditing });
+        }
         if (pendingLayoutEdit) {
             finalizeFooterLayoutRecording();
         }
@@ -552,7 +595,7 @@
             return;
         }
         bandText.increaseIndent(field);
-        flushFooterSave().catch(console.error);
+        flushFooterSave({ skipHtmlReplace: true }).catch(console.error);
     }
 
     function decreaseTextIndent() {
@@ -562,7 +605,7 @@
             return;
         }
         bandText.decreaseIndent(field);
-        flushFooterSave().catch(console.error);
+        flushFooterSave({ skipHtmlReplace: true }).catch(console.error);
     }
 
     function toggleTextFirstLineIndent() {
@@ -572,7 +615,7 @@
             return;
         }
         bandText.toggleFirstLineIndent(field);
-        flushFooterSave().catch(console.error);
+        flushFooterSave({ skipHtmlReplace: true }).catch(console.error);
     }
 
     function resolveFooterTextContext() {

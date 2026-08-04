@@ -1176,10 +1176,14 @@
         saveTimers.clear();
 
         if (window.ReportLinePageHeader && window.ReportLinePageHeader.flushHeaderSave) {
-            savePromises.push(window.ReportLinePageHeader.flushHeaderSave());
+            savePromises.push(window.ReportLinePageHeader.flushHeaderSave({
+                skipHtmlReplace: window.ReportLinePageHeader.isEditing(),
+            }));
         }
         if (window.ReportLinePageFooter && window.ReportLinePageFooter.flushFooterSave) {
-            savePromises.push(window.ReportLinePageFooter.flushFooterSave());
+            savePromises.push(window.ReportLinePageFooter.flushFooterSave({
+                skipHtmlReplace: window.ReportLinePageFooter.isEditing(),
+            }));
         }
 
         await Promise.all(savePromises);
@@ -1458,9 +1462,62 @@
         if (!current) {
             return null;
         }
+
+        let caretOffset = null;
+        let focusSelector = null;
+        const active = document.activeElement;
+        if (active && current.contains(active)) {
+            const editable = active.closest(".report-editor-block-editable");
+            if (editable && current.contains(editable)) {
+                caretOffset = getCaretOffset(editable);
+                if (editable.dataset.tablePart) {
+                    focusSelector = {
+                        tablePart: editable.dataset.tablePart,
+                        rowIndex: editable.dataset.rowIndex,
+                        colIndex: editable.dataset.colIndex,
+                    };
+                } else if (editable.classList.contains("report-editor-list-item")) {
+                    focusSelector = { listItem: true };
+                } else if (editable.dataset.field) {
+                    focusSelector = { field: editable.dataset.field };
+                } else {
+                    focusSelector = { defaultEditable: true };
+                }
+            }
+        }
+
         current.insertAdjacentHTML("afterend", html);
         const replacement = current.nextElementSibling;
         current.remove();
+
+        if (focusSelector && replacement) {
+            let target = null;
+            if (focusSelector.tablePart) {
+                if (focusSelector.tablePart === "header") {
+                    target = replacement.querySelector(
+                        `.report-editor-table-cell[data-table-part="header"][data-col-index="${focusSelector.colIndex}"]`
+                    );
+                } else {
+                    target = replacement.querySelector(
+                        `.report-editor-table-cell[data-table-part="cell"][data-row-index="${focusSelector.rowIndex}"][data-col-index="${focusSelector.colIndex}"]`
+                    );
+                }
+            } else if (focusSelector.listItem) {
+                target = replacement.querySelector(".report-editor-list-item");
+            } else if (focusSelector.field) {
+                target = replacement.querySelector(
+                    `.report-editor-block-editable[data-field="${focusSelector.field}"]`
+                );
+            } else {
+                target = replacement.querySelector(".report-editor-block-editable");
+            }
+
+            if (target) {
+                setCaretOffset(target, caretOffset ?? 0);
+                rememberEditorContext(replacement, target);
+            }
+        }
+
         return replacement;
     }
 
@@ -2816,7 +2873,7 @@
             if (
                 window.ReportLinePageHeader
                 && window.ReportLinePageHeader.isEditing()
-                && active.matches("[data-report-page-header-text][contenteditable='true']")
+                && active.matches("[data-report-page-header-text][contenteditable='true'], [data-report-page-header-extra-text][contenteditable='true']")
             ) {
                 return {
                     kind: "page-header-text",
@@ -3288,7 +3345,7 @@
             return null;
         }
 
-        if (active.matches("[data-report-page-header-text][contenteditable='true']")) {
+        if (active.matches("[data-report-page-header-text][contenteditable='true'], [data-report-page-header-extra-text][contenteditable='true']")) {
             return { bandText: true, editable: active, band: "header" };
         }
 
@@ -3575,7 +3632,7 @@
                 return;
             }
 
-            if (event.target.closest("[data-report-page-header-text], [data-report-page-footer-text]")) {
+            if (event.target.closest("[data-report-page-header-text], [data-report-page-header-extra-text], [data-report-page-footer-text]")) {
                 const bandContext = resolveBandTextTarget();
                 if (bandContext) {
                     rememberParagraphContext(bandContext);
@@ -3611,6 +3668,8 @@
                 || event.target.closest("[data-report-text-link]")
                 || event.target.closest("[data-report-paragraph-indent]")
                 || event.target.closest("[data-report-paragraph-first-line-indent]")
+                || event.target.closest("[data-report-header-extra-insert-rule]")
+                || event.target.closest("[data-report-header-extra-toggle-muted]")
             ) {
                 event.preventDefault();
             }

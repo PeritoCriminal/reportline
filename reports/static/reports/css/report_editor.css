@@ -639,6 +639,41 @@ body.report-editor-active main {
     color: var(--report-page-muted);
 }
 
+.report-page-header-extra-rows {
+    width: 100%;
+    margin-top: 0.15rem;
+    min-height: 1.5em;
+}
+
+.report-page-header--view .report-page-header-extra-rows,
+.report-page-header--editing .report-page-header-extra-rows {
+    cursor: text;
+}
+
+.report-page-header-extra-row {
+    position: relative;
+    width: 100%;
+}
+
+.report-page-header-extra-row-inner {
+    width: 100%;
+}
+
+.report-page-header-extra-text {
+    min-height: 1.5em;
+}
+
+.report-page-header-extra-text--muted {
+    color: var(--report-page-muted);
+}
+
+.report-page-header-extra-rule {
+    margin: 0.15rem 0 0.1rem;
+    border: 0;
+    border-top: 1px solid var(--report-page-border, var(--bs-border-color));
+    opacity: 1;
+}
+
 .report-page-header-template-card {
     display: flex;
     flex-direction: column;

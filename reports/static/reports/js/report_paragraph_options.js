@@ -10,6 +10,9 @@
     let paragraphToolbarGroup = null;
     let decreaseIndentButton = null;
     let firstLineIndentButton = null;
+    let headerExtraMenuItems = [];
+    let headerExtraMutedButton = null;
+    let headerExtraRuleButton = null;
 
     function resolveParagraphContext() {
         if (window.ReportLineEditor && window.ReportLineEditor.resolveParagraphContext) {
@@ -81,8 +84,37 @@
         return paragraph.dataset.firstLineIndent !== "false";
     }
 
+    function isHeaderExtraTextContext(context) {
+        if (!context || !context.bandText || context.band !== "header") {
+            return false;
+        }
+        return Boolean(
+            window.ReportLinePageHeader
+            && window.ReportLinePageHeader.isExtraHeaderTextField
+            && window.ReportLinePageHeader.isExtraHeaderTextField(context.editable)
+        );
+    }
+
+    function setHeaderExtraMenuVisibility(visible) {
+        headerExtraMenuItems.forEach((item) => {
+            item.hidden = !visible;
+        });
+    }
+
+    function updateHeaderExtraMenuState(context) {
+        const visible = isHeaderExtraTextContext(context);
+        setHeaderExtraMenuVisibility(visible);
+        if (!visible || !headerExtraMutedButton || !context.editable) {
+            return;
+        }
+        const muted = context.editable.dataset.muted === "true";
+        headerExtraMutedButton.classList.toggle("active", muted);
+        headerExtraMutedButton.setAttribute("aria-pressed", muted ? "true" : "false");
+    }
+
     function updateParagraphMenuState(context) {
         if (!context || (!context.block && !context.bandText)) {
+            setHeaderExtraMenuVisibility(false);
             return;
         }
 
@@ -96,6 +128,8 @@
             firstLineIndentButton.classList.toggle("active", active);
             firstLineIndentButton.setAttribute("aria-pressed", active ? "true" : "false");
         }
+
+        updateHeaderExtraMenuState(context);
     }
 
     function setOptionsToggleState(enabled) {
@@ -184,6 +218,11 @@
         paragraphOptionsToggle = document.querySelector("[data-report-paragraph-options-toggle]");
         decreaseIndentButton = document.querySelector('[data-report-paragraph-indent="decrease"]');
         firstLineIndentButton = document.querySelector("[data-report-paragraph-first-line-indent]");
+        headerExtraMenuItems = Array.from(
+            document.querySelectorAll(".report-editor-paragraph-menu-header-extra")
+        );
+        headerExtraRuleButton = document.querySelector("[data-report-header-extra-insert-rule]");
+        headerExtraMutedButton = document.querySelector("[data-report-header-extra-toggle-muted]");
         const page = document.getElementById("report-editor-page");
 
         if (!paragraphOptionsToggle || !page) {
@@ -221,6 +260,49 @@
                         closeParagraphDropdown();
                     })
                     .catch(console.error);
+            });
+        }
+
+        if (headerExtraRuleButton) {
+            headerExtraRuleButton.addEventListener("mousedown", (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+            });
+            headerExtraRuleButton.addEventListener("click", (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                if (
+                    !window.ReportLinePageHeader
+                    || !window.ReportLinePageHeader.insertExtraRuleAfterCurrent
+                ) {
+                    return;
+                }
+                window.ReportLinePageHeader.insertExtraRuleAfterCurrent()
+                    .then(() => {
+                        updateParagraphMenuState(resolveParagraphContext());
+                        closeParagraphDropdown();
+                    })
+                    .catch(console.error);
+            });
+        }
+
+        if (headerExtraMutedButton) {
+            headerExtraMutedButton.addEventListener("mousedown", (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+            });
+            headerExtraMutedButton.addEventListener("click", (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                if (
+                    !window.ReportLinePageHeader
+                    || !window.ReportLinePageHeader.toggleMutedOnCurrentExtraRow
+                ) {
+                    return;
+                }
+                window.ReportLinePageHeader.toggleMutedOnCurrentExtraRow();
+                updateParagraphMenuState(resolveParagraphContext());
+                closeParagraphDropdown();
             });
         }
 

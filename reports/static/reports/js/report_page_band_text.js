@@ -46,6 +46,9 @@
         if (textField.hasAttribute("data-show-page-number")) {
             payload.show_page_number = textField.dataset.showPageNumber === "true";
         }
+        if (textField.dataset.muted === "true") {
+            payload.muted = true;
+        }
         return payload;
     }
 
@@ -78,6 +81,117 @@
         }
     }
 
+    function getCaretOffset(element) {
+        const selection = window.getSelection();
+        if (!selection || selection.rangeCount === 0 || !element) {
+            return 0;
+        }
+        const range = selection.getRangeAt(0);
+        if (!element.contains(range.startContainer)) {
+            return 0;
+        }
+        const preRange = range.cloneRange();
+        preRange.selectNodeContents(element);
+        preRange.setEnd(range.startContainer, range.startOffset);
+        return preRange.toString().length;
+    }
+
+    function setCaretOffset(element, offset) {
+        if (!element) {
+            return;
+        }
+        element.focus();
+        const selection = window.getSelection();
+        if (!selection) {
+            return;
+        }
+
+        const range = document.createRange();
+        let currentOffset = 0;
+        const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
+        let textNode = walker.nextNode();
+
+        while (textNode) {
+            const length = textNode.textContent.length;
+            if (currentOffset + length >= offset) {
+                range.setStart(textNode, offset - currentOffset);
+                range.collapse(true);
+                selection.removeAllRanges();
+                selection.addRange(range);
+                return;
+            }
+            currentOffset += length;
+            textNode = walker.nextNode();
+        }
+
+        range.selectNodeContents(element);
+        range.collapse(false);
+        selection.removeAllRanges();
+        selection.addRange(range);
+    }
+
+    function captureBandTextFocus(root, options) {
+        const opts = options || {};
+        const textSelector = opts.textSelector || "";
+        const extraTextSelector = opts.extraTextSelector || "";
+        const selector = extraTextSelector ? `${textSelector}, ${extraTextSelector}` : textSelector;
+        if (!root || !selector) {
+            return null;
+        }
+
+        let field = null;
+        const active = document.activeElement;
+        if (active && root.contains(active) && active.matches(selector)) {
+            field = active;
+        } else if (
+            opts.lastFocusedField
+            && root.contains(opts.lastFocusedField)
+            && opts.lastFocusedField.matches(selector)
+        ) {
+            field = opts.lastFocusedField;
+        }
+
+        if (!field) {
+            return null;
+        }
+
+        return {
+            cellIndex: field.dataset.cellIndex,
+            extraRowIndex: field.dataset.extraRowIndex,
+            caretOffset: getCaretOffset(field),
+            isExtra: Boolean(extraTextSelector && field.matches(extraTextSelector)),
+        };
+    }
+
+    function restoreBandTextFocus(root, state, options) {
+        const opts = options || {};
+        if (!root || !state) {
+            return null;
+        }
+
+        let field = null;
+        if (state.isExtra && state.extraRowIndex !== undefined && opts.extraTextSelector) {
+            field = root.querySelector(
+                `${opts.extraTextSelector}[data-extra-row-index="${state.extraRowIndex}"]`
+            );
+        } else if (state.cellIndex !== undefined && opts.textSelector) {
+            field = root.querySelector(
+                `${opts.textSelector}[data-cell-index="${state.cellIndex}"]`
+            );
+        }
+
+        if (!field) {
+            return null;
+        }
+
+        field.focus();
+        setCaretOffset(field, state.caretOffset || 0);
+        if (opts.onRestore) {
+            opts.onRestore(field);
+        }
+        return field;
+    }
+
     window.ReportLinePageBandText = {
         MAX_INDENT_LEVEL,
         getIndentLevel,
@@ -87,5 +201,9 @@
         increaseIndent,
         decreaseIndent,
         toggleFirstLineIndent,
+        getCaretOffset,
+        setCaretOffset,
+        captureBandTextFocus,
+        restoreBandTextFocus,
     };
 })();

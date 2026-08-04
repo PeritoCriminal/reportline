@@ -369,6 +369,33 @@ body.report-document-pdf .report-document-flow {
     text-indent: var(--report-document-first-line-indent);
 }
 
+.report-page-header-extra-rows {
+    width: 100%;
+}
+
+.report-page-header-extra-row {
+    width: 100%;
+}
+
+.report-page-header-extra-row-inner {
+    width: 100%;
+}
+
+.report-page-header-extra-text--read {
+    min-height: 0;
+}
+
+.report-page-header-extra-text--muted {
+    color: var(--report-document-muted, #666);
+}
+
+.report-page-header-extra-rule {
+    margin: 0.15rem 0 0.1rem;
+    border: 0;
+    border-top: 1px solid var(--report-document-border, #666);
+    opacity: 1;
+}
+
 /* --- Blocos --- */
 
 .report-document-block {

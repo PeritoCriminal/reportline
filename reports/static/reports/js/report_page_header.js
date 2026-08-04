@@ -16,6 +16,50 @@
 
     const HEADER_ALIGN_VALUES = new Set(["left", "center", "right"]);
 
+    const HORIZONTAL_RULE_LINE_PATTERN = /^_{3,}$/;
+
+    const DEFAULT_EXTRA_TEXT_ROW = Object.freeze({
+        type: "text",
+        text: "",
+        align: "left",
+        indent_level: 0,
+        first_line_indent: false,
+        muted: false,
+    });
+
+    const HEADER_BAND_FOCUS = {
+        textSelector: "[data-report-page-header-text]",
+        extraTextSelector: "[data-report-page-header-extra-text]",
+    };
+
+    function getBandTextHelpers() {
+        return window.ReportLinePageBandText || null;
+    }
+
+    function captureHeaderTextFocus(root) {
+        const bandText = getBandTextHelpers();
+        if (!bandText || !bandText.captureBandTextFocus) {
+            return null;
+        }
+        return bandText.captureBandTextFocus(root, {
+            ...HEADER_BAND_FOCUS,
+            lastFocusedField: lastFocusedTextField,
+        });
+    }
+
+    function restoreHeaderTextFocus(root, focusState) {
+        const bandText = getBandTextHelpers();
+        if (!bandText || !bandText.restoreBandTextFocus || !focusState) {
+            return null;
+        }
+        return bandText.restoreBandTextFocus(root, focusState, {
+            ...HEADER_BAND_FOCUS,
+            onRestore: (field) => {
+                lastFocusedTextField = field;
+            },
+        });
+    }
+
 
 
     let updateUrl = "";
@@ -67,6 +111,38 @@
     }
 
 
+
+    function collectHeaderExtraRows(root) {
+        const rows = [];
+        root.querySelectorAll("[data-report-page-header-extra-row]").forEach((rowElement) => {
+            if (rowElement.querySelector(".report-page-header-extra-rule")) {
+                rows.push({ type: "rule" });
+                return;
+            }
+
+            const textField = rowElement.querySelector("[data-report-page-header-extra-text]");
+            if (!textField) {
+                return;
+            }
+
+            const helpers = getInlineText();
+            const bandText = window.ReportLinePageBandText;
+            if (bandText) {
+                rows.push(bandText.collectTextCellPayload(textField, helpers));
+            } else {
+                const align = textField.dataset.textAlign || "left";
+                rows.push({
+                    type: "text",
+                    text: helpers ? helpers.getHeaderHtml(textField) : textField.innerHTML,
+                    align: HEADER_ALIGN_VALUES.has(align) ? align : "left",
+                    indent_level: Number.parseInt(textField.dataset.indentLevel || "0", 10) || 0,
+                    first_line_indent: textField.dataset.firstLineIndent === "true",
+                    muted: textField.dataset.muted === "true",
+                });
+            }
+        });
+        return rows;
+    }
 
     function collectHeaderCells(root) {
 
@@ -192,6 +268,8 @@
                     column_widths: readHeaderColumnWidths(root),
 
                     cells: collectHeaderCells(root),
+
+                    extra_rows: collectHeaderExtraRows(root),
 
                 },
 
@@ -401,7 +479,7 @@
 
 
 
-        root.querySelectorAll("[data-report-page-header-text]").forEach((field) => {
+        root.querySelectorAll("[data-report-page-header-text], [data-report-page-header-extra-text]").forEach((field) => {
 
             field.contentEditable = editing ? "true" : "false";
 
@@ -421,17 +499,27 @@
 
         const cellIndex = lastFocusedTextField.dataset.cellIndex;
 
-        if (cellIndex === undefined) {
+        const extraRowIndex = lastFocusedTextField.dataset.extraRowIndex;
+
+        let selector = null;
+
+        if (extraRowIndex !== undefined) {
+
+            selector = `[data-report-page-header-extra-text][data-extra-row-index="${extraRowIndex}"]`;
+
+        } else if (cellIndex !== undefined) {
+
+            selector = `[data-report-page-header-text][data-cell-index="${cellIndex}"]`;
+
+        }
+
+        if (!selector) {
 
             return;
 
         }
 
-        const refreshed = root.querySelector(
-
-            `[data-report-page-header-text][data-cell-index="${cellIndex}"]`
-
-        );
+        const refreshed = root.querySelector(selector);
 
         if (refreshed) {
 
@@ -457,6 +545,10 @@
 
         }
 
+        const focusState = wasEditing
+            ? (opts.focusState || captureHeaderTextFocus(currentRoot))
+            : null;
+
         currentRoot.insertAdjacentHTML("afterend", html);
 
         currentRoot.remove();
@@ -467,7 +559,15 @@
 
         setEditingState(headerRoot, wasEditing);
 
-        syncLastFocusedTextField(headerRoot);
+        if (focusState) {
+
+            restoreHeaderTextFocus(headerRoot, focusState);
+
+        } else {
+
+            syncLastFocusedTextField(headerRoot);
+
+        }
 
     }
 
@@ -486,6 +586,128 @@
     }
 
 
+
+    function placeCaretAtEnd(element) {
+        if (!element) {
+            return;
+        }
+        element.focus();
+        const selection = window.getSelection();
+        if (!selection) {
+            return;
+        }
+        const range = document.createRange();
+        range.selectNodeContents(element);
+        range.collapse(false);
+        selection.removeAllRanges();
+        selection.addRange(range);
+    }
+
+    function isHorizontalRuleShortcutLine(lineText) {
+        return HORIZONTAL_RULE_LINE_PATTERN.test(lineText || "");
+    }
+
+    function isHeaderFieldEmpty(field) {
+        const helpers = getInlineText();
+        if (helpers && helpers.isEmptyHtml) {
+            return helpers.isEmptyHtml(field.innerHTML);
+        }
+        return !(field.textContent || "").trim();
+    }
+
+    function getCaretOffset(editable) {
+        const selection = window.getSelection();
+        if (!selection || selection.rangeCount === 0) {
+            return 0;
+        }
+        const range = selection.getRangeAt(0);
+        if (!editable.contains(range.startContainer)) {
+            return 0;
+        }
+        const preRange = range.cloneRange();
+        preRange.selectNodeContents(editable);
+        preRange.setEnd(range.startContainer, range.startOffset);
+        return preRange.toString().length;
+    }
+
+    function buildExtraTextRowFromField(textField, text) {
+        return {
+            type: "text",
+            text: text || "",
+            align: textField.dataset.textAlign || "left",
+            indent_level: Number.parseInt(textField.dataset.indentLevel || "0", 10) || 0,
+            first_line_indent: textField.dataset.firstLineIndent === "true",
+            muted: textField.dataset.muted === "true",
+        };
+    }
+
+    function isEmptyTextRowPayload(row) {
+        if (!row || row.type !== "text") {
+            return false;
+        }
+        const helpers = getInlineText();
+        const text = row.text || "";
+        if (helpers && helpers.isEmptyHtml) {
+            return helpers.isEmptyHtml(text);
+        }
+        return !text.trim();
+    }
+
+    function needsTrailingEmptyRow(rows) {
+        if (!rows.length) {
+            return true;
+        }
+        const last = rows[rows.length - 1];
+        if (last.type === "rule") {
+            return true;
+        }
+        return !isEmptyTextRowPayload(last);
+    }
+
+    function appendTrailingEmptyRowIfNeeded(rows) {
+        if (needsTrailingEmptyRow(rows)) {
+            rows.push({ ...DEFAULT_EXTRA_TEXT_ROW });
+        }
+        return rows;
+    }
+
+    function pruneEmptyExtraRows(rows) {
+        return rows.filter((row) => {
+            if (row.type === "rule") {
+                return true;
+            }
+            if (row.type !== "text") {
+                return false;
+            }
+            const helpers = getInlineText();
+            const text = row.text || "";
+            if (helpers && helpers.isEmptyHtml) {
+                return !helpers.isEmptyHtml(text);
+            }
+            return text.trim().length > 0;
+        });
+    }
+
+    function isExtraHeaderTextField(field) {
+        return Boolean(field && field.matches("[data-report-page-header-extra-text]"));
+    }
+
+    function focusExtraTextFieldByIndex(index, options) {
+        const opts = options || {};
+        const field = document.querySelector(
+            `[data-report-page-header-extra-text][data-extra-row-index="${index}"]`
+        );
+        if (!field) {
+            return null;
+        }
+        lastFocusedTextField = field;
+        if (opts.atEnd) {
+            placeCaretAtEnd(field);
+        } else {
+            placeCaretAtStart(field);
+        }
+        return field;
+    }
 
     function placeCaretAtStart(element) {
         if (!element) {
@@ -509,14 +731,7 @@
             return;
         }
 
-        enterEditMode(root);
-        const textField = root.querySelector("[data-report-page-header-text]");
-        if (!textField) {
-            return;
-        }
-
-        lastFocusedTextField = textField;
-        placeCaretAtStart(textField);
+        enterEditMode(root, { focusMainText: true }).catch(console.error);
     }
 
     function scheduleFocusAfterTemplateModal(onFocus) {
@@ -599,7 +814,7 @@
 
             saveTimer = null;
 
-            flushHeaderSave().catch(console.error);
+            flushHeaderSave({ skipHtmlReplace: true }).catch(console.error);
 
         }, DEBOUNCE_MS);
 
@@ -623,7 +838,9 @@
 
 
 
-    async function flushHeaderSave() {
+    async function flushHeaderSave(options) {
+
+        const opts = options || {};
 
         const root = document.getElementById("report-page-header-root");
 
@@ -657,9 +874,19 @@
 
 
 
-        const data = await patchPageLayout(buildPageLayoutPayload(root));
+        const payload = buildPageLayoutPayload(root);
 
-        replaceHeaderHtml(data.html, { preserveEditing: isEditing });
+        if (opts.pruneEmptyExtraRows) {
+            payload.page_layout.header.extra_rows = pruneEmptyExtraRows(
+                payload.page_layout.header.extra_rows || []
+            );
+        }
+
+        const data = await patchPageLayout(payload);
+
+        if (!opts.skipHtmlReplace) {
+            replaceHeaderHtml(data.html || data.header_html, { preserveEditing: isEditing });
+        }
 
         if (pendingLayoutEdit) {
 
@@ -685,7 +912,7 @@
 
         try {
 
-            await flushHeaderSave();
+            await flushHeaderSave({ pruneEmptyExtraRows: true });
 
         } catch (error) {
 
@@ -713,7 +940,63 @@
 
 
 
-    function enterEditMode(root) {
+    async function ensureTrailingExtraTextRow(root, focusOptions) {
+        const opts = focusOptions || {};
+        if (!root) {
+            return;
+        }
+
+        const payload = buildPageLayoutPayload(root);
+        const rows = payload.page_layout.header.extra_rows || [];
+        const beforeLen = rows.length;
+        appendTrailingEmptyRowIfNeeded(rows);
+        const mutated = rows.length !== beforeLen || beforeLen === 0;
+
+        if (mutated) {
+            payload.page_layout.header.extra_rows = rows;
+            const data = await patchPageLayout(payload);
+            replaceHeaderHtml(data.html || data.header_html, { preserveEditing: true });
+            root = document.getElementById("report-page-header-root");
+        }
+
+        if (!root) {
+            return;
+        }
+
+        if (opts.focusMainText) {
+            const mainField = root.querySelector("[data-report-page-header-text]");
+            if (mainField) {
+                lastFocusedTextField = mainField;
+                placeCaretAtStart(mainField);
+            }
+            return;
+        }
+
+        const extraFields = root.querySelectorAll("[data-report-page-header-extra-text]");
+        if (!extraFields.length) {
+            return;
+        }
+
+        if (opts.focusExtraRowIndex !== undefined) {
+            const index = Math.min(
+                Math.max(0, opts.focusExtraRowIndex),
+                extraFields.length - 1
+            );
+            focusExtraTextFieldByIndex(index, { atEnd: Boolean(opts.atEnd) });
+            return;
+        }
+
+        focusExtraTextFieldByIndex(extraFields.length - 1);
+    }
+
+    async function ensureAtLeastOneExtraRow(root, focusExtraRow) {
+        await ensureTrailingExtraTextRow(root, {
+            focusTrailing: focusExtraRow,
+        });
+    }
+
+    async function enterEditMode(root, options) {
+        const opts = options || {};
 
         if (!root || root.dataset.headerEnabled !== "true" || isEditing) {
 
@@ -722,6 +1005,13 @@
         }
 
         setEditingState(root, true);
+
+        await ensureTrailingExtraTextRow(root, {
+            focusMainText: Boolean(opts.focusMainText),
+            focusExtraRowIndex: opts.focusExtraRowIndex,
+            atEnd: Boolean(opts.atEnd),
+            focusTrailing: Boolean(opts.focusTrailing),
+        });
 
     }
 
@@ -893,6 +1183,10 @@
 
 
 
+    function getHeaderTextSelector() {
+        return "[data-report-page-header-text], [data-report-page-header-extra-text]";
+    }
+
     function applyHeaderTextAlign(textField, align) {
 
         if (!textField || !HEADER_ALIGN_VALUES.has(align)) {
@@ -905,7 +1199,7 @@
 
         textField.dataset.textAlign = align;
 
-        const cell = textField.closest(".report-page-header-cell");
+        const cell = textField.closest(".report-page-header-cell, .report-page-header-extra-row-inner");
 
         if (cell) {
 
@@ -946,7 +1240,7 @@
         const root = document.getElementById("report-page-header-root");
 
         return root
-            ? root.querySelector("[data-report-page-header-text][contenteditable='true']")
+            ? root.querySelector(`${getHeaderTextSelector()}[contenteditable='true']`)
             : null;
 
     }
@@ -967,7 +1261,7 @@
 
         bandText.increaseIndent(field);
 
-        flushHeaderSave().catch(console.error);
+        flushHeaderSave({ skipHtmlReplace: true }).catch(console.error);
 
     }
 
@@ -987,7 +1281,7 @@
 
         bandText.decreaseIndent(field);
 
-        flushHeaderSave().catch(console.error);
+        flushHeaderSave({ skipHtmlReplace: true }).catch(console.error);
 
     }
 
@@ -1007,7 +1301,7 @@
 
         bandText.toggleFirstLineIndent(field);
 
-        flushHeaderSave().catch(console.error);
+        flushHeaderSave({ skipHtmlReplace: true }).catch(console.error);
 
     }
 
@@ -1031,11 +1325,11 @@
 
             const editable = anchor && anchor.nodeType === Node.ELEMENT_NODE
 
-                ? anchor.closest("[data-report-page-header-text]")
+                ? anchor.closest(getHeaderTextSelector())
 
                 : anchor && anchor.parentElement
 
-                    ? anchor.parentElement.closest("[data-report-page-header-text]")
+                    ? anchor.parentElement.closest(getHeaderTextSelector())
 
                     : null;
 
@@ -1051,7 +1345,7 @@
 
         const active = document.activeElement;
 
-        if (active && active.matches("[data-report-page-header-text][contenteditable='true']")) {
+        if (active && active.matches(`${getHeaderTextSelector()}[contenteditable='true']`)) {
 
             return { editable: active, kind: "page-header-text" };
 
@@ -1060,6 +1354,512 @@
 
 
         return null;
+
+    }
+
+
+
+    async function mutateHeaderExtraRows(mutator) {
+
+        const root = document.getElementById("report-page-header-root");
+
+        if (!root || root.dataset.headerEnabled !== "true") {
+
+            return;
+
+        }
+
+        const payload = buildPageLayoutPayload(root);
+
+        mutator(payload.page_layout.header.extra_rows);
+
+        await recordImmediateHeaderLayoutChange(async () => {
+
+            const data = await patchPageLayout(payload);
+
+            replaceHeaderHtml(data.html || data.header_html, { preserveEditing: true });
+
+        });
+
+    }
+
+
+
+    async function insertExtraRuleAfterCurrent() {
+
+        const field = getActiveHeaderTextField();
+
+        if (!isExtraHeaderTextField(field)) {
+
+            return;
+
+        }
+
+        const rowElement = field.closest("[data-report-page-header-extra-row]");
+
+        const index = Number.parseInt(rowElement?.dataset.extraRowIndex || "0", 10);
+
+        const root = document.getElementById("report-page-header-root");
+
+        const payload = buildPageLayoutPayload(root);
+
+        const rows = payload.page_layout.header.extra_rows;
+
+        if (rows[index] && rows[index].type === "text") {
+
+            rows[index] = buildExtraTextRowFromField(field, getInlineText()
+
+                ? getInlineText().getHeaderHtml(field)
+
+                : field.innerHTML);
+
+        }
+
+        rows.splice(index + 1, 0, { type: "rule" }, { ...DEFAULT_EXTRA_TEXT_ROW });
+
+        appendTrailingEmptyRowIfNeeded(rows);
+
+        await recordImmediateHeaderLayoutChange(async () => {
+
+            const data = await patchPageLayout(payload);
+
+            replaceHeaderHtml(data.html || data.header_html, { preserveEditing: true });
+
+            focusExtraTextFieldByIndex(index + 2);
+
+        });
+
+    }
+
+
+
+    function toggleMutedOnCurrentExtraRow() {
+
+        const field = getActiveHeaderTextField();
+
+        if (!isExtraHeaderTextField(field)) {
+
+            return;
+
+        }
+
+        toggleExtraRowMuted(field, null);
+
+    }
+
+
+
+    async function handleExtraRowHorizontalRuleShortcut(textField, index, beforeHtml, afterHtml) {
+
+        const helpers = getInlineText();
+
+        const trimmedBefore = helpers
+
+            ? helpers.removeLastLineFromHtml(beforeHtml)
+
+            : beforeHtml;
+
+        const rowEmptied = helpers
+
+            ? helpers.isEmptyHtml(trimmedBefore)
+
+            : !trimmedBefore.trim();
+
+        const root = document.getElementById("report-page-header-root");
+
+        const payload = buildPageLayoutPayload(root);
+
+        const rows = payload.page_layout.header.extra_rows;
+
+        const trailingTextRow = {
+
+            ...DEFAULT_EXTRA_TEXT_ROW,
+
+            text: afterHtml || "",
+
+            align: textField.dataset.textAlign || "left",
+
+            indent_level: Number.parseInt(textField.dataset.indentLevel || "0", 10) || 0,
+
+            first_line_indent: textField.dataset.firstLineIndent === "true",
+
+            muted: textField.dataset.muted === "true",
+
+        };
+
+        if (rowEmptied) {
+
+            rows[index] = { type: "rule" };
+
+            rows.splice(index + 1, 0, trailingTextRow);
+
+        } else {
+
+            rows[index] = buildExtraTextRowFromField(textField, trimmedBefore);
+
+            rows.splice(index + 1, 0, { type: "rule" }, trailingTextRow);
+
+        }
+
+        appendTrailingEmptyRowIfNeeded(rows);
+
+        await recordImmediateHeaderLayoutChange(async () => {
+
+            const data = await patchPageLayout(payload);
+
+            replaceHeaderHtml(data.html || data.header_html, { preserveEditing: true });
+
+            const focusIndex = rowEmptied ? index + 1 : index + 2;
+
+            focusExtraTextFieldByIndex(focusIndex);
+
+        });
+
+    }
+
+
+
+    async function handleExtraRowEnter(textField) {
+
+        const helpers = getInlineText();
+
+        const splitResult = helpers
+
+            ? helpers.splitHtmlAtSelection(textField)
+
+            : { beforeHtml: textField.innerHTML, afterHtml: "" };
+
+        const rowElement = textField.closest("[data-report-page-header-extra-row]");
+
+        const index = Number.parseInt(rowElement?.dataset.extraRowIndex || "0", 10);
+
+        if (
+
+            helpers
+
+            && isHorizontalRuleShortcutLine(helpers.getLastLinePlainTextFromHtml(splitResult.beforeHtml))
+
+        ) {
+
+            await handleExtraRowHorizontalRuleShortcut(
+
+                textField,
+
+                index,
+
+                splitResult.beforeHtml,
+
+                splitResult.afterHtml
+
+            );
+
+            return;
+
+        }
+
+        const root = document.getElementById("report-page-header-root");
+
+        const payload = buildPageLayoutPayload(root);
+
+        const rows = payload.page_layout.header.extra_rows;
+
+        if (!rows[index] || rows[index].type !== "text") {
+
+            return;
+
+        }
+
+        rows[index] = buildExtraTextRowFromField(textField, splitResult.beforeHtml);
+
+        rows.splice(
+
+            index + 1,
+
+            0,
+
+            buildExtraTextRowFromField(textField, splitResult.afterHtml || "")
+
+        );
+
+        appendTrailingEmptyRowIfNeeded(rows);
+
+        await recordImmediateHeaderLayoutChange(async () => {
+
+            const data = await patchPageLayout(payload);
+
+            replaceHeaderHtml(data.html || data.header_html, { preserveEditing: true });
+
+            focusExtraTextFieldByIndex(index + 1);
+
+        });
+
+    }
+
+
+
+    async function handleExtraRowBackspace(textField, event) {
+
+        if (getCaretOffset(textField) !== 0) {
+
+            return;
+
+        }
+
+        if (!isHeaderFieldEmpty(textField)) {
+
+            return;
+
+        }
+
+        event.preventDefault();
+
+        const rowElement = textField.closest("[data-report-page-header-extra-row]");
+
+        const index = Number.parseInt(rowElement?.dataset.extraRowIndex || "0", 10);
+
+        const root = document.getElementById("report-page-header-root");
+
+        const payload = buildPageLayoutPayload(root);
+
+        const rows = payload.page_layout.header.extra_rows;
+
+        const prevRow = index > 0 ? rows[index - 1] : null;
+
+        if (prevRow && prevRow.type === "rule") {
+
+            rows.splice(index - 1, 1);
+
+            payload.page_layout.header.extra_rows = rows;
+
+            await recordImmediateHeaderLayoutChange(async () => {
+
+                const data = await patchPageLayout(payload);
+
+                replaceHeaderHtml(data.html || data.header_html, { preserveEditing: true });
+
+                focusExtraTextFieldByIndex(index - 1);
+
+            });
+
+            return;
+
+        }
+
+        if (rows.length <= 1) {
+
+            return;
+
+        }
+
+        rows.splice(index, 1);
+
+        appendTrailingEmptyRowIfNeeded(rows);
+
+        payload.page_layout.header.extra_rows = rows;
+
+        await recordImmediateHeaderLayoutChange(async () => {
+
+            const data = await patchPageLayout(payload);
+
+            replaceHeaderHtml(data.html || data.header_html, { preserveEditing: true });
+
+            let focusIndex = index - 1;
+
+            while (focusIndex >= 0 && rows[focusIndex]?.type === "rule") {
+
+                focusIndex -= 1;
+
+            }
+
+            if (focusIndex >= 0 && rows[focusIndex]?.type === "text") {
+
+                focusExtraTextFieldByIndex(focusIndex, { atEnd: true });
+
+            } else {
+
+                focusExtraTextFieldByIndex(rows.length - 1);
+
+            }
+
+        });
+
+    }
+
+
+
+    async function addExtraTextRow() {
+
+        await mutateHeaderExtraRows((rows) => {
+
+            rows.push({ ...DEFAULT_EXTRA_TEXT_ROW });
+
+        });
+
+        const root = document.getElementById("report-page-header-root");
+
+        if (!root) {
+
+            return;
+
+        }
+
+        const textField = root.querySelector("[data-report-page-header-extra-text]:last-of-type");
+
+        if (textField) {
+
+            lastFocusedTextField = textField;
+
+            placeCaretAtStart(textField);
+
+        }
+
+    }
+
+
+
+    async function removeExtraRow(index) {
+
+        await mutateHeaderExtraRows((rows) => {
+
+            rows.splice(index, 1);
+
+        });
+
+    }
+
+
+
+    function toggleExtraRowMuted(textField, toggleButton) {
+
+        if (!textField) {
+
+            return;
+
+        }
+
+        const muted = textField.dataset.muted !== "true";
+
+        textField.dataset.muted = muted ? "true" : "false";
+
+        textField.classList.toggle("report-page-header-extra-text--muted", muted);
+
+        if (toggleButton) {
+
+            toggleButton.classList.toggle("active", muted);
+
+            toggleButton.setAttribute("aria-pressed", muted ? "true" : "false");
+
+        }
+
+        scheduleHeaderSave();
+
+    }
+
+
+
+    function bindHeaderTextField(field) {
+
+        field.addEventListener("beforeinput", () => {
+
+            if (isEditing) {
+
+                beginHeaderLayoutRecording();
+
+            }
+
+        });
+
+        field.addEventListener("focusin", () => {
+
+            lastFocusedTextField = field;
+
+            beginHeaderLayoutRecording();
+
+        });
+
+        field.addEventListener("input", scheduleHeaderSave);
+
+
+
+        field.addEventListener("keydown", (event) => {
+
+            if (!isEditing) {
+
+                return;
+
+            }
+
+            if (event.key === "Enter" && !event.shiftKey) {
+
+                if (field.matches("[data-report-page-header-extra-text]")) {
+
+                    event.preventDefault();
+
+                    handleExtraRowEnter(field).catch(console.error);
+
+                    return;
+
+                }
+
+                event.preventDefault();
+
+                document.execCommand("insertLineBreak");
+
+                return;
+
+            }
+
+            if (event.key === "Backspace" && field.matches("[data-report-page-header-extra-text]")) {
+
+                handleExtraRowBackspace(field, event).catch(console.error);
+
+            }
+
+        });
+
+
+
+        field.addEventListener("paste", (event) => {
+
+            if (!isEditing) {
+
+                return;
+
+            }
+
+            const helpers = getInlineText();
+
+            if (!helpers) {
+
+                return;
+
+            }
+
+            event.preventDefault();
+
+            const clipboard = event.clipboardData;
+
+            if (!clipboard) {
+
+                return;
+
+            }
+
+            const html = clipboard.getData("text/html");
+
+            const plain = clipboard.getData("text/plain");
+
+            if (html) {
+
+                document.execCommand("insertHTML", false, helpers.sanitizeHeader(html));
+
+            } else {
+
+                document.execCommand("insertText", false, plain);
+
+            }
+
+        });
 
     }
 
@@ -1111,9 +1911,29 @@
 
 
 
+                const extraRowsArea = event.target.closest("[data-report-page-header-extra-rows]");
+
+                const mainTextField = event.target.closest("[data-report-page-header-text]");
+
+                const extraTextField = event.target.closest("[data-report-page-header-extra-text]");
+
+
+
                 if (!isEditing) {
 
-                    enterEditMode(root);
+                    const focusExtraRowIndex = extraTextField
+
+                        ? Number.parseInt(extraTextField.dataset.extraRowIndex || "0", 10)
+
+                        : undefined;
+
+                    enterEditMode(root, {
+                        focusMainText: Boolean(mainTextField && !extraTextField),
+                        focusExtraRowIndex,
+                        focusTrailing: Boolean(
+                            (extraRowsArea || (!mainTextField && !logoSlot)) && !extraTextField
+                        ),
+                    }).catch(console.error);
 
                     if (logoSlot && !hasLogoImage) {
 
@@ -1131,13 +1951,17 @@
 
                     }
 
-                    const textField = event.target.closest("[data-report-page-header-text]");
+                    return;
 
-                    if (textField) {
+                }
 
-                        textField.focus();
 
-                    }
+
+                if (extraTextField) {
+
+                    extraTextField.focus();
+
+                    lastFocusedTextField = extraTextField;
 
                     return;
 
@@ -1179,7 +2003,7 @@
 
                 if (!isEditing) {
 
-                    enterEditMode(root);
+                    enterEditMode(root, { focusTrailing: true }).catch(console.error);
 
                 }
 
@@ -1191,93 +2015,7 @@
 
 
 
-        root.querySelectorAll("[data-report-page-header-text]").forEach((field) => {
-
-            field.addEventListener("beforeinput", () => {
-
-                if (isEditing) {
-
-                    beginHeaderLayoutRecording();
-
-                }
-
-            });
-
-            field.addEventListener("focusin", () => {
-
-                lastFocusedTextField = field;
-
-                beginHeaderLayoutRecording();
-
-            });
-
-            field.addEventListener("input", scheduleHeaderSave);
-
-
-
-            field.addEventListener("keydown", (event) => {
-
-                if (!isEditing) {
-
-                    return;
-
-                }
-
-                if (event.key === "Enter" && !event.shiftKey) {
-
-                    event.preventDefault();
-
-                    document.execCommand("insertLineBreak");
-
-                }
-
-            });
-
-
-
-            field.addEventListener("paste", (event) => {
-
-                if (!isEditing) {
-
-                    return;
-
-                }
-
-                const helpers = getInlineText();
-
-                if (!helpers) {
-
-                    return;
-
-                }
-
-                event.preventDefault();
-
-                const clipboard = event.clipboardData;
-
-                if (!clipboard) {
-
-                    return;
-
-                }
-
-                const html = clipboard.getData("text/html");
-
-                const plain = clipboard.getData("text/plain");
-
-                if (html) {
-
-                    document.execCommand("insertHTML", false, helpers.sanitizeHeader(html));
-
-                } else {
-
-                    document.execCommand("insertText", false, plain);
-
-                }
-
-            });
-
-        });
+        root.querySelectorAll("[data-report-page-header-text], [data-report-page-header-extra-text]").forEach(bindHeaderTextField);
 
     }
 
@@ -1454,6 +2192,20 @@
         getActiveHeaderTextField,
 
         clearLogoCell,
+
+        isExtraHeaderTextField,
+
+        insertExtraRuleAfterCurrent,
+
+        toggleMutedOnCurrentExtraRow,
+
+        isExtraTextFocused: () => {
+
+            const field = getActiveHeaderTextField();
+
+            return isExtraHeaderTextField(field);
+
+        },
 
     };
 
