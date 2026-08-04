@@ -8,8 +8,8 @@ from django.contrib.auth import get_user_model
 from django.test import TestCase
 
 from institution_ic_sp.forensic_report.common.services.case_metadata import CaseMetadata
-from institution_ic_sp.forensic_report.services.preamble import build_preamble_paragraph
-from institution_ic_sp.forensic_report.services.preamble_gender import (
+from institution_ic_sp.forensic_report.services.preamble import (
+    build_preamble_paragraph,
     infer_requesting_authority_gender,
     requisition_authority_clause,
 )

@@ -3,67 +3,67 @@
   "properties": {
     "report_number": {
       "type": "string",
-      "description": "Numeração sequencial do laudo, sem o ano."
+      "description": "Numeração sequencial do laudo, sem o ano. Preencher somente se constar explicitamente nos documentos; em geral não aparece na Requisição, BO ou Inquérito."
     },
     "report_year": {
       "type": "integer",
-      "description": "Ano do laudo (quatro dígitos)."
+      "description": "Ano do laudo (quatro dígitos). Preencher somente se constar explicitamente nos documentos; em geral não aparece na Requisição, BO ou Inquérito."
     },
     "designation_date": {
       "type": "string",
-      "description": "Data da designação pericial no formato AAAA-MM-DD."
+      "description": "Data da designação pericial (AAAA-MM-DD). Buscar na Requisição de Exame Pericial ou documento de designação; se ausente, deixar vazio."
     },
     "exam_objective": {
       "type": "string",
-      "description": "Objetivo do exame pericial."
+      "description": "Objetivo ou finalidade do exame pericial, transcrito ou parafraseado fielmente. Prioridade: Requisição de Exame Pericial. Não incluir narrativa dos fatos."
     },
     "requesting_authority": {
       "type": "string",
-      "description": "Autoridade requisitante; incluir Dr. ou Dra. quando constar."
+      "description": "Autoridade requisitante (delegado/delegada). Prioridade: Requisição > BO > Inquérito. Incluir Dr. ou Dra. quando constar no documento."
     },
     "police_district": {
       "type": "string",
-      "description": "Distrito policial ou delegacia."
+      "description": "Distrito policial, delegacia ou unidade requisitante. Prioridade: Requisição > BO > Inquérito. Copiar a denominação como aparece."
     },
     "occurrence_report": {
       "type": "string",
-      "description": "Número ou referência do boletim de ocorrência."
+      "description": "Número ou referência do boletim de ocorrência (BO). Prioridade: Requisição > BO > Inquérito. Copiar exatamente como consta, sem reformatar."
     },
     "police_inquiry": {
       "type": "string",
-      "description": "Número ou referência do inquérito policial."
+      "description": "Número ou referência do inquérito policial (IP). Prioridade: Requisição > BO > Inquérito. Copiar exatamente como consta, sem reformatar."
     },
     "occurrence_at": {
       "type": "string",
-      "description": "Data e hora da ocorrência em ISO 8601 ou AAAA-MM-DDTHH:MM."
+      "description": "Data e hora da ocorrência (ISO 8601 ou AAAA-MM-DDTHH:MM). Preencher somente se constar explicitamente; prioridade: Requisição > BO > Inquérito. Não inferir a partir de outros eventos."
     },
     "requisition_at": {
       "type": "string",
-      "description": "Data e hora da requisição em ISO 8601 ou AAAA-MM-DDTHH:MM."
+      "description": "Data e hora da requisição do exame (ISO 8601 ou AAAA-MM-DDTHH:MM). Fonte exclusiva: Requisição de Exame Pericial ou Minuta — em geral pouco acima da assinatura da autoridade requisitante. Se a data constar sem hora, use T00:00. Não consta no BO; não usar data de elaboração, registro ou lavratura do BO. Não confundir com occurrence_at ou examination_at."
     },
     "attendance_protocol": {
       "type": "string",
-      "description": "Protocolo de atendimento pericial."
+      "description": "Número do protocolo de atendimento pericial. Copiar exatamente como consta nos documentos administrativos."
     },
     "examiner": {
       "type": "string",
-      "description": "Nome do perito designado, se constar nos documentos."
+      "description": "Nome do perito designado, se constar explicitamente nos documentos. Não inferir a partir de assinaturas parciais ou contexto."
     },
     "examination_at": {
       "type": "string",
-      "description": "Data e hora do exame em ISO 8601 ou AAAA-MM-DDTHH:MM."
+      "description": "Data e hora do exame pericial (ISO 8601 ou AAAA-MM-DDTHH:MM). Preencher somente se constar explicitamente; não confundir com data da ocorrência ou da requisição."
     },
     "photography": {
       "type": "string",
-      "description": "Nome do fotógrafo técnico, se houver."
+      "description": "Nome do fotógrafo técnico ou referência à fotografia pericial, se constar explicitamente nos documentos."
     },
     "scanning_3d": {
       "type": "string",
-      "description": "Responsável ou referência de escaneamento 3D."
+      "description": "Responsável ou referência de escaneamento 3D, se constar explicitamente nos documentos."
     },
     "sketch": {
       "type": "string",
-      "description": "Responsável ou referência de croqui."
+      "description": "Responsável ou referência de croqui, se constar explicitamente nos documentos."
     }
   }
 }

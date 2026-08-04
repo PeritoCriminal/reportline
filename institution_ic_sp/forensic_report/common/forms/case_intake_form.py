@@ -42,7 +42,7 @@ class CaseIntakeForm(forms.Form):
         label="Informações complementares",
         widget=forms.Textarea(attrs={"rows": 3}),
         required=False,
-        help_text="Orientações adicionais para a inferência por IA a partir dos documentos.",
+        help_text="Orientações do perito que prevalecem sobre os documentos na extração por IA.",
     )
     requesting_authority = forms.CharField(
         label="Autoridade requisitante",
