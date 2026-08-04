@@ -123,6 +123,7 @@ class ReportNodeDetailView(ReportAuthorMixin, View):
             text_align = payload.get("text_align")
             indent_level = payload.get("indent_level")
             first_line_indent = payload.get("first_line_indent")
+            line_spacing = payload.get("line_spacing")
             refresh_html = bool(payload.get("refresh_html"))
             focus_table_part = payload.get("focus_table_part")
             focus_table_row = payload.get("focus_table_row")
@@ -133,10 +134,11 @@ class ReportNodeDetailView(ReportAuthorMixin, View):
                 text_align is not None
                 or indent_level is not None
                 or first_line_indent is not None
+                or line_spacing is not None
             )
             if content is None and not layout_patch:
                 raise ValidationError(
-                    "Informe content, text_align, indent_level ou first_line_indent."
+                    "Informe content, text_align, indent_level, first_line_indent ou line_spacing."
                 )
 
             node = update_node_block(
@@ -147,6 +149,7 @@ class ReportNodeDetailView(ReportAuthorMixin, View):
                 text_align=text_align,
                 indent_level=indent_level,
                 first_line_indent=first_line_indent,
+                line_spacing=line_spacing,
             )
         except ValidationError as exc:
             return _validation_error_response(exc)
@@ -160,6 +163,7 @@ class ReportNodeDetailView(ReportAuthorMixin, View):
             "text_align": block.text_align,
             "indent_level": block.indent_level,
             "first_line_indent": block.first_line_indent,
+            "line_spacing": block.line_spacing,
         }
         if structure_changed or refresh_html:
             focus_kwargs = {}

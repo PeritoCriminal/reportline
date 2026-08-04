@@ -450,6 +450,9 @@
             if (layout.firstLineIndent !== undefined) {
                 payload.first_line_indent = layout.firstLineIndent;
             }
+            if (layout.lineSpacing !== undefined) {
+                payload.line_spacing = layout.lineSpacing;
+            }
         }
         return payload;
     }
@@ -468,6 +471,7 @@
             titleLevel: createPayload.title_level,
             indentLevel: createPayload.indent_level,
             firstLineIndent: createPayload.first_line_indent,
+            lineSpacing: createPayload.line_spacing,
             fieldHtml: field ? getEditableHtml(field) : "",
         };
     }
@@ -620,6 +624,7 @@
         return {
             indent_level: getParagraphIndentLevel(block),
             first_line_indent: paragraph ? paragraph.dataset.firstLineIndent !== "false" : true,
+            line_spacing: getParagraphLineSpacing(block),
         };
     }
 
@@ -1997,6 +2002,31 @@
         return block.querySelector(".report-editor-block-paragraph");
     }
 
+    function getParagraphLineSpacing(block) {
+        if (!block) {
+            return "normal";
+        }
+        return block.dataset.lineSpacing || "normal";
+    }
+
+    function applyParagraphLineSpacingVisual(block, lineSpacing) {
+        if (!block || lineSpacing === undefined) {
+            return;
+        }
+        block.dataset.lineSpacing = lineSpacing;
+        const paragraph = getParagraphElement(block);
+        if (!paragraph) {
+            return;
+        }
+        paragraph.dataset.lineSpacing = lineSpacing;
+        paragraph.classList.remove(
+            "report-editor-block-paragraph--line-spacing-compact",
+            "report-editor-block-paragraph--line-spacing-normal",
+            "report-editor-block-paragraph--line-spacing-relaxed"
+        );
+        paragraph.classList.add(`report-editor-block-paragraph--line-spacing-${lineSpacing}`);
+    }
+
     function hasParagraphFirstLineIndent(block) {
         const paragraph = getParagraphElement(block);
         if (!paragraph) {
@@ -2016,6 +2046,11 @@
             layout.firstLineIndent = options.firstLineIndent;
         } else if (referenceBlock.dataset.blockType === "paragraph" && !options.isCaption) {
             layout.firstLineIndent = hasParagraphFirstLineIndent(referenceBlock);
+        }
+        if (options.lineSpacing !== undefined) {
+            layout.lineSpacing = options.lineSpacing;
+        } else if (referenceBlock.dataset.blockType === "paragraph" && !options.isCaption) {
+            layout.lineSpacing = getParagraphLineSpacing(referenceBlock);
         }
         return layout;
     }
@@ -3425,6 +3460,9 @@
                 paragraph.dataset.firstLineIndent = layout.first_line_indent ? "true" : "false";
             }
         }
+        if (layout.line_spacing !== undefined) {
+            applyParagraphLineSpacingVisual(block, layout.line_spacing);
+        }
     }
 
     async function patchParagraphLayout(block, layout, options = {}) {
@@ -3436,11 +3474,15 @@
         if (layout.first_line_indent !== undefined) {
             payload.first_line_indent = layout.first_line_indent;
         }
+        if (layout.line_spacing !== undefined) {
+            payload.line_spacing = layout.line_spacing;
+        }
 
         const data = await apiRequest(updateNodeUrl(block.dataset.nodeId), "PATCH", payload);
         applyParagraphIndentVisual(block, {
             indent_level: data.indent_level,
             first_line_indent: data.first_line_indent,
+            line_spacing: data.line_spacing,
         });
 
         if (!options.skipHistory && beforeLayout) {
@@ -3513,6 +3555,19 @@
 
         const current = hasParagraphFirstLineIndent(context.block);
         await patchParagraphLayout(context.block, { first_line_indent: !current });
+    }
+
+    async function setParagraphLineSpacing(lineSpacing) {
+        const context = resolveParagraphContext();
+        if (!context || context.bandText) {
+            return;
+        }
+
+        if (getParagraphLineSpacing(context.block) === lineSpacing) {
+            return;
+        }
+
+        await patchParagraphLayout(context.block, { line_spacing: lineSpacing });
     }
 
     function bindImageDeleteShortcut() {
@@ -4438,6 +4493,7 @@
         increaseParagraphIndent,
         decreaseParagraphIndent,
         toggleParagraphFirstLineIndent,
+        setParagraphLineSpacing,
         extractTableCellClipboardData,
         applyTableCellClipboardData,
         pasteTableCellGrid,

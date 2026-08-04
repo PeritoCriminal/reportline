@@ -5,7 +5,11 @@
     "use strict";
 
     const ALLOWED_TAGS = new Set([
-        "STRONG", "EM", "U", "S", "B", "I", "STRIKE", "DEL", "A", "SUP", "SUB",
+        "STRONG", "EM", "U", "S", "B", "I", "STRIKE", "DEL", "A", "SUP", "SUB", "SPAN",
+    ]);
+    const ALLOWED_FONT_SIZE_CLASSES = new Set([
+        "report-inline-font-sm",
+        "report-inline-font-lg",
     ]);
     const TAG_MAP = {
         B: "STRONG",
@@ -78,6 +82,20 @@
                 return inner;
             }
             return `<a href="${escapeAttr(href)}">${inner}</a>`;
+        }
+
+        if (node.tagName === "SPAN") {
+            const classNames = (node.getAttribute("class") || "")
+                .split(/\s+/)
+                .filter((name) => ALLOWED_FONT_SIZE_CLASSES.has(name));
+            const inner = Array.from(node.childNodes).map((child) => sanitizeNode(child, options)).join("");
+            if (!classNames.length) {
+                return inner;
+            }
+            const fontClass = classNames.includes("report-inline-font-sm")
+                ? "report-inline-font-sm"
+                : "report-inline-font-lg";
+            return `<span class="${fontClass}">${inner}</span>`;
         }
 
         const tagName = normalizeTagName(node.tagName);

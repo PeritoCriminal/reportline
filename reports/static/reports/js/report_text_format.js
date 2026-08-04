@@ -1,6 +1,6 @@
 /**
  * Formatação inline de texto selecionado (negrito, itálico, sublinhado, riscado,
- * sobrescrito e subscrito).
+ * sobrescrito, subscrito e tamanhos de fonte 11/12/13 pt).
  */
 (function () {
     "use strict";
@@ -14,13 +14,28 @@
         subscript: "subscript",
     };
 
+    const FONT_SIZE_FORMATS = {
+        "font-sm": "report-inline-font-sm",
+        "font-lg": "report-inline-font-lg",
+    };
+
+    const FONT_SIZE_CLASS_NAMES = Object.values(FONT_SIZE_FORMATS);
+
+    const FONT_SIZE_FORMAT_KEYS = new Set(["font-sm", "font-md", "font-lg"]);
+
     const FORMAT_SHORTCUTS = {
         b: "bold",
         i: "italic",
         u: "underline",
     };
 
-    const FORMATS_REQUIRING_SELECTION = new Set(["superscript", "subscript"]);
+    const FORMATS_REQUIRING_SELECTION = new Set([
+        "superscript",
+        "subscript",
+        "font-sm",
+        "font-md",
+        "font-lg",
+    ]);
 
     let formatToolbarGroup = null;
     let lastFormatContext = null;
@@ -143,7 +158,201 @@
         selection.addRange(range);
     }
 
+    function isFontSizeSpan(element) {
+        return Boolean(
+            element
+            && element.nodeType === Node.ELEMENT_NODE
+            && element.tagName === "SPAN"
+            && FONT_SIZE_CLASS_NAMES.some((className) => element.classList.contains(className))
+        );
+    }
+
+    function unwrapFontSizeSpan(span) {
+        const parent = span.parentNode;
+        if (!parent) {
+            return;
+        }
+        while (span.firstChild) {
+            parent.insertBefore(span.firstChild, span);
+        }
+        parent.removeChild(span);
+    }
+
+    function unwrapFontSizeSpans(root) {
+        if (!root) {
+            return;
+        }
+        const spans = root.querySelectorAll
+            ? root.querySelectorAll("span.report-inline-font-sm, span.report-inline-font-lg")
+            : [];
+        Array.from(spans).reverse().forEach(unwrapFontSizeSpan);
+    }
+
+    function resolveFontSizeFormatFromNode(node) {
+        if (!node) {
+            return "font-md";
+        }
+
+        const element = node.nodeType === Node.ELEMENT_NODE ? node : node.parentElement;
+        if (!element || !element.closest) {
+            return "font-md";
+        }
+
+        const span = element.closest("span.report-inline-font-sm, span.report-inline-font-lg");
+        if (!span) {
+            return "font-md";
+        }
+        if (span.classList.contains("report-inline-font-sm")) {
+            return "font-sm";
+        }
+        if (span.classList.contains("report-inline-font-lg")) {
+            return "font-lg";
+        }
+        return "font-md";
+    }
+
+    function resolveActiveFontSizeFormat(context) {
+        if (!context || !context.editable) {
+            return null;
+        }
+
+        const selection = window.getSelection();
+        if (!selection || selection.rangeCount === 0) {
+            return null;
+        }
+
+        const range = selection.getRangeAt(0);
+        if (!context.editable.contains(range.commonAncestorContainer)) {
+            return null;
+        }
+
+        const startFormat = resolveFontSizeFormatFromNode(range.startContainer);
+        const endFormat = resolveFontSizeFormatFromNode(range.endContainer);
+        if (startFormat === endFormat) {
+            return startFormat;
+        }
+        return null;
+    }
+
+    function applyFontSizeToEditable(editable, format) {
+        const selection = window.getSelection();
+        if (!selection || selection.rangeCount === 0) {
+            return false;
+        }
+
+        const range = selection.getRangeAt(0);
+        if (range.collapsed || !editable.contains(range.commonAncestorContainer)) {
+            return false;
+        }
+
+        const extracted = range.extractContents();
+        const wrapper = document.createElement("div");
+        wrapper.appendChild(extracted);
+        unwrapFontSizeSpans(wrapper);
+
+        const fragment = document.createDocumentFragment();
+        if (format === "font-md") {
+            while (wrapper.firstChild) {
+                fragment.appendChild(wrapper.firstChild);
+            }
+        } else {
+            const span = document.createElement("span");
+            span.className = FONT_SIZE_FORMATS[format];
+            while (wrapper.firstChild) {
+                span.appendChild(wrapper.firstChild);
+            }
+            fragment.appendChild(span);
+        }
+
+        range.insertNode(fragment);
+        range.collapse(false);
+        selection.removeAllRanges();
+        selection.addRange(range);
+        return true;
+    }
+
+    function applyFontSizeToTableMultiSelection(format) {
+        const context = resolveTableMultiFormatContext();
+        if (!context) {
+            return false;
+        }
+
+        const inlineText = getInlineText();
+        if (
+            window.ReportLineEditor
+            && window.ReportLineEditor.beginBlockContentRecording
+        ) {
+            window.ReportLineEditor.beginBlockContentRecording(context.block, context.editable);
+        }
+
+        let applied = false;
+        context.editables.forEach((editable) => {
+            selectAllContents(editable);
+            if (applyFontSizeToEditable(editable, format)) {
+                applied = true;
+            }
+            if (inlineText) {
+                editable.innerHTML = inlineText.sanitize(editable.innerHTML);
+            }
+        });
+
+        if (!applied) {
+            return false;
+        }
+
+        if (window.ReportLineEditor && window.ReportLineEditor.scheduleDebouncedSave) {
+            window.ReportLineEditor.scheduleDebouncedSave(context.block);
+        }
+
+        return true;
+    }
+
+    function applyFontSize(format, context) {
+        if (applyFontSizeToTableMultiSelection(format)) {
+            refreshToolbar(resolveTableMultiFormatContext());
+            return Promise.resolve();
+        }
+
+        if (!context || !context.editable) {
+            return Promise.resolve();
+        }
+
+        if (!hasMeaningfulSelection(context)) {
+            return Promise.resolve();
+        }
+
+        restoreSelection(context);
+
+        if (!applyFontSizeToEditable(context.editable, format)) {
+            return Promise.resolve();
+        }
+
+        const inlineText = getInlineText();
+        if (inlineText) {
+            if ((context.headerText || context.footerText) && inlineText.sanitizeHeader) {
+                context.editable.innerHTML = inlineText.sanitizeHeader(context.editable.innerHTML);
+            } else {
+                context.editable.innerHTML = inlineText.sanitize(context.editable.innerHTML);
+            }
+        }
+
+        if (context.headerText && window.ReportLinePageHeader && window.ReportLinePageHeader.scheduleHeaderSave) {
+            window.ReportLinePageHeader.scheduleHeaderSave();
+        } else if (context.footerText && window.ReportLinePageFooter && window.ReportLinePageFooter.scheduleFooterSave) {
+            window.ReportLinePageFooter.scheduleFooterSave();
+        } else if (window.ReportLineEditor && window.ReportLineEditor.scheduleDebouncedSave) {
+            window.ReportLineEditor.scheduleDebouncedSave(context.block);
+        }
+
+        refreshToolbar(context);
+        return Promise.resolve();
+    }
+
     function applyFormatToTableMultiSelection(format) {
+        if (FONT_SIZE_FORMAT_KEYS.has(format)) {
+            return applyFontSizeToTableMultiSelection(format);
+        }
+
         const context = resolveTableMultiFormatContext();
         const command = FORMAT_COMMANDS[format];
         if (!context || !command) {
@@ -298,14 +507,19 @@
 
         formatToolbarGroup.querySelectorAll("[data-report-text-format]").forEach((button) => {
             const format = button.dataset.reportTextFormat;
-            const command = FORMAT_COMMANDS[format];
             let active = false;
 
-            if (context && command && document.queryCommandSupported(command)) {
-                try {
-                    active = document.queryCommandState(command);
-                } catch (_error) {
-                    active = false;
+            if (FONT_SIZE_FORMAT_KEYS.has(format)) {
+                const activeFontSize = resolveActiveFontSizeFormat(context);
+                active = Boolean(context && activeFontSize === format);
+            } else {
+                const command = FORMAT_COMMANDS[format];
+                if (context && command && document.queryCommandSupported(command)) {
+                    try {
+                        active = document.queryCommandState(command);
+                    } catch (_error) {
+                        active = false;
+                    }
                 }
             }
 
@@ -363,6 +577,11 @@
     }
 
     function applyFormat(format) {
+        if (FONT_SIZE_FORMAT_KEYS.has(format)) {
+            const context = resolveFormattableContext();
+            return applyFontSize(format, context);
+        }
+
         if (applyFormatToTableMultiSelection(format)) {
             refreshToolbar(resolveTableMultiFormatContext());
             return Promise.resolve();

@@ -110,7 +110,7 @@ class ReportPageLayoutTests(TestCase):
         self.assertEqual(width, HEADER_LOGO_INITIAL_HEIGHT_PX * 2)
 
     def test_initial_header_logo_display_size_by_width_preserves_aspect_ratio(self):
-        """Garante largura inicial fixa de 2 cm com altura proporcional."""
+        """Garante largura inicial fixa de 1,5 cm com altura proporcional."""
         width, height = initial_header_logo_display_size_by_width(400, 200)
         self.assertEqual(width, HEADER_LOGO_INITIAL_WIDTH_PX)
         self.assertEqual(height, HEADER_LOGO_INITIAL_WIDTH_PX // 2)
@@ -139,12 +139,12 @@ class ReportPageLayoutTests(TestCase):
     def test_logo_display_size_style_uses_physical_cm_units(self):
         """Garante CSS inline em cm para escala correta no preview A4."""
         style = logo_display_size_style(HEADER_LOGO_INITIAL_WIDTH_PX, 47)
-        self.assertIn("width: 2.01cm", style)
+        self.assertIn("width: 1.51cm", style)
         self.assertIn("height:", style)
         self.assertNotIn("px", style)
 
     def test_clamp_header_logo_display_size_by_width_scales_oversized_logos(self):
-        """Garante redução proporcional de logos acima de 2 cm de largura."""
+        """Garante redução proporcional de logos acima de 1,5 cm de largura."""
         width, height = clamp_header_logo_display_size_by_width(400, 200)
         self.assertEqual(width, HEADER_LOGO_INITIAL_WIDTH_PX)
         self.assertEqual(height, HEADER_LOGO_INITIAL_WIDTH_PX // 2)

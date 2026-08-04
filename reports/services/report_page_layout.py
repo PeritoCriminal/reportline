@@ -24,7 +24,7 @@ HEADER_LOGO_INITIAL_HEIGHT_CM = 3
 HEADER_LOGO_INITIAL_HEIGHT_PX = round(
     HEADER_LOGO_INITIAL_HEIGHT_CM * DISPLAY_DPI / CM_PER_INCH
 )
-HEADER_LOGO_INITIAL_WIDTH_CM = 2
+HEADER_LOGO_INITIAL_WIDTH_CM = 1.5
 HEADER_LOGO_INITIAL_WIDTH_PX = round(
     HEADER_LOGO_INITIAL_WIDTH_CM * DISPLAY_DPI / CM_PER_INCH
 )
@@ -237,7 +237,7 @@ def initial_header_logo_display_size_by_width(
     """
     Calcula dimensões iniciais de exibição da logo do cabeçalho.
 
-    Usa largura fixa equivalente a 2 cm (96 DPI); a altura preserva a proporção.
+    Usa largura fixa equivalente a 1,5 cm (96 DPI); a altura preserva a proporção.
     """
     target_width = max(1, HEADER_LOGO_INITIAL_WIDTH_PX)
     if natural_width <= 0 or natural_height <= 0:
@@ -254,7 +254,7 @@ def clamp_header_logo_display_size_by_width(
     display_height: int,
 ) -> tuple[int, int]:
     """
-    Limita dimensões de exibição da logo à largura institucional de 2 cm.
+    Limita dimensões de exibição da logo à largura institucional de 1,5 cm.
 
     Preserva a proporção quando a logo persistida exceder a largura alvo.
     """
@@ -306,7 +306,7 @@ def prepare_logo_cell_for_document(
     """
     Normaliza célula de logo para leitura/preview/PDF.
 
-    Em laudos periciais, limita emblemas institucionais à largura de 2 cm
+    Em laudos periciais, limita emblemas institucionais à largura de 1,5 cm
     e expõe ``display_size_style`` com unidades físicas.
     """
     from reports.services.report_kind import is_forensic_report_layout

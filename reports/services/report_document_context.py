@@ -46,6 +46,7 @@ class ReportDocumentSection:
     text_align: str = "justify"
     indent_level: int = 0
     first_line_indent: bool = True
+    line_spacing: str = "normal"
     content: dict[str, Any] = field(default_factory=dict)
     list_items_html: list[str] = field(default_factory=list)
     figures: list[dict[str, Any]] = field(default_factory=list)
@@ -126,6 +127,7 @@ def _section_from_body_entry(
         text_align=entry.text_align,
         indent_level=entry.indent_level,
         first_line_indent=entry.first_line_indent,
+        line_spacing=entry.line_spacing,
         content=content,
         list_items_html=list_items_html,
         figures=figures,

@@ -10,7 +10,12 @@ from __future__ import annotations
 from html import escape
 from html.parser import HTMLParser
 
-ALLOWED_INLINE_TAGS = frozenset({"strong", "em", "u", "s", "a", "sup", "sub"})
+ALLOWED_INLINE_TAGS = frozenset({"strong", "em", "u", "s", "a", "sup", "sub", "span"})
+ALLOWED_INLINE_FONT_SIZE_CLASSES = frozenset({
+    "report-inline-font-sm",
+    "report-inline-font-md",
+    "report-inline-font-lg",
+})
 ALLOWED_LINK_PREFIXES = ("http://", "https://", "mailto:")
 BLOCKED_LINK_PREFIXES = ("javascript:", "data:", "vbscript:")
 TAG_ALIASES = {
@@ -57,6 +62,31 @@ class _InlineTextSanitizer(HTMLParser):
 
     def handle_starttag(self, tag: str, attrs) -> None:
         normalized = TAG_ALIASES.get(tag.lower(), tag.lower())
+        if normalized == "span":
+            class_names = dict(attrs).get("class", "")
+            allowed_classes = {
+                name
+                for name in class_names.split()
+                if name in ALLOWED_INLINE_FONT_SIZE_CLASSES
+            }
+            if not allowed_classes:
+                return
+            font_class = next(
+                (
+                    size_class
+                    for size_class in (
+                        "report-inline-font-sm",
+                        "report-inline-font-md",
+                        "report-inline-font-lg",
+                    )
+                    if size_class in allowed_classes
+                ),
+                "report-inline-font-md",
+            )
+            self._tag_stack.append(normalized)
+            self._parts.append(f'<span class="{font_class}">')
+            return
+
         if normalized == "a":
             href = normalize_inline_link_href(dict(attrs).get("href", ""))
             if not href:
@@ -74,11 +104,14 @@ class _InlineTextSanitizer(HTMLParser):
         normalized = TAG_ALIASES.get(tag.lower(), tag.lower())
         if normalized not in ALLOWED_INLINE_TAGS:
             return
+        matched = False
         for index in range(len(self._tag_stack) - 1, -1, -1):
             if self._tag_stack[index] == normalized:
                 del self._tag_stack[index:]
+                matched = True
                 break
-        self._parts.append(f"</{normalized}>")
+        if matched:
+            self._parts.append(f"</{normalized}>")
 
     def handle_data(self, data: str) -> None:
         self._parts.append(escape(data))

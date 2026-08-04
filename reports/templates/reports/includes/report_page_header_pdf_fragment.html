@@ -8,7 +8,7 @@
                          style="display: block;{% if cell.display_size_style %} {{ cell.display_size_style }}{% else %} max-width: 100%; width: auto; height: auto; object-fit: contain;{% endif %}">
                 </div>
             {% else %}
-                <div style="flex: 1 1 auto; min-width: 0; text-align: {{ cell.align|default:'left' }}; white-space: pre-wrap; word-break: break-word;">
+                <div style="flex: 1 1 auto; min-width: 0; text-align: {{ cell.align|default:'left' }}; line-height: 1; white-space: pre-wrap; word-break: break-word;">
                     {{ cell.text_html|default:""|safe }}
                 </div>
             {% endif %}
@@ -18,7 +18,7 @@
         {% if row.type == "rule" %}
             <hr style="margin: 0.15rem 0 0.1rem; border: 0; border-top: 1px solid #666;">
         {% else %}
-            <div style="width: 100%; text-align: {{ row.align|default:'left' }}; white-space: pre-wrap; word-break: break-word;{% if row.muted %} color: #666;{% endif %}">
+            <div style="width: 100%; text-align: {{ row.align|default:'left' }}; line-height: 1; white-space: pre-wrap; word-break: break-word;{% if row.muted %} color: #666;{% endif %}">
                 {{ row.text_html|default:""|safe }}
             </div>
         {% endif %}

@@ -10,6 +10,7 @@ from __future__ import annotations
 from django.core.exceptions import ValidationError
 
 from reports.models import ReportBlockType, ReportNode
+from reports.models.report_block import ReportBlockLineSpacing
 
 MAX_INDENT_LEVEL = 5
 
@@ -87,14 +88,30 @@ def resolve_indent_on_create(
     return level, first_line
 
 
+def normalize_line_spacing(
+    value,
+    *,
+    default: str = ReportBlockLineSpacing.NORMAL,
+) -> str:
+    """Valida espaçamento entre linhas do bloco ou retorna o padrão informado."""
+    if value in (None, ""):
+        return default
+    cleaned = str(value).strip().lower()
+    valid = {choice.value for choice in ReportBlockLineSpacing}
+    if cleaned not in valid:
+        raise ValidationError("Espaçamento entre linhas inválido.")
+    return cleaned
+
+
 def validate_paragraph_indent_patch(
     node: ReportNode,
     *,
     indent_level: int | None,
     first_line_indent: bool | None,
+    line_spacing: str | None = None,
 ) -> None:
     """Garante que alterações de recuo se apliquem somente a parágrafos de corpo."""
-    if indent_level is None and first_line_indent is None:
+    if indent_level is None and first_line_indent is None and line_spacing is None:
         return
 
     block = node.block
@@ -110,12 +127,14 @@ def apply_paragraph_indent_patch(
     *,
     indent_level: int | None,
     first_line_indent: bool | None,
+    line_spacing: str | None = None,
 ) -> list[str]:
-    """Atualiza campos de recuo do bloco e retorna campos alterados."""
+    """Atualiza campos de recuo e espaçamento do bloco e retorna campos alterados."""
     validate_paragraph_indent_patch(
         node,
         indent_level=indent_level,
         first_line_indent=first_line_indent,
+        line_spacing=line_spacing,
     )
 
     block = node.block
@@ -128,5 +147,9 @@ def apply_paragraph_indent_patch(
     if first_line_indent is not None:
         block.first_line_indent = bool(first_line_indent)
         update_fields.append("first_line_indent")
+
+    if line_spacing is not None:
+        block.line_spacing = normalize_line_spacing(line_spacing)
+        update_fields.append("line_spacing")
 
     return update_fields

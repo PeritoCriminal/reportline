@@ -10,6 +10,7 @@ from django.test import TestCase
 from django.urls import reverse
 
 from reports.models import Report, ReportBlock, ReportBlockType, ReportNode
+from reports.models.report_block import ReportBlockLineSpacing
 
 User = get_user_model()
 
@@ -331,6 +332,29 @@ class ReportNodeApiViewTests(TestCase):
         self.assertEqual(response.status_code, 200)
         paragraph_block.refresh_from_db()
         self.assertFalse(paragraph_block.first_line_indent)
+
+    def test_patch_line_spacing_without_content(self):
+        """Garante alteração de espaçamento entre linhas via PATCH."""
+        paragraph_block = ReportBlock.objects.create(
+            block_type=ReportBlockType.PARAGRAPH,
+            content={"text": "Corpo"},
+            line_spacing=ReportBlockLineSpacing.NORMAL,
+        )
+        paragraph_node = ReportNode.objects.create(
+            report=self.report,
+            block=paragraph_block,
+            position=Decimal("6.5"),
+        )
+
+        response = self._patch_node(
+            paragraph_node,
+            {"line_spacing": ReportBlockLineSpacing.COMPACT},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        paragraph_block.refresh_from_db()
+        self.assertEqual(paragraph_block.line_spacing, ReportBlockLineSpacing.COMPACT)
+        self.assertEqual(response.json()["line_spacing"], ReportBlockLineSpacing.COMPACT)
 
     def test_post_after_heading_applies_paragraph_indent_defaults(self):
         """Garante parágrafo novo com recuo de primeira linha ligado por padrão."""

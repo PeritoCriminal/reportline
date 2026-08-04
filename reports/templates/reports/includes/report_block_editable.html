@@ -24,6 +24,7 @@
      {% endif %}
      {% if entry.block_type == "paragraph" %}
      data-indent-level="{{ entry.indent_level|default:0 }}"
+     data-line-spacing="{{ entry.line_spacing|default:'normal' }}"
      {% endif %}
      {% if entry.block_type == "heading" and entry.is_main_title %}data-is-main-title="true"{% endif %}
      {% if is_caption %}data-is-caption="true"{% endif %}>
@@ -61,9 +62,10 @@
             </div>
         </div>
         {% else %}
-        <p class="report-editor-block-editable report-editor-block-paragraph"
+        <p class="report-editor-block-editable report-editor-block-paragraph report-editor-block-paragraph--line-spacing-{{ entry.line_spacing|default:'normal' }}"
            contenteditable="true"
            data-field="text"
+           data-line-spacing="{{ entry.line_spacing|default:'normal' }}"
            data-first-line-indent="{% if entry.first_line_indent != False %}true{% else %}false{% endif %}"
            data-placeholder="Digite o parágrafo…"
            {% if autofocus %}data-autofocus="true"{% endif %}>{{ entry.content.text|default:""|inline_text }}</p>

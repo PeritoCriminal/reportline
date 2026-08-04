@@ -52,6 +52,7 @@ class ReportBodyEntry:
     text_align: str = "justify"
     indent_level: int = 0
     first_line_indent: bool = True
+    line_spacing: str = "normal"
 
 
 def _enrich_block_content(block_type: str, content: dict[str, Any]) -> dict[str, Any]:
@@ -255,6 +256,7 @@ def _build_body_entries(
                 text_align=block.text_align,
                 indent_level=block.indent_level,
                 first_line_indent=block.first_line_indent,
+                line_spacing=block.line_spacing,
             )
         )
         entries.extend(
@@ -313,6 +315,7 @@ def _body_entry_from_node(
         text_align=block.text_align,
         indent_level=block.indent_level,
         first_line_indent=block.first_line_indent,
+        line_spacing=block.line_spacing,
     )
 
 

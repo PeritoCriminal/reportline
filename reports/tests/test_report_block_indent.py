@@ -4,11 +4,13 @@ from django.core.exceptions import ValidationError
 from django.test import TestCase
 
 from reports.models import ReportBlockType
+from reports.models.report_block import ReportBlockLineSpacing
 from reports.services.report_block_indent import (
     MAX_INDENT_LEVEL,
     default_first_line_indent_for_block,
     default_indent_level_for_block,
     normalize_indent_level,
+    normalize_line_spacing,
 )
 
 
@@ -46,3 +48,19 @@ class ReportBlockIndentTests(TestCase):
             default_indent_level_for_block(ReportBlockType.PARAGRAPH),
             0,
         )
+
+    def test_normalize_line_spacing_accepts_supported_values(self):
+        """Garante aceitação de espaçamento simples e 1,5."""
+        self.assertEqual(
+            normalize_line_spacing(ReportBlockLineSpacing.COMPACT),
+            ReportBlockLineSpacing.COMPACT,
+        )
+        self.assertEqual(
+            normalize_line_spacing(ReportBlockLineSpacing.NORMAL),
+            ReportBlockLineSpacing.NORMAL,
+        )
+
+    def test_normalize_line_spacing_rejects_invalid_value(self):
+        """Garante rejeição de valor de espaçamento inválido."""
+        with self.assertRaises(ValidationError):
+            normalize_line_spacing("double")

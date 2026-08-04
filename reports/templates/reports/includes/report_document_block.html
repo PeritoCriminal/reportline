@@ -11,6 +11,7 @@
      {% endif %}
      {% if section.block_type == "paragraph" %}
      data-indent-level="{{ section.indent_level|default:0 }}"
+     data-line-spacing="{{ section.line_spacing|default:'normal' }}"
      {% endif %}
      {% if section.is_caption %}data-is-caption="true"{% endif %}>
     {% if section.block_type == "heading" %}
@@ -34,7 +35,7 @@
             </div>
         </div>
         {% else %}
-        <p class="report-document-paragraph{% if section.first_line_indent != False %} report-document-paragraph--first-line-indent{% endif %}">{{ section.body_html|safe }}</p>
+        <p class="report-document-paragraph report-document-paragraph--line-spacing-{{ section.line_spacing|default:'normal' }}{% if section.first_line_indent != False %} report-document-paragraph--first-line-indent{% endif %}">{{ section.body_html|safe }}</p>
         {% endif %}
     {% elif section.block_type == "ordered_list" %}
         <ol class="report-document-list report-document-list--ordered">

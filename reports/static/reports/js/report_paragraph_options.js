@@ -12,6 +12,7 @@
     let firstLineIndentButton = null;
     let headerExtraMenuItems = [];
     let headerExtraMutedButton = null;
+    let lineSpacingButtons = [];
     let headerExtraRuleButton = null;
 
     function resolveParagraphContext() {
@@ -101,6 +102,35 @@
         });
     }
 
+    function setLineSpacingMenuVisibility(visible) {
+        document.querySelectorAll(".report-editor-paragraph-menu-line-spacing").forEach((item) => {
+            item.hidden = !visible;
+        });
+    }
+
+    function getLineSpacingFromContext(context) {
+        if (!context || !context.block) {
+            return "normal";
+        }
+        return context.block.dataset.lineSpacing || "normal";
+    }
+
+    function updateLineSpacingMenuState(context) {
+        const visible = Boolean(context && context.block && !context.bandText);
+        setLineSpacingMenuVisibility(visible);
+        if (!visible) {
+            return;
+        }
+
+        const spacing = getLineSpacingFromContext(context);
+        lineSpacingButtons.forEach((button) => {
+            const value = button.dataset.reportParagraphLineSpacing;
+            const active = value === spacing;
+            button.classList.toggle("active", active);
+            button.setAttribute("aria-pressed", active ? "true" : "false");
+        });
+    }
+
     function updateHeaderExtraMenuState(context) {
         const visible = isHeaderExtraTextContext(context);
         setHeaderExtraMenuVisibility(visible);
@@ -115,6 +145,7 @@
     function updateParagraphMenuState(context) {
         if (!context || (!context.block && !context.bandText)) {
             setHeaderExtraMenuVisibility(false);
+            setLineSpacingMenuVisibility(false);
             return;
         }
 
@@ -129,6 +160,7 @@
             firstLineIndentButton.setAttribute("aria-pressed", active ? "true" : "false");
         }
 
+        updateLineSpacingMenuState(context);
         updateHeaderExtraMenuState(context);
     }
 
@@ -305,6 +337,34 @@
                 closeParagraphDropdown();
             });
         }
+
+        lineSpacingButtons = Array.from(
+            document.querySelectorAll("[data-report-paragraph-line-spacing]")
+        );
+        lineSpacingButtons.forEach((button) => {
+            button.addEventListener("mousedown", (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+            });
+            button.addEventListener("click", (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                if (
+                    !window.ReportLineEditor
+                    || !window.ReportLineEditor.setParagraphLineSpacing
+                ) {
+                    return;
+                }
+                window.ReportLineEditor.setParagraphLineSpacing(
+                    button.dataset.reportParagraphLineSpacing
+                )
+                    .then(() => {
+                        updateParagraphMenuState(resolveParagraphContext());
+                        closeParagraphDropdown();
+                    })
+                    .catch(console.error);
+            });
+        });
 
         paragraphOptionsToggle.addEventListener("mousedown", (event) => {
             event.stopPropagation();

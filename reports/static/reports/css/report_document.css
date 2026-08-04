@@ -9,6 +9,9 @@
 .report-document {
     --report-document-font-family: Arial, Helvetica, sans-serif;
     --report-document-font-size: 12pt;
+    --report-inline-font-size-sm: 11pt;
+    --report-inline-font-size-md: 12pt;
+    --report-inline-font-size-lg: 13pt;
     --report-document-line-height: 1.5;
     --report-document-small-font-size: 10pt;
     --report-document-small-line-height: 1;
@@ -338,6 +341,7 @@ body.report-document-pdf .report-document-flow {
     min-height: 0;
     white-space: pre-wrap;
     word-break: break-word;
+    line-height: 1;
     background: var(--report-document-page-bg);
 }
 
@@ -593,6 +597,19 @@ body.report-document-pdf .report-document-flow {
     margin: 0 0 0.75rem;
     white-space: pre-wrap;
     word-break: break-word;
+    line-height: var(--report-document-line-height);
+}
+
+.report-document-paragraph--line-spacing-compact {
+    line-height: 1;
+}
+
+.report-document-paragraph--line-spacing-normal {
+    line-height: var(--report-document-line-height);
+}
+
+.report-document-paragraph--line-spacing-relaxed {
+    line-height: 1.75;
 }
 
 .report-document-paragraph--first-line-indent {
@@ -854,6 +871,24 @@ body.report-document-pdf .report-document-flow {
 .report-document-block a {
     color: var(--report-document-link);
     text-decoration: underline;
+}
+
+.report-document-block .report-inline-font-sm,
+.report-page-header-text--read .report-inline-font-sm,
+.report-page-footer-text--read .report-inline-font-sm {
+    font-size: var(--report-inline-font-size-sm);
+}
+
+.report-document-block .report-inline-font-md,
+.report-page-header-text--read .report-inline-font-md,
+.report-page-footer-text--read .report-inline-font-md {
+    font-size: var(--report-inline-font-size-md);
+}
+
+.report-document-block .report-inline-font-lg,
+.report-page-header-text--read .report-inline-font-lg,
+.report-page-footer-text--read .report-inline-font-lg {
+    font-size: var(--report-inline-font-size-lg);
 }
 
 .report-page-header-text--read sup,

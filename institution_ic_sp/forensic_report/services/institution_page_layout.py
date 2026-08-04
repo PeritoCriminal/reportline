@@ -33,7 +33,7 @@ INSTITUTION_HEADER_SECURITY_SECRETARIAT = "SECRETARIA DA SEGURANÇA PÚBLICA"
 INSTITUTION_HEADER_SPTC = "SUPERINTENDÊNCIA DA POLÍCIA TÉCNICO-CIENTÍFICA (SPTC)"
 INSTITUTION_HEADER_IC = "INSTITUTO DE CRIMINALÍSTICA"
 INSTITUTION_HEADER_NAMESAKE = (
-    '"PERITO CRIMINAL DR. OCTÁVIO EDUARDO DE BRITO ALVARENGA"'
+    '"Perito Criminal Dr. Octávio Eduardo de Brito Alvarenga"'
 )
 
 
@@ -62,10 +62,28 @@ def _format_institutional_contact_line(phone: str, email: str) -> str:
     cleaned_phone = phone.strip()
     cleaned_email = email.strip()
     if cleaned_phone and cleaned_email:
-        return f"Telefone: {cleaned_phone} - {cleaned_email}"
+        return f"{cleaned_phone} | {cleaned_email}"
     if cleaned_phone:
-        return f"Telefone: {cleaned_phone}"
+        return cleaned_phone
     return cleaned_email
+
+
+def _styled_header_line(
+    text: str,
+    *,
+    bold: bool = False,
+    font_size: str = "md",
+) -> str:
+    """Monta fragmento HTML de linha do cabeçalho institucional."""
+    cleaned = text.strip()
+    if not cleaned:
+        return ""
+    if font_size not in {"sm", "md", "lg"}:
+        font_size = "md"
+    inner = f'<span class="report-inline-font-{font_size}">{cleaned}</span>'
+    if bold:
+        inner = f"<strong>{inner}</strong>"
+    return inner
 
 
 def _assignment_contact(examiner: ForensicExaminerSP) -> tuple[str, str, str]:
@@ -83,25 +101,39 @@ def _build_header_text(institution: Institution, examiner: ForensicExaminerSP) -
     """Monta HTML do texto central do cabeçalho institucional."""
     _ = institution
     lines = [
-        INSTITUTION_HEADER_SECURITY_SECRETARIAT,
-        INSTITUTION_HEADER_SPTC,
-        INSTITUTION_HEADER_IC,
-        INSTITUTION_HEADER_NAMESAKE,
+        _styled_header_line(
+            INSTITUTION_HEADER_SECURITY_SECRETARIAT,
+            bold=True,
+            font_size="md",
+        ),
+        _styled_header_line(
+            INSTITUTION_HEADER_SPTC,
+            bold=True,
+            font_size="sm",
+        ),
+        _styled_header_line(
+            INSTITUTION_HEADER_IC,
+            font_size="md",
+        ),
+        _styled_header_line(
+            INSTITUTION_HEADER_NAMESAKE,
+            font_size="sm",
+        ),
     ]
 
     unit_name = _header_unit_name(examiner)
     if unit_name:
-        lines.append(unit_name)
+        lines.append(_styled_header_line(unit_name, font_size="sm"))
 
     address, phone, email = _assignment_contact(examiner)
     cleaned_address = address.strip()
     if cleaned_address:
-        lines.append(cleaned_address)
+        lines.append(_styled_header_line(cleaned_address, font_size="sm"))
     contact_line = _format_institutional_contact_line(phone, email)
     if contact_line:
-        lines.append(contact_line)
+        lines.append(_styled_header_line(contact_line, font_size="sm"))
 
-    return sanitize_header_text_html("<br>".join(lines))
+    return sanitize_header_text_html("<br>".join(line for line in lines if line))
 
 
 def _build_footer_text(institution: Institution) -> str:
@@ -115,7 +147,9 @@ def _build_footer_text(institution: Institution) -> str:
 def _build_header_extra_rows(main_title_text: str) -> list[dict[str, Any]]:
     """Monta linha horizontal e número do laudo abaixo do cabeçalho principal."""
     report_number_row = default_header_extra_text_row(align="right")
-    report_number_row["text"] = sanitize_header_text_html(main_title_text.strip())
+    report_number_row["text"] = sanitize_header_text_html(
+        _styled_header_line(main_title_text.strip(), font_size="sm")
+    )
     return [
         default_header_extra_rule_row(),
         report_number_row,

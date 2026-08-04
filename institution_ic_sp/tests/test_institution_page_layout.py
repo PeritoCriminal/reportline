@@ -70,11 +70,37 @@ class InstitutionPageLayoutTests(TestCase):
         self.assertIn(INSTITUTION_HEADER_SECURITY_SECRETARIAT, header_text)
         self.assertIn(INSTITUTION_HEADER_SPTC, header_text)
         self.assertIn(INSTITUTION_HEADER_IC, header_text)
-        self.assertIn("PERITO CRIMINAL DR. OCTÁVIO EDUARDO DE BRITO ALVARENGA", header_text)
+        self.assertIn("Perito Criminal Dr. Octávio Eduardo de Brito Alvarenga", header_text)
         self.assertIn(self.team.nucleus.name, header_text)
         self.assertIn(self.team.address, header_text)
         self.assertIn("(19) 3406-5155", header_text)
         self.assertIn("americana.ic@policiacientifica.sp.gov.br", header_text)
+
+    def test_header_text_applies_institutional_line_styles(self):
+        """Garante negrito e tamanhos de fonte por linha do cabeçalho institucional."""
+        report = create_report(author=self.author, title="Laudo pericial 1/2026")
+        layout = build_institution_page_layout(
+            report,
+            institution=self.institution,
+            examiner=self.examiner,
+            workflow="generic",
+        )
+
+        header_text = layout["header"]["cells"][1]["text"]
+        self.assertIn("<strong>", header_text)
+        self.assertIn("report-inline-font-md", header_text)
+        self.assertIn("report-inline-font-sm", header_text)
+        self.assertIn(
+            "<strong><span class=\"report-inline-font-md\">"
+            f"{INSTITUTION_HEADER_SECURITY_SECRETARIAT}</span></strong>",
+            header_text,
+        )
+        self.assertIn(
+            "<strong><span class=\"report-inline-font-sm\">"
+            f"{INSTITUTION_HEADER_SPTC}</span></strong>",
+            header_text,
+        )
+        self.assertIn("|", header_text)
 
     def test_header_text_uses_nucleus_contact_when_examiner_is_nucleus_assigned(self):
         """Garante dados de contato do núcleo quando perito está lotado diretamente nele."""
@@ -132,10 +158,11 @@ class InstitutionPageLayoutTests(TestCase):
         self.assertEqual(len(extra_rows), 2)
         self.assertEqual(extra_rows[0]["type"], HEADER_EXTRA_ROW_TYPE_RULE)
         self.assertEqual(extra_rows[1]["align"], "right")
-        self.assertEqual(extra_rows[1]["text"], "LAUDO PERICIAL Nº 42/2026")
+        self.assertIn("LAUDO PERICIAL Nº 42/2026", extra_rows[1]["text"])
+        self.assertIn("report-inline-font-sm", extra_rows[1]["text"])
 
     def test_initial_header_logo_display_size_by_width_preserves_aspect_ratio(self):
-        """Garante largura inicial fixa de 2 cm com altura proporcional."""
+        """Garante largura inicial fixa de 1,5 cm com altura proporcional."""
         width, height = initial_header_logo_display_size_by_width(400, 200)
         self.assertEqual(width, HEADER_LOGO_INITIAL_WIDTH_PX)
         self.assertEqual(height, HEADER_LOGO_INITIAL_WIDTH_PX // 2)

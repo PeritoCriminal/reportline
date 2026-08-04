@@ -135,8 +135,6 @@ class GenericForensicReportBuilderTests(TestCase):
         self.assertTrue(header["enabled"])
         self.assertIn("SECRETARIA DA SEGURANÇA PÚBLICA", header["cells"][1]["text"])
         self.assertEqual(len(header["extra_rows"]), 2)
-        self.assertEqual(
-            header["extra_rows"][1]["text"],
-            "LAUDO PERICIAL Nº 42/2026",
-        )
+        self.assertIn("LAUDO PERICIAL Nº 42/2026", header["extra_rows"][1]["text"])
+        self.assertIn("report-inline-font-sm", header["extra_rows"][1]["text"])
         self.assertEqual(header["extra_rows"][1]["align"], "right")

@@ -27,6 +27,36 @@ class ReportInlineTextTests(TestCase):
         self.assertIn("<sup>SO</sup>", sanitized)
         self.assertIn("<sub>SB</sub>", sanitized)
 
+    def test_allowed_font_size_spans_preserved(self):
+        """Garante preservação de tamanhos inline 11 pt e 13 pt."""
+        html = (
+            '<span class="report-inline-font-sm">menor</span> '
+            '<span class="report-inline-font-lg">maior</span>'
+        )
+        sanitized = sanitize_inline_text_html(html)
+        self.assertEqual(
+            sanitized,
+            '<span class="report-inline-font-sm">menor</span> '
+            '<span class="report-inline-font-lg">maior</span>',
+        )
+
+    def test_font_size_span_with_extra_attributes_is_stripped(self):
+        """Garante remoção de atributos perigosos em span de tamanho."""
+        sanitized = sanitize_inline_text_html(
+            '<span class="report-inline-font-sm" style="color:red" onclick="x()">texto</span>'
+        )
+        self.assertEqual(
+            sanitized,
+            '<span class="report-inline-font-sm">texto</span>',
+        )
+
+    def test_unallowed_span_classes_are_unwrapped(self):
+        """Garante que span sem classe permitida preserve apenas o texto interno."""
+        sanitized = sanitize_inline_text_html(
+            '<span class="text-danger">alerta</span>'
+        )
+        self.assertEqual(sanitized, "alerta")
+
     def test_superscript_and_subscript_in_header_text(self):
         """Garante sobrescrito e subscrito em células de cabeçalho/rodapé."""
         result = sanitize_header_text_html("H<sub>2</sub>O e m<sup>2</sup>")
@@ -91,6 +121,20 @@ class SanitizeHeaderTextHtmlTests(TestCase):
         """Garante negrito e itálico junto com quebras de linha."""
         result = sanitize_header_text_html("<strong>Título</strong><br><em>Sub</em>")
         self.assertEqual(result, "<strong>Título</strong><br><em>Sub</em>")
+
+    def test_preserves_font_size_in_header_text(self):
+        """Garante tamanho inline em células de cabeçalho/rodapé."""
+        result = sanitize_header_text_html(
+            '<span class="report-inline-font-sm">Linha</span><br>'
+            '<span class="report-inline-font-md">Média</span><br>'
+            '<span class="report-inline-font-lg">Destaque</span>'
+        )
+        self.assertEqual(
+            result,
+            '<span class="report-inline-font-sm">Linha</span><br>'
+            '<span class="report-inline-font-md">Média</span><br>'
+            '<span class="report-inline-font-lg">Destaque</span>',
+        )
 
     def test_strips_dangerous_tags(self):
         """Garante remoção de tags não permitidas no cabeçalho."""

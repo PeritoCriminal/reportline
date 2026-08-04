@@ -58,6 +58,7 @@ def update_node_block(
     text_align: str | None = None,
     indent_level: int | None = None,
     first_line_indent: bool | None = None,
+    line_spacing: str | None = None,
 ) -> ReportNode:
     """Atualiza conteúdo e metadados opcionais do bloco associado ao nó."""
     block = node.block
@@ -95,6 +96,7 @@ def update_node_block(
         node,
         indent_level=indent_level,
         first_line_indent=first_line_indent,
+        line_spacing=line_spacing,
     )
 
     update_fields = ["updated_at"]

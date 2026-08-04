@@ -450,6 +450,7 @@ body.report-editor-active main {
     background-color: var(--report-page-bg);
     color: var(--report-page-color);
     font-family: var(--report-page-font-family);
+    font-size: var(--report-page-font-size, 12pt);
     box-shadow: none;
 }
 
@@ -623,6 +624,7 @@ body.report-editor-active main {
     outline: none;
     white-space: pre-wrap;
     word-break: break-word;
+    line-height: 1;
     background: var(--report-page-bg);
     cursor: inherit;
 }
@@ -1172,10 +1174,28 @@ body.report-editor-active main {
     visibility: visible;
 }
 
+.report-editor-toolbar-paragraph-menu
+[data-report-paragraph-line-spacing].active
+.report-editor-paragraph-menu-check {
+    visibility: visible;
+}
+
 .report-editor-block-paragraph {
     margin: 0 0 1rem;
-    line-height: 1.6;
+    line-height: 1.5;
     color: var(--report-page-color);
+}
+
+.report-editor-block-paragraph--line-spacing-compact {
+    line-height: 1;
+}
+
+.report-editor-block-paragraph--line-spacing-normal {
+    line-height: 1.5;
+}
+
+.report-editor-block-paragraph--line-spacing-relaxed {
+    line-height: 1.75;
 }
 
 .report-editor-block[data-block-type="paragraph"][data-indent-level="1"] {
@@ -1248,6 +1268,50 @@ body.report-editor-active main {
 .report-editor-block-editable a {
     color: var(--report-page-link);
     text-decoration: underline;
+}
+
+.report-editor-block-editable .report-inline-font-sm,
+.report-page-header-text .report-inline-font-sm,
+.report-page-footer-text .report-inline-font-sm {
+    font-size: var(--report-inline-font-size-sm, 11pt);
+}
+
+.report-editor-block-editable .report-inline-font-md,
+.report-page-header-text .report-inline-font-md,
+.report-page-footer-text .report-inline-font-md {
+    font-size: var(--report-inline-font-size-md, 12pt);
+}
+
+.report-editor-block-editable .report-inline-font-lg,
+.report-page-header-text .report-inline-font-lg,
+.report-page-footer-text .report-inline-font-lg {
+    font-size: var(--report-inline-font-size-lg, 13pt);
+}
+
+.report-editor-font-size-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.25rem;
+    font-family: var(--report-page-font-family);
+    font-weight: 700;
+    line-height: 1;
+}
+
+.report-editor-font-size-icon--sm {
+    font-size: 0.6875rem;
+}
+
+.report-editor-font-size-icon--md {
+    font-size: 0.8125rem;
+}
+
+.report-editor-font-size-icon--lg {
+    font-size: 0.9375rem;
+}
+
+.report-editor-toolbar-format-menu .dropdown-item.active .report-editor-font-size-icon {
+    color: inherit;
 }
 
 .report-editor-toolbar-format-group .btn-toolbar-block.active,
@@ -1778,6 +1842,10 @@ body.report-editor-table-width-resize-active {
     --report-page-bg: #fafaf8;
     --report-page-color: #212529;
     --report-page-font-family: Arial, Helvetica, sans-serif;
+    --report-page-font-size: 12pt;
+    --report-inline-font-size-sm: 11pt;
+    --report-inline-font-size-md: 12pt;
+    --report-inline-font-size-lg: 13pt;
     --report-page-muted: #6c757d;
     --report-paragraph-indent-step: 1.25cm;
     --report-paragraph-first-line-indent: 1.25cm;
@@ -1791,6 +1859,10 @@ body.report-editor-table-width-resize-active {
     --report-page-bg: #2b3035;
     --report-page-color: #f5f5f5;
     --report-page-font-family: Arial, Helvetica, sans-serif;
+    --report-page-font-size: 12pt;
+    --report-inline-font-size-sm: 11pt;
+    --report-inline-font-size-md: 12pt;
+    --report-inline-font-size-lg: 13pt;
     --report-page-muted: #adb5bd;
     --report-page-link: #9ec5fe;
     --report-page-border: #495057;
