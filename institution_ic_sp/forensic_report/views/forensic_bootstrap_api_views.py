@@ -25,20 +25,29 @@ from institution_ic_sp.forensic_report.services.forensic_bootstrap import (
     CRITICAL_PROMPT_FIELDS,
     STATE_ANALYZED,
     STATE_BUILDING,
+    STATE_COLLECTING_PROMPTS,
     STATE_PROMPTING,
     STATE_READY,
     STATE_SHELL_CREATED,
     bootstrap_state,
     bootstrap_status_payload,
     compute_pending_prompts,
+    forensic_bootstrap_prompt_config,
+    get_bootstrap_meta,
     mark_prompt_skipped,
     metadata_from_bootstrap,
+    save_bootstrap_after_analyze,
     save_bootstrap_after_metadata_update,
     save_bootstrap_metadata,
     set_bootstrap_state,
 )
 from institution_ic_sp.forensic_report.services.forensic_bootstrap_finalize import (
     finalize_bootstrap_prompts,
+)
+from institution_ic_sp.forensic_report.services.forensic_report_body_incremental import (
+    BUILD_STEP_IDS,
+    BUILD_STEP_LABELS,
+    advance_forensic_body_build_step,
 )
 from institution_ic_sp.forensic_report.services.forensic_report_metadata_sync import (
     apply_prompt_field_value,
@@ -47,6 +56,10 @@ from institution_ic_sp.forensic_report.services.forensic_report_metadata_sync im
 )
 from institution_ic_sp.forensic_report.workflows.generic.services.report_draft_builder import (
     build_forensic_report_from_bootstrap,
+)
+from reports.services.report_editor_context import (
+    render_editable_block_html,
+    render_outline_refresh_payload,
 )
 from reports.models import Report
 from reports.services.report_kind import is_forensic_report
@@ -79,7 +92,7 @@ class ForensicBootstrapAnalyzeView(ForensicReportAuthorMixin, View):
                 {"errors": ["Este laudo já foi montado."]},
                 status=400,
             )
-        if state in (STATE_BUILDING, STATE_PROMPTING):
+        if state in (STATE_BUILDING, STATE_PROMPTING, STATE_COLLECTING_PROMPTS):
             return JsonResponse(
                 {"errors": ["A análise não está disponível nesta etapa do laudo."]},
                 status=400,
@@ -101,7 +114,7 @@ class ForensicBootstrapAnalyzeView(ForensicReportAuthorMixin, View):
             manual=manual,
             uploaded_files=uploaded_files,
         )
-        save_bootstrap_metadata(report, merged, state=STATE_ANALYZED)
+        save_bootstrap_after_analyze(report, merged)
 
         warnings: list[str] = []
         try:
@@ -119,14 +132,16 @@ class ForensicBootstrapAnalyzeView(ForensicReportAuthorMixin, View):
             )
 
         report.refresh_from_db()
-        return JsonResponse(
-            {
-                "state": STATE_ANALYZED,
-                "metadata": case_metadata_to_form_dict(merged),
-                "pending_prompts": compute_pending_prompts(merged),
-                "warnings": warnings,
-            }
-        )
+        current_state = bootstrap_state(report)
+        response: dict[str, object] = {
+            "state": current_state,
+            "metadata": case_metadata_to_form_dict(merged),
+            "pending_prompts": compute_pending_prompts(merged),
+            "warnings": warnings,
+        }
+        if current_state == STATE_COLLECTING_PROMPTS:
+            response["prompt_config"] = forensic_bootstrap_prompt_config(report)
+        return JsonResponse(response)
 
     def http_method_not_allowed(self, request, *args, **kwargs):
         return HttpResponseNotAllowed(["POST"])
@@ -144,10 +159,12 @@ class ForensicBootstrapBuildView(ForensicReportAuthorMixin, View):
         if state == STATE_BUILDING:
             return JsonResponse(bootstrap_status_payload(report))
         if state != STATE_ANALYZED:
-            return JsonResponse(
-                {"errors": ["Analise os documentos antes de montar o laudo."]},
-                status=400,
+            message = (
+                "Responda aos dados pendentes antes de montar o laudo."
+                if state == STATE_COLLECTING_PROMPTS
+                else "Analise os documentos antes de montar o laudo."
             )
+            return JsonResponse({"errors": [message]}, status=400)
 
         set_bootstrap_state(report, STATE_BUILDING)
         metadata = metadata_from_bootstrap(report.page_layout)
@@ -183,6 +200,57 @@ class ForensicBootstrapStatusView(ForensicReportAuthorMixin, View):
         return HttpResponseNotAllowed(["GET"])
 
 
+class ForensicBootstrapBuildStepView(ForensicReportAuthorMixin, View):
+    """Avança um passo na montagem incremental do corpo do laudo."""
+
+    def post(self, request, pk):
+        """Cria próximo bloco, retorna HTML parcial e atualiza sumário."""
+        report = self.get_report()
+        state = bootstrap_state(report)
+        if state not in (STATE_ANALYZED, STATE_BUILDING):
+            return JsonResponse(
+                {"errors": ["A montagem incremental não está disponível nesta etapa."]},
+                status=400,
+            )
+
+        try:
+            created_nodes, done, final_state, step_id = advance_forensic_body_build_step(
+                report,
+                examiner=self.examiner_profile,
+            )
+        except ValidationError as exc:
+            return _validation_error_response(exc)
+        except ValueError as exc:
+            return JsonResponse({"errors": [str(exc)]}, status=400)
+
+        report.refresh_from_db()
+        metadata = metadata_from_bootstrap(report.page_layout)
+        outline_payload = render_outline_refresh_payload(report, request)
+        bootstrap = get_bootstrap_meta(report.page_layout) or {}
+        progress = bootstrap.get("build_progress") if isinstance(bootstrap.get("build_progress"), dict) else {}
+        step_index = progress.get("step_index", len(BUILD_STEP_IDS) if done else 0)
+
+        response = {
+            "state": final_state,
+            "done": done,
+            "step_id": step_id,
+            "step_label": BUILD_STEP_LABELS.get(step_id or "", "Montando laudo…"),
+            "step_index": step_index,
+            "total_steps": len(BUILD_STEP_IDS),
+            "blocks_html": [
+                render_editable_block_html(node, request) for node in created_nodes
+            ],
+            "outline_html": outline_payload["html"],
+            "heading_numbers": outline_payload["heading_numbers"],
+            "report_title": report.title,
+            "header_report_number_text": metadata.header_report_number_text,
+        }
+        return JsonResponse(response)
+
+    def http_method_not_allowed(self, request, *args, **kwargs):
+        return HttpResponseNotAllowed(["POST"])
+
+
 class ForensicBootstrapPromptView(ForensicReportAuthorMixin, View):
     """Registra resposta ou skip de prompt inline no editor."""
 
@@ -190,7 +258,7 @@ class ForensicBootstrapPromptView(ForensicReportAuthorMixin, View):
         """Atualiza metadados, sincroniza blocos e avança fila de prompts."""
         report = self.get_report()
         state = bootstrap_state(report)
-        if state not in (STATE_PROMPTING, STATE_ANALYZED):
+        if state not in (STATE_PROMPTING, STATE_COLLECTING_PROMPTS, STATE_ANALYZED):
             return JsonResponse(
                 {"errors": ["Não há prompts pendentes para este laudo."]},
                 status=400,
@@ -215,6 +283,7 @@ class ForensicBootstrapPromptView(ForensicReportAuthorMixin, View):
             return JsonResponse({"errors": ["Prompt fora da ordem esperada."]}, status=400)
 
         try:
+            pre_build = state == STATE_COLLECTING_PROMPTS
             if action == "skip":
                 mark_prompt_skipped(report, field_name)
             else:
@@ -222,12 +291,13 @@ class ForensicBootstrapPromptView(ForensicReportAuthorMixin, View):
                 validate_prompt_submit_value(field_name, str(raw_value))
                 metadata = metadata_from_bootstrap(report.page_layout)
                 updated = apply_prompt_field_value(metadata, field_name, str(raw_value))
-                sync_forensic_metadata_fields(
-                    report,
-                    examiner=self.examiner_profile,
-                    metadata=updated,
-                    changed_fields={field_name},
-                )
+                if not pre_build:
+                    sync_forensic_metadata_fields(
+                        report,
+                        examiner=self.examiner_profile,
+                        metadata=updated,
+                        changed_fields={field_name},
+                    )
                 save_bootstrap_after_metadata_update(report, updated)
         except ValidationError as exc:
             return _validation_error_response(exc)
@@ -247,7 +317,8 @@ class ForensicBootstrapFinalizeView(ForensicReportAuthorMixin, View):
     def post(self, request, pk):
         """Aplica lote de prompts e conclui bootstrap interativo."""
         report = self.get_report()
-        if bootstrap_state(report) != STATE_PROMPTING:
+        state = bootstrap_state(report)
+        if state not in (STATE_COLLECTING_PROMPTS, STATE_PROMPTING):
             return JsonResponse(
                 {"errors": ["Não há prompts pendentes para este laudo."]},
                 status=400,
@@ -277,7 +348,7 @@ class ForensicBootstrapFinalizeView(ForensicReportAuthorMixin, View):
 
         report.refresh_from_db()
         response = bootstrap_status_payload(report)
-        response["reload"] = True
+        response["reload"] = bootstrap_state(report) == STATE_READY
         return JsonResponse(response)
 
     def http_method_not_allowed(self, request, *args, **kwargs):

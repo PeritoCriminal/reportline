@@ -1,8 +1,9 @@
 """
 Finalização em lote dos prompts inline do bootstrap pericial.
 
-Aplica respostas e skips acumulados no frontend com uma única persistência
-e sincronização de blocos no servidor.
+Aplica respostas e skips acumulados no frontend com uma única persistência.
+Antes da montagem do corpo, apenas metadados são atualizados; após a montagem,
+sincroniza blocos já existentes (fluxo legado).
 """
 
 from __future__ import annotations
@@ -15,6 +16,8 @@ from institution_ic_sp.forensic_report.common.services.case_metadata_serializati
 )
 from institution_ic_sp.forensic_report.services.forensic_bootstrap import (
     CRITICAL_PROMPT_FIELDS,
+    STATE_ANALYZED,
+    STATE_COLLECTING_PROMPTS,
     STATE_PROMPTING,
     attach_bootstrap_meta,
     bootstrap_state,
@@ -44,13 +47,17 @@ def finalize_bootstrap_prompts(
     skipped: list[str],
 ) -> Report:
     """
-    Aplica respostas e skips em lote e conclui o bootstrap interativo.
+    Aplica respostas e skips em lote.
 
-    Exige cobertura completa da fila ``pending_prompts`` persistida no laudo.
+    No estado ``collecting_prompts`` (pré-montagem), persiste metadados e
+    libera a montagem incremental. No estado ``prompting`` (pós-montagem),
+    também sincroniza blocos existentes.
     """
-    if bootstrap_state(report) != STATE_PROMPTING:
+    state = bootstrap_state(report)
+    if state not in (STATE_COLLECTING_PROMPTS, STATE_PROMPTING):
         raise ValidationError("Não há prompts pendentes para este laudo.")
 
+    pre_build = state == STATE_COLLECTING_PROMPTS
     bootstrap = get_bootstrap_meta(report.page_layout) or {}
     pending_raw = bootstrap.get("pending_prompts", [])
     pending = [str(item) for item in pending_raw] if isinstance(pending_raw, list) else []
@@ -86,7 +93,7 @@ def finalize_bootstrap_prompts(
 
     skipped_set.update(str(field) for field in skipped if str(field) in _ALLOWED_FIELDS)
 
-    if changed_fields:
+    if changed_fields and not pre_build:
         sync_forensic_metadata_fields(
             report,
             examiner=examiner,
@@ -99,7 +106,10 @@ def finalize_bootstrap_prompts(
     bootstrap["skipped_prompts"] = sorted(skipped_set)
     bootstrap["metadata"] = case_metadata_to_form_dict(metadata)
     bootstrap["pending_prompts"] = compute_pending_prompts(metadata, skipped=skipped_set)
-    bootstrap["state"] = resolve_bootstrap_state(metadata, skipped=skipped_set)
+    if pre_build:
+        bootstrap["state"] = STATE_ANALYZED
+    else:
+        bootstrap["state"] = resolve_bootstrap_state(metadata, skipped=skipped_set)
     report.page_layout = attach_bootstrap_meta(report.page_layout, bootstrap)
     report.save(update_fields=["page_layout", "updated_at"])
     return report

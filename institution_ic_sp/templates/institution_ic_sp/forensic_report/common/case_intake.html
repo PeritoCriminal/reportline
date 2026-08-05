@@ -1,10 +1,10 @@
 {% extends "base.html" %}
-{% load static %}
+{% load static versioned_static %}
 
 {% block title %}Novo laudo pericial — ReportLine{% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="{% static 'institution_ic_sp/css/case_intake_analyze.css' %}">
+<link rel="stylesheet" href="{% versioned_static 'institution_ic_sp/css/case_intake_analyze.css' %}">
 {% endblock %}
 
 {% block content %}
@@ -258,7 +258,7 @@
 {% endblock %}
 
 {% block extra_js %}
-<script src="{% static 'institution_ic_sp/js/case_intake_analyze.js' %}"></script>
-<script src="{% static 'institution_ic_sp/js/forensic_bootstrap_documents.js' %}"></script>
-<script src="{% static 'institution_ic_sp/js/case_intake_quick.js' %}"></script>
+<script src="{% versioned_static 'institution_ic_sp/js/case_intake_analyze.js' %}"></script>
+<script src="{% versioned_static 'institution_ic_sp/js/forensic_bootstrap_documents.js' %}"></script>
+<script src="{% versioned_static 'institution_ic_sp/js/case_intake_quick.js' %}"></script>
 {% endblock %}

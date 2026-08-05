@@ -16,6 +16,8 @@ from django.urls import reverse
 from institution_ic_sp.forensic_report.common.services.case_metadata import CaseMetadata
 from institution_ic_sp.forensic_report.services.forensic_bootstrap import (
     STATE_ANALYZED,
+    STATE_BUILDING,
+    STATE_COLLECTING_PROMPTS,
     STATE_PROMPTING,
     STATE_READY,
     STATE_SHELL_CREATED,
@@ -132,20 +134,23 @@ class ForensicBootstrapPhaseOneTests(TestCase):
     @patch(
         "institution_ic_sp.forensic_report.views.forensic_bootstrap_api_views.analyze_case_metadata_from_documents"
     )
-    def test_bootstrap_build_enters_prompting_when_fields_missing(self, mock_analyze):
-        """Garante estado prompting quando campos críticos permanecem vazios."""
+    def test_bootstrap_analyze_enters_collecting_prompts_when_fields_missing(self, mock_analyze):
+        """Garante coleta de prompts após análise quando campos críticos permanecem vazios."""
         mock_analyze.return_value = CaseMetadata(report_year=2026)
         self.client.login(username="perito_bootstrap", password="senha-segura")
         report = create_forensic_report_shell(author=self.user, examiner=self.examiner)
         analyze_url = reverse("reports:forensic_bootstrap_analyze", kwargs={"pk": report.pk})
-        build_url = reverse("reports:forensic_bootstrap_build", kwargs={"pk": report.pk})
 
-        self.client.post(analyze_url, {"documents": self._pdf_upload()})
-        self.client.post(build_url, content_type="application/json", data="{}")
+        response = self.client.post(analyze_url, {"documents": self._pdf_upload()})
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertEqual(payload.get("state"), STATE_COLLECTING_PROMPTS)
+        self.assertTrue(payload.get("pending_prompts"))
+        self.assertIn("prompt_config", payload)
 
         report.refresh_from_db()
-        self.assertEqual(bootstrap_state(report), STATE_PROMPTING)
-        self.assertTrue(report.nodes.filter(block__block_type=ReportBlockType.HEADING).exists())
+        self.assertEqual(bootstrap_state(report), STATE_COLLECTING_PROMPTS)
+        self.assertEqual(report.nodes.count(), 0)
 
     def test_intake_page_exposes_quick_flow_assets(self):
         """Garante botão e script do fluxo rápido no template de intake."""
@@ -171,6 +176,40 @@ class ForensicBootstrapPhaseOneTests(TestCase):
             reverse("reports:forensic_bootstrap_analyze", kwargs={"pk": report.pk}),
         )
 
+    @patch(
+        "institution_ic_sp.forensic_report.views.forensic_bootstrap_api_views.analyze_case_metadata_from_documents"
+    )
+    def test_bootstrap_build_step_returns_block_html(self, mock_analyze):
+        """Garante montagem incremental com HTML parcial por passo."""
+        mock_analyze.return_value = CaseMetadata(
+            report_number="3",
+            report_year=2026,
+            exam_objective="Examinar.",
+            occurrence_report="BO-3",
+            police_district="1º DP",
+            designation_date=date(2026, 1, 15),
+            occurrence_at=datetime(2026, 1, 10, 14, 30),
+            examination_at=datetime(2026, 1, 16, 9, 0),
+        )
+        self.client.login(username="perito_bootstrap", password="senha-segura")
+        report = create_forensic_report_shell(author=self.user, examiner=self.examiner)
+        analyze_url = reverse("reports:forensic_bootstrap_analyze", kwargs={"pk": report.pk})
+        build_step_url = reverse("reports:forensic_bootstrap_build_step", kwargs={"pk": report.pk})
+
+        self.client.post(analyze_url, {"documents": self._pdf_upload()})
+
+        response = self.client.post(build_step_url, content_type="application/json", data="{}")
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertEqual(payload.get("step_id"), "main_title")
+        self.assertTrue(payload.get("blocks_html"))
+        self.assertIn("report-editor-block", payload["blocks_html"][0])
+        self.assertFalse(payload.get("done"))
+
+        report.refresh_from_db()
+        self.assertEqual(bootstrap_state(report), STATE_BUILDING)
+        self.assertEqual(report.nodes.count(), 1)
+
     def test_bootstrap_build_rejects_shell_without_analyze(self):
         """Garante que montagem exige análise prévia dos documentos."""
         self.client.login(username="perito_bootstrap", password="senha-segura")
@@ -185,7 +224,7 @@ class ForensicBootstrapPhaseOneTests(TestCase):
         "institution_ic_sp.forensic_report.views.forensic_bootstrap_api_views.analyze_case_metadata_from_documents"
     )
     def test_bootstrap_finalize_batch_skips_and_submits(self, mock_analyze):
-        """Garante finalização em lote com skip e resposta única ao servidor."""
+        """Garante finalização em lote antes da montagem com skip e resposta única."""
         mock_analyze.return_value = CaseMetadata(report_year=2026)
         self.client.login(username="perito_bootstrap", password="senha-segura")
         report = create_forensic_report_shell(author=self.user, examiner=self.examiner)
@@ -194,10 +233,9 @@ class ForensicBootstrapPhaseOneTests(TestCase):
         finalize_url = reverse("reports:forensic_bootstrap_finalize", kwargs={"pk": report.pk})
 
         self.client.post(analyze_url, {"documents": self._pdf_upload()})
-        self.client.post(build_url, content_type="application/json", data="{}")
 
         report.refresh_from_db()
-        self.assertEqual(bootstrap_state(report), STATE_PROMPTING)
+        self.assertEqual(bootstrap_state(report), STATE_COLLECTING_PROMPTS)
 
         response = self.client.post(
             finalize_url,
@@ -217,9 +255,14 @@ class ForensicBootstrapPhaseOneTests(TestCase):
         )
         self.assertEqual(response.status_code, 200)
         payload = response.json()
-        self.assertTrue(payload.get("reload"))
-        self.assertEqual(payload.get("state"), STATE_READY)
+        self.assertFalse(payload.get("reload"))
+        self.assertEqual(payload.get("state"), STATE_ANALYZED)
 
+        report.refresh_from_db()
+        self.assertEqual(bootstrap_state(report), STATE_ANALYZED)
+        self.assertEqual(report.nodes.count(), 0)
+
+        self.client.post(build_url, content_type="application/json", data="{}")
         report.refresh_from_db()
         self.assertEqual(bootstrap_state(report), STATE_READY)
         self.assertIn("15/2026", report.title)
@@ -237,7 +280,6 @@ class ForensicBootstrapPhaseOneTests(TestCase):
         finalize_url = reverse("reports:forensic_bootstrap_finalize", kwargs={"pk": report.pk})
 
         self.client.post(analyze_url, {"documents": self._pdf_upload()})
-        self.client.post(build_url, content_type="application/json", data="{}")
 
         response = self.client.post(
             finalize_url,
@@ -259,7 +301,6 @@ class ForensicBootstrapPhaseOneTests(TestCase):
         finalize_url = reverse("reports:forensic_bootstrap_finalize", kwargs={"pk": report.pk})
 
         self.client.post(analyze_url, {"documents": self._pdf_upload()})
-        self.client.post(build_url, content_type="application/json", data="{}")
 
         response = self.client.post(
             finalize_url,
@@ -278,6 +319,8 @@ class ForensicBootstrapPhaseOneTests(TestCase):
             content_type="application/json",
         )
         self.assertEqual(response.status_code, 200)
+
+        self.client.post(build_url, content_type="application/json", data="{}")
 
         report.refresh_from_db()
         self.assertIn("15/2026", report.title)

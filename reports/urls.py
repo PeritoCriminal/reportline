@@ -24,6 +24,7 @@ from reports.views.report_node_api_views import (
 from reports.views.report_page_layout_api_views import ReportPageLayoutView
 from institution_ic_sp.forensic_report.views.forensic_bootstrap_api_views import (
     ForensicBootstrapAnalyzeView,
+    ForensicBootstrapBuildStepView,
     ForensicBootstrapBuildView,
     ForensicBootstrapFinalizeView,
     ForensicBootstrapPromptView,
@@ -92,6 +93,11 @@ urlpatterns = [
         "<uuid:pk>/forensic-bootstrap/build/",
         ForensicBootstrapBuildView.as_view(),
         name="forensic_bootstrap_build",
+    ),
+    path(
+        "<uuid:pk>/forensic-bootstrap/build-step/",
+        ForensicBootstrapBuildStepView.as_view(),
+        name="forensic_bootstrap_build_step",
     ),
     path(
         "<uuid:pk>/forensic-bootstrap/status/",

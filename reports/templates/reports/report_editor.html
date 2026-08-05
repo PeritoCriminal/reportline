@@ -95,7 +95,7 @@
 <script src="{% versioned_static 'reports/js/report_text_link.js' %}" defer></script>
 <script src="{% versioned_static 'reports/js/report_page_band_text.js' %}" defer></script>
 <script src="{% versioned_static 'reports/js/report_institutional_layout.js' %}" defer></script>
-<script src="{% static 'institution_ic_sp/js/forensic_bootstrap_documents.js' %}" defer></script>
+<script src="{% versioned_static 'institution_ic_sp/js/forensic_bootstrap_documents.js' %}" defer></script>
 <script src="{% versioned_static 'reports/js/forensic_bootstrap_runner.js' %}" defer></script>
 <script src="{% versioned_static 'reports/js/forensic_bootstrap_prompts.js' %}" defer></script>
 <script src="{% versioned_static 'reports/js/report_page_header.js' %}" defer></script>
@@ -172,9 +172,6 @@
         }
         if (window.ReportLineForensicBootstrapRunner && window.REPORT_EDITOR_FORENSIC_BOOTSTRAP) {
             window.ReportLineForensicBootstrapRunner.init(window.REPORT_EDITOR_FORENSIC_BOOTSTRAP);
-        }
-        if (window.ReportLineForensicBootstrap && window.REPORT_EDITOR_FORENSIC_BOOTSTRAP) {
-            window.ReportLineForensicBootstrap.init(window.REPORT_EDITOR_FORENSIC_BOOTSTRAP);
         }
         if (window.ReportLineReportConfig && window.REPORT_EDITOR_CONFIG) {
             const configScript = document.getElementById("report-editor-initial-config");

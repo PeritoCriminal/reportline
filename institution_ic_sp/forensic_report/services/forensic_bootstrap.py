@@ -26,6 +26,7 @@ BOOTSTRAP_META_KEY = "bootstrap"
 
 STATE_SHELL_CREATED = "shell_created"
 STATE_ANALYZED = "analyzed"
+STATE_COLLECTING_PROMPTS = "collecting_prompts"
 STATE_BUILDING = "building"
 STATE_PROMPTING = "prompting"
 STATE_READY = "ready"
@@ -148,6 +149,21 @@ def metadata_from_bootstrap(page_layout: dict[str, Any] | None) -> CaseMetadata:
     return case_metadata_from_post(query)
 
 
+def save_bootstrap_after_analyze(report: Report, metadata: CaseMetadata) -> Report:
+    """Persiste metadados inferidos e abre coleta de prompts quando necessário."""
+    skipped = skipped_prompts_from_bootstrap(report.page_layout)
+    pending = compute_pending_prompts(metadata, skipped=skipped)
+    state = STATE_COLLECTING_PROMPTS if pending else STATE_ANALYZED
+    bootstrap = get_bootstrap_meta(report.page_layout) or empty_bootstrap_payload()
+    bootstrap["metadata"] = case_metadata_to_form_dict(metadata)
+    bootstrap["state"] = state
+    bootstrap["pending_prompts"] = pending
+    bootstrap["skipped_prompts"] = sorted(skipped)
+    report.page_layout = attach_bootstrap_meta(report.page_layout, bootstrap)
+    report.save(update_fields=["page_layout", "updated_at"])
+    return report
+
+
 def save_bootstrap_metadata(report: Report, metadata: CaseMetadata, *, state: str) -> Report:
     """Atualiza metadados e estado de bootstrap no laudo."""
     bootstrap = get_bootstrap_meta(report.page_layout) or empty_bootstrap_payload()
@@ -206,6 +222,23 @@ def resolve_bootstrap_state(metadata: CaseMetadata, *, skipped: set[str] | None 
     return STATE_READY
 
 
+def resolve_bootstrap_state_after_prompt_update(
+    report: Report,
+    metadata: CaseMetadata,
+    *,
+    skipped: set[str] | None = None,
+) -> str:
+    """Recalcula estado após resposta ou skip de prompt."""
+    skipped_set = skipped if skipped is not None else skipped_prompts_from_bootstrap(report.page_layout)
+    pending = compute_pending_prompts(metadata, skipped=skipped_set)
+    current = bootstrap_state(report)
+    if current == STATE_COLLECTING_PROMPTS:
+        return STATE_ANALYZED if not pending else STATE_COLLECTING_PROMPTS
+    if pending:
+        return STATE_PROMPTING
+    return STATE_READY
+
+
 def prompt_field_descriptor(field_name: str) -> dict[str, str] | None:
     """Retorna rótulo e tipo de input para prompt inline do campo."""
     config = PROMPT_FIELD_CONFIG.get(field_name)
@@ -236,7 +269,11 @@ def mark_prompt_skipped(report: Report, field_name: str) -> Report:
 
     metadata = metadata_from_bootstrap(report.page_layout)
     bootstrap["pending_prompts"] = compute_pending_prompts(metadata, skipped=skipped)
-    bootstrap["state"] = resolve_bootstrap_state(metadata, skipped=skipped)
+    bootstrap["state"] = resolve_bootstrap_state_after_prompt_update(
+        report,
+        metadata,
+        skipped=skipped,
+    )
     report.page_layout = attach_bootstrap_meta(report.page_layout, bootstrap)
     report.save(update_fields=["page_layout", "updated_at"])
     return report
@@ -251,7 +288,11 @@ def save_bootstrap_after_metadata_update(
     skipped = skipped_prompts_from_bootstrap(report.page_layout)
     bootstrap["metadata"] = case_metadata_to_form_dict(metadata)
     bootstrap["pending_prompts"] = compute_pending_prompts(metadata, skipped=skipped)
-    bootstrap["state"] = resolve_bootstrap_state(metadata, skipped=skipped)
+    bootstrap["state"] = resolve_bootstrap_state_after_prompt_update(
+        report,
+        metadata,
+        skipped=skipped,
+    )
     report.page_layout = attach_bootstrap_meta(report.page_layout, bootstrap)
     report.save(update_fields=["page_layout", "updated_at"])
     return report
@@ -279,19 +320,33 @@ def forensic_bootstrap_editor_config(report: Report) -> dict[str, Any] | None:
         "reportId": str(report.pk),
         "analyzeUrl": reverse("reports:forensic_bootstrap_analyze", kwargs={"pk": report.pk}),
         "buildUrl": reverse("reports:forensic_bootstrap_build", kwargs={"pk": report.pk}),
+        "buildStepUrl": reverse("reports:forensic_bootstrap_build_step", kwargs={"pk": report.pk}),
         "statusUrl": reverse("reports:forensic_bootstrap_status", kwargs={"pk": report.pk}),
-    }
-
-    if state == STATE_PROMPTING:
-        metadata = metadata_from_bootstrap(report.page_layout)
-        config["finalizeUrl"] = reverse(
+        "finalizeUrl": reverse(
             "reports:forensic_bootstrap_finalize",
             kwargs={"pk": report.pk},
-        )
-        config["metadata"] = case_metadata_to_form_dict(metadata)
-        config["pendingPrompts"] = pending_prompt_catalog(report.page_layout)
+        ),
+    }
+
+    if state in (STATE_COLLECTING_PROMPTS, STATE_PROMPTING):
+        config.update(forensic_bootstrap_prompt_config(report))
 
     return config
+
+
+def forensic_bootstrap_prompt_config(report: Report) -> dict[str, Any]:
+    """Monta configuração JSON dos prompts inline após montagem do laudo."""
+    from django.urls import reverse
+
+    metadata = metadata_from_bootstrap(report.page_layout)
+    return {
+        "finalizeUrl": reverse(
+            "reports:forensic_bootstrap_finalize",
+            kwargs={"pk": report.pk},
+        ),
+        "metadata": case_metadata_to_form_dict(metadata),
+        "pendingPrompts": pending_prompt_catalog(report.page_layout),
+    }
 
 
 def pending_prompt_catalog(page_layout: dict[str, Any] | None) -> list[dict[str, str]]:
