@@ -16,6 +16,14 @@ from institution_ic_sp.forensic_report.registry import (
     get_metadata_inference_callable,
     get_workflow,
 )
+from institution_ic_sp.forensic_report.services.forensic_bootstrap_field_coverage import (
+    build_field_coverage_from_ai_payload,
+    merge_field_coverage_with_metadata,
+)
+from institution_ic_sp.forensic_report.workflows.generic.ai.services.metadata_inference import (
+    infer_case_metadata_ai_payload,
+)
+from institution_ic_sp.forensic_report.common.ai.structured_output import case_metadata_from_ai_payload
 
 
 def infer_case_metadata_from_documents(
@@ -54,3 +62,24 @@ def analyze_case_metadata_from_documents(
         workflow_slug=workflow_slug,
     )
     return merge_case_metadata(manual, inferred)
+
+
+def analyze_case_metadata_with_coverage(
+    *,
+    manual: CaseMetadata,
+    uploaded_files: list[UploadedFile] | None = None,
+    workflow_slug: str = GENERIC_WORKFLOW.slug,
+) -> tuple[CaseMetadata, dict[str, str]]:
+    """
+    Combina intake parcial com inferência documental e mapa de cobertura da IA.
+
+    A cobertura orienta prompts inline (datas vazias, data sem hora, etc.).
+    """
+    payload = infer_case_metadata_ai_payload(
+        uploaded_files=uploaded_files,
+        supplementary_prompt=manual.supplementary_prompt,
+    )
+    inferred = case_metadata_from_ai_payload(payload) if payload else CaseMetadata()
+    merged = merge_case_metadata(manual, inferred)
+    coverage = build_field_coverage_from_ai_payload(payload)
+    return merged, merge_field_coverage_with_metadata(merged, coverage)

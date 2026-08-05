@@ -14,6 +14,7 @@ from django.db import transaction
 
 from institution_ic_sp.forensic_report.common.services.case_metadata import (
     CaseMetadata,
+    UPPERCASE_TEXT_FIELDS,
     normalize_case_metadata,
     normalize_text_field,
 )
@@ -24,6 +25,12 @@ from institution_ic_sp.forensic_report.common.services.case_metadata_serializati
 from institution_ic_sp.forensic_report.services.forensic_bootstrap import (
     attach_bootstrap_meta,
     get_bootstrap_meta,
+)
+from institution_ic_sp.forensic_report.services.forensic_bootstrap_field_coverage import (
+    ALL_PROMPT_FIELD_NAMES,
+    DATE_PROMPT_FIELD_NAMES,
+    DATETIME_PROMPT_FIELD_NAMES,
+    TEXT_PROMPT_FIELD_NAMES,
 )
 from institution_ic_sp.forensic_report.services.forensic_report_body_builder import (
     update_header_report_number,
@@ -57,30 +64,24 @@ def replace_metadata(metadata: CaseMetadata, **changes) -> CaseMetadata:
 
 def apply_prompt_field_value(metadata: CaseMetadata, field_name: str, raw_value: str) -> CaseMetadata:
     """Aplica valor informado pelo perito a um campo de metadados."""
+    if field_name not in ALL_PROMPT_FIELD_NAMES:
+        raise ValidationError("Campo de prompt não suportado.")
+
     cleaned = (raw_value or "").strip()
-    if field_name == "report_number":
+    if field_name in DATE_PROMPT_FIELD_NAMES:
         return normalize_case_metadata(
-            replace_metadata(
-                metadata,
-                report_number=normalize_text_field("report_number", cleaned),
-            )
+            replace_metadata(metadata, designation_date=_parse_date(cleaned))
         )
-    if field_name == "police_district":
-        return normalize_case_metadata(replace_metadata(metadata, police_district=cleaned))
-    if field_name == "occurrence_report":
+    if field_name in DATETIME_PROMPT_FIELD_NAMES:
         return normalize_case_metadata(
-            replace_metadata(
-                metadata,
-                occurrence_report=normalize_text_field("occurrence_report", cleaned),
-            )
+            replace_metadata(metadata, **{field_name: _parse_datetime(cleaned)})
         )
-    if field_name == "designation_date":
-        return normalize_case_metadata(replace_metadata(metadata, designation_date=_parse_date(cleaned)))
-    if field_name == "occurrence_at":
-        return normalize_case_metadata(replace_metadata(metadata, occurrence_at=_parse_datetime(cleaned)))
-    if field_name == "examination_at":
-        return normalize_case_metadata(replace_metadata(metadata, examination_at=_parse_datetime(cleaned)))
-    raise ValidationError("Campo de prompt não suportado.")
+    normalized = (
+        normalize_text_field(field_name, cleaned)
+        if field_name in UPPERCASE_TEXT_FIELDS
+        else cleaned
+    )
+    return normalize_case_metadata(replace_metadata(metadata, **{field_name: normalized}))
 
 
 def validate_prompt_submit_value(field_name: str, raw_value: str) -> None:
@@ -152,7 +153,19 @@ def sync_forensic_metadata_fields(
                 line_spacing=ReportBlockLineSpacing.COMPACT,
             )
 
-    requisition_fields = {"police_district", "occurrence_report", "occurrence_at", "requisition_at"}
+    if "exam_objective" in changed_fields:
+        objective_body = _get_node(report, "objective_body")
+        if objective_body is not None:
+            update_node_block(objective_body, content={"text": metadata.exam_objective.strip()})
+
+    requisition_fields = {
+        "requesting_authority",
+        "police_district",
+        "occurrence_report",
+        "police_inquiry",
+        "occurrence_at",
+        "requisition_at",
+    }
     if requisition_fields & changed_fields:
         _sync_list_section(
             report,
@@ -161,7 +174,14 @@ def sync_forensic_metadata_fields(
             items=metadata.requisition_list_items(),
         )
 
-    if "examination_at" in changed_fields:
+    attendance_fields = {
+        "attendance_protocol",
+        "examination_at",
+        "photography",
+        "scanning_3d",
+        "sketch",
+    }
+    if attendance_fields & changed_fields:
         _sync_list_section(
             report,
             heading_key="attendance_heading",

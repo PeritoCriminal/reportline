@@ -14,14 +14,17 @@ from django.db import transaction
 from institution_ic_sp.forensic_report.common.services.case_metadata_serialization import (
     case_metadata_to_form_dict,
 )
+from institution_ic_sp.forensic_report.services.forensic_bootstrap_field_coverage import (
+    ALL_PROMPT_FIELD_NAMES,
+)
 from institution_ic_sp.forensic_report.services.forensic_bootstrap import (
-    CRITICAL_PROMPT_FIELDS,
     STATE_ANALYZED,
     STATE_COLLECTING_PROMPTS,
     STATE_PROMPTING,
     attach_bootstrap_meta,
     bootstrap_state,
     compute_pending_prompts,
+    field_coverage_from_bootstrap,
     get_bootstrap_meta,
     metadata_from_bootstrap,
     resolve_bootstrap_state,
@@ -35,7 +38,7 @@ from institution_ic_sp.forensic_report.services.forensic_report_metadata_sync im
 from profiles.models import ForensicExaminerSP
 from reports.models import Report
 
-_ALLOWED_FIELDS = {name for name, _label in CRITICAL_PROMPT_FIELDS}
+_ALLOWED_FIELDS = ALL_PROMPT_FIELD_NAMES
 
 
 @transaction.atomic
@@ -103,9 +106,14 @@ def finalize_bootstrap_prompts(
         report.refresh_from_db()
 
     bootstrap = get_bootstrap_meta(report.page_layout) or {}
+    coverage = field_coverage_from_bootstrap(report.page_layout)
     bootstrap["skipped_prompts"] = sorted(skipped_set)
     bootstrap["metadata"] = case_metadata_to_form_dict(metadata)
-    bootstrap["pending_prompts"] = compute_pending_prompts(metadata, skipped=skipped_set)
+    bootstrap["pending_prompts"] = compute_pending_prompts(
+        metadata,
+        skipped=skipped_set,
+        field_coverage=coverage,
+    )
     if pre_build:
         bootstrap["state"] = STATE_ANALYZED
     else:

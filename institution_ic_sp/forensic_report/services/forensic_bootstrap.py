@@ -19,6 +19,13 @@ from institution_ic_sp.forensic_report.common.services.case_metadata_serializati
     case_metadata_to_form_dict,
 )
 from institution_ic_sp.forensic_report.registry import GENERIC_WORKFLOW
+from institution_ic_sp.forensic_report.services.forensic_bootstrap_field_coverage import (
+    ALL_PROMPT_FIELD_NAMES,
+    DATETIME_PROMPT_FIELD_NAMES,
+    default_prompt_value,
+    is_prompt_field_value_empty,
+    merge_field_coverage_with_metadata,
+)
 from reports.models import Report
 from reports.services.report_kind import REPORTLINE_META_KEY, is_forensic_report
 
@@ -33,11 +40,19 @@ STATE_READY = "ready"
 
 CRITICAL_PROMPT_FIELDS: tuple[tuple[str, str], ...] = (
     ("report_number", "Número do laudo"),
+    ("exam_objective", "Objetivo do exame"),
+    ("requesting_authority", "Autoridade requisitante"),
     ("police_district", "Distrito policial / Delegacia"),
     ("occurrence_report", "Boletim de ocorrência"),
+    ("police_inquiry", "Inquérito policial"),
     ("designation_date", "Data da designação"),
     ("occurrence_at", "Data e hora da ocorrência"),
-    ("examination_at", "Data e hora do atendimento"),
+    ("requisition_at", "Data e hora da requisição"),
+    ("attendance_protocol", "Número do protocolo"),
+    ("examination_at", "Data e hora do exame"),
+    ("photography", "Fotógrafo"),
+    ("scanning_3d", "Escaneamento 3D"),
+    ("sketch", "Croqui"),
 )
 
 PROMPT_FIELD_CONFIG: dict[str, dict[str, str]] = {
@@ -46,6 +61,18 @@ PROMPT_FIELD_CONFIG: dict[str, dict[str, str]] = {
         "input_type": "text",
         "help_text": "Informe a numeração sequencial do laudo, sem o ano. Se pular, o título permanecerá genérico.",
         "placeholder": "Ex.: 42",
+    },
+    "exam_objective": {
+        "label": "Objetivo do exame",
+        "input_type": "text",
+        "help_text": "Descreva o objetivo pericial identificado nos documentos.",
+        "placeholder": "",
+    },
+    "requesting_authority": {
+        "label": "Autoridade requisitante",
+        "input_type": "text",
+        "help_text": "Delegado ou autoridade que requisitou o exame.",
+        "placeholder": "",
     },
     "police_district": {
         "label": "Distrito policial / Delegacia",
@@ -59,6 +86,12 @@ PROMPT_FIELD_CONFIG: dict[str, dict[str, str]] = {
         "help_text": "Número ou referência do BO, se constar nos documentos.",
         "placeholder": "Ex.: BO-12345/2026",
     },
+    "police_inquiry": {
+        "label": "Inquérito policial",
+        "input_type": "text",
+        "help_text": "Número ou referência do IP, se constar nos documentos.",
+        "placeholder": "Ex.: IP-12345/2026",
+    },
     "designation_date": {
         "label": "Data da designação",
         "input_type": "date",
@@ -71,10 +104,40 @@ PROMPT_FIELD_CONFIG: dict[str, dict[str, str]] = {
         "help_text": "Momento da ocorrência, quando informado na requisição.",
         "placeholder": "",
     },
+    "requisition_at": {
+        "label": "Data e hora da requisição",
+        "input_type": "datetime-local",
+        "help_text": "Momento da requisição pericial nos documentos.",
+        "placeholder": "",
+    },
+    "attendance_protocol": {
+        "label": "Número do protocolo",
+        "input_type": "text",
+        "help_text": "Protocolo de atendimento pericial, se houver.",
+        "placeholder": "",
+    },
     "examination_at": {
-        "label": "Data e hora do atendimento",
+        "label": "Data e hora do exame",
         "input_type": "datetime-local",
         "help_text": "Momento do exame pericial no local ou na unidade.",
+        "placeholder": "",
+    },
+    "photography": {
+        "label": "Fotógrafo",
+        "input_type": "text",
+        "help_text": "Profissional responsável pela fotografia pericial.",
+        "placeholder": "",
+    },
+    "scanning_3d": {
+        "label": "Escaneamento 3D",
+        "input_type": "text",
+        "help_text": "Responsável ou referência do escaneamento 3D.",
+        "placeholder": "",
+    },
+    "sketch": {
+        "label": "Croqui",
+        "input_type": "text",
+        "help_text": "Responsável ou referência do croqui pericial.",
         "placeholder": "",
     },
 }
@@ -149,16 +212,32 @@ def metadata_from_bootstrap(page_layout: dict[str, Any] | None) -> CaseMetadata:
     return case_metadata_from_post(query)
 
 
-def save_bootstrap_after_analyze(report: Report, metadata: CaseMetadata) -> Report:
+def field_coverage_from_bootstrap(page_layout: dict[str, Any] | None) -> dict[str, str]:
+    """Retorna mapa de cobertura inferida pela IA persistido no bootstrap."""
+    bootstrap = get_bootstrap_meta(page_layout) or {}
+    raw = bootstrap.get("field_coverage", {})
+    if not isinstance(raw, dict):
+        return {}
+    return {str(key): str(value) for key, value in raw.items()}
+
+
+def save_bootstrap_after_analyze(
+    report: Report,
+    metadata: CaseMetadata,
+    *,
+    field_coverage: dict[str, str] | None = None,
+) -> Report:
     """Persiste metadados inferidos e abre coleta de prompts quando necessário."""
     skipped = skipped_prompts_from_bootstrap(report.page_layout)
-    pending = compute_pending_prompts(metadata, skipped=skipped)
+    coverage = field_coverage or {}
+    pending = compute_pending_prompts(metadata, skipped=skipped, field_coverage=coverage)
     state = STATE_COLLECTING_PROMPTS if pending else STATE_ANALYZED
     bootstrap = get_bootstrap_meta(report.page_layout) or empty_bootstrap_payload()
     bootstrap["metadata"] = case_metadata_to_form_dict(metadata)
     bootstrap["state"] = state
     bootstrap["pending_prompts"] = pending
     bootstrap["skipped_prompts"] = sorted(skipped)
+    bootstrap["field_coverage"] = coverage
     report.page_layout = attach_bootstrap_meta(report.page_layout, bootstrap)
     report.save(update_fields=["page_layout", "updated_at"])
     return report
@@ -189,20 +268,23 @@ def save_bootstrap_nodes(report: Report, nodes: dict[str, str], *, state: str) -
 def compute_pending_prompts(
     metadata: CaseMetadata,
     skipped: set[str] | None = None,
+    *,
+    field_coverage: dict[str, str] | None = None,
 ) -> list[str]:
-    """Lista campos críticos ainda vazios após inferência ou resposta do perito."""
+    """Lista campos inferidos pela IA ainda vazios após análise ou resposta do perito."""
     skipped_fields = skipped or set()
+    coverage = field_coverage or {}
     pending: list[str] = []
     for field_name, _label in CRITICAL_PROMPT_FIELDS:
+        if field_name not in ALL_PROMPT_FIELD_NAMES:
+            continue
         if field_name in skipped_fields:
             continue
-        value = getattr(metadata, field_name, "")
-        if isinstance(value, str):
-            if not value.strip():
-                pending.append(field_name)
+        if not is_prompt_field_value_empty(metadata, field_name):
             continue
-        if value in (None, ""):
-            pending.append(field_name)
+        if field_name in DATETIME_PROMPT_FIELD_NAMES and coverage.get(field_name) == "date_only":
+            continue
+        pending.append(field_name)
     return pending
 
 
@@ -230,7 +312,12 @@ def resolve_bootstrap_state_after_prompt_update(
 ) -> str:
     """Recalcula estado após resposta ou skip de prompt."""
     skipped_set = skipped if skipped is not None else skipped_prompts_from_bootstrap(report.page_layout)
-    pending = compute_pending_prompts(metadata, skipped=skipped_set)
+    coverage = field_coverage_from_bootstrap(report.page_layout)
+    pending = compute_pending_prompts(
+        metadata,
+        skipped=skipped_set,
+        field_coverage=coverage,
+    )
     current = bootstrap_state(report)
     if current == STATE_COLLECTING_PROMPTS:
         return STATE_ANALYZED if not pending else STATE_COLLECTING_PROMPTS
@@ -240,11 +327,15 @@ def resolve_bootstrap_state_after_prompt_update(
 
 
 def prompt_field_descriptor(field_name: str) -> dict[str, str] | None:
-    """Retorna rótulo e tipo de input para prompt inline do campo."""
+    """Retorna rótulo, tipo de input e valor padrão para prompt inline do campo."""
     config = PROMPT_FIELD_CONFIG.get(field_name)
     if not config:
         return None
-    return dict(config)
+    descriptor = dict(config)
+    default_value = default_prompt_value(field_name)
+    if default_value:
+        descriptor["default_value"] = default_value
+    return descriptor
 
 
 def next_pending_prompt(page_layout: dict[str, Any] | None) -> dict[str, str] | None:
@@ -268,7 +359,12 @@ def mark_prompt_skipped(report: Report, field_name: str) -> Report:
     bootstrap["skipped_prompts"] = sorted(skipped)
 
     metadata = metadata_from_bootstrap(report.page_layout)
-    bootstrap["pending_prompts"] = compute_pending_prompts(metadata, skipped=skipped)
+    coverage = field_coverage_from_bootstrap(report.page_layout)
+    bootstrap["pending_prompts"] = compute_pending_prompts(
+        metadata,
+        skipped=skipped,
+        field_coverage=coverage,
+    )
     bootstrap["state"] = resolve_bootstrap_state_after_prompt_update(
         report,
         metadata,
@@ -286,8 +382,13 @@ def save_bootstrap_after_metadata_update(
     """Persiste metadados atualizados e recalcula prompts/estado."""
     bootstrap = get_bootstrap_meta(report.page_layout) or empty_bootstrap_payload()
     skipped = skipped_prompts_from_bootstrap(report.page_layout)
+    coverage = field_coverage_from_bootstrap(report.page_layout)
     bootstrap["metadata"] = case_metadata_to_form_dict(metadata)
-    bootstrap["pending_prompts"] = compute_pending_prompts(metadata, skipped=skipped)
+    bootstrap["pending_prompts"] = compute_pending_prompts(
+        metadata,
+        skipped=skipped,
+        field_coverage=coverage,
+    )
     bootstrap["state"] = resolve_bootstrap_state_after_prompt_update(
         report,
         metadata,

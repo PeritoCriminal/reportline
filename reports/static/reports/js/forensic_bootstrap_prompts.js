@@ -10,7 +10,12 @@
 
     const STATE_COLLECTING_PROMPTS = "collecting_prompts";
     const STATE_PROMPTING = "prompting";
-    const UPPERCASE_TEXT_FIELDS = new Set(["report_number", "occurrence_report"]);
+    const UPPERCASE_TEXT_FIELDS = new Set([
+        "report_number",
+        "occurrence_report",
+        "police_inquiry",
+        "attendance_protocol",
+    ]);
 
     let config = null;
     let shell = null;
@@ -131,13 +136,28 @@
         }
         if (input) {
             input.type = prompt.input_type || "text";
-            input.value = "";
+            const existingValue = (localMetadata[prompt.field] || "").trim();
+            if (prompt.default_value && !existingValue) {
+                input.value = prompt.default_value;
+            } else {
+                input.value = existingValue;
+            }
             input.placeholder = prompt.placeholder || "";
             input.classList.remove("is-invalid");
-            input.focus();
         }
         showError("");
         updateProgress();
+        setBusy(false);
+        if (input) {
+            input.focus();
+            if (input.type === "date" || input.type === "datetime-local") {
+                try {
+                    input.setSelectionRange(0, 0);
+                } catch (_error) {
+                    /* inputs nativos de data/hora não suportam seleção programática */
+                }
+            }
+        }
         document.body.classList.add("forensic-bootstrap-prompt-active");
     }
 
@@ -145,7 +165,6 @@
         queueIndex += 1;
         if (queueIndex < promptQueue.length) {
             applyPromptDescriptor(promptQueue[queueIndex]);
-            setBusy(false);
             return;
         }
         finalizeBatch().catch(console.error);

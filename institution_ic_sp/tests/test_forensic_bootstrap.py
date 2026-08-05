@@ -32,8 +32,38 @@ from reports.services.report_kind import is_forensic_report
 User = get_user_model()
 
 
+ANALYZE_PATCH = (
+    "institution_ic_sp.forensic_report.views.forensic_bootstrap_api_views"
+    ".analyze_case_metadata_with_coverage"
+)
+
+
 class ForensicBootstrapPhaseOneTests(TestCase):
     """Testes da casca, análise e montagem do laudo pericial."""
+
+    @staticmethod
+    def _prompt_skips_without_report_number() -> list[str]:
+        """Lista campos puláveis exceto número do laudo nos testes de finalize."""
+        return [
+            "exam_objective",
+            "requesting_authority",
+            "police_district",
+            "occurrence_report",
+            "police_inquiry",
+            "designation_date",
+            "occurrence_at",
+            "requisition_at",
+            "attendance_protocol",
+            "examination_at",
+            "photography",
+            "scanning_3d",
+            "sketch",
+        ]
+
+    @staticmethod
+    def _analyze_return(metadata: CaseMetadata) -> tuple[CaseMetadata, dict[str, str]]:
+        """Empacota metadados simulados como retorno da análise com cobertura."""
+        return metadata, {}
 
     @classmethod
     def setUpTestData(cls):
@@ -92,20 +122,27 @@ class ForensicBootstrapPhaseOneTests(TestCase):
             reverse("reports:forensic_bootstrap_build", kwargs={"pk": report.pk}),
         )
 
-    @patch(
-        "institution_ic_sp.forensic_report.views.forensic_bootstrap_api_views.analyze_case_metadata_from_documents"
-    )
+    @patch(ANALYZE_PATCH)
     def test_bootstrap_build_populates_standard_body(self, mock_analyze):
         """Garante montagem do corpo padronizado após análise."""
-        mock_analyze.return_value = CaseMetadata(
-            report_number="9",
-            report_year=2026,
-            exam_objective="Examinar local.",
-            occurrence_report="BO-9",
-            police_district="1º DP",
-            designation_date=date(2026, 1, 15),
-            occurrence_at=datetime(2026, 1, 10, 14, 30),
-            examination_at=datetime(2026, 1, 16, 9, 0),
+        mock_analyze.return_value = self._analyze_return(
+            CaseMetadata(
+                report_number="9",
+                report_year=2026,
+                exam_objective="Examinar local.",
+                requesting_authority="Dr. Silva",
+                occurrence_report="BO-9",
+                police_inquiry="IP-9",
+                police_district="1º DP",
+                designation_date=date(2026, 1, 15),
+                occurrence_at=datetime(2026, 1, 10, 14, 30),
+                requisition_at=datetime(2026, 1, 11, 10, 0),
+                attendance_protocol="PROT-9",
+                examination_at=datetime(2026, 1, 16, 9, 0),
+                photography="N/I",
+                scanning_3d="N/I",
+                sketch="N/I",
+            )
         )
         self.client.login(username="perito_bootstrap", password="senha-segura")
         report = create_forensic_report_shell(
@@ -131,12 +168,10 @@ class ForensicBootstrapPhaseOneTests(TestCase):
         self.assertTrue(report.nodes.filter(block__block_type=ReportBlockType.HEADING).exists())
         self.assertTrue(report.nodes.filter(block__block_type=ReportBlockType.PARAGRAPH).exists())
 
-    @patch(
-        "institution_ic_sp.forensic_report.views.forensic_bootstrap_api_views.analyze_case_metadata_from_documents"
-    )
+    @patch(ANALYZE_PATCH)
     def test_bootstrap_analyze_enters_collecting_prompts_when_fields_missing(self, mock_analyze):
         """Garante coleta de prompts após análise quando campos críticos permanecem vazios."""
-        mock_analyze.return_value = CaseMetadata(report_year=2026)
+        mock_analyze.return_value = self._analyze_return(CaseMetadata(report_year=2026))
         self.client.login(username="perito_bootstrap", password="senha-segura")
         report = create_forensic_report_shell(author=self.user, examiner=self.examiner)
         analyze_url = reverse("reports:forensic_bootstrap_analyze", kwargs={"pk": report.pk})
@@ -176,20 +211,27 @@ class ForensicBootstrapPhaseOneTests(TestCase):
             reverse("reports:forensic_bootstrap_analyze", kwargs={"pk": report.pk}),
         )
 
-    @patch(
-        "institution_ic_sp.forensic_report.views.forensic_bootstrap_api_views.analyze_case_metadata_from_documents"
-    )
+    @patch(ANALYZE_PATCH)
     def test_bootstrap_build_step_returns_block_html(self, mock_analyze):
         """Garante montagem incremental com HTML parcial por passo."""
-        mock_analyze.return_value = CaseMetadata(
-            report_number="3",
-            report_year=2026,
-            exam_objective="Examinar.",
-            occurrence_report="BO-3",
-            police_district="1º DP",
-            designation_date=date(2026, 1, 15),
-            occurrence_at=datetime(2026, 1, 10, 14, 30),
-            examination_at=datetime(2026, 1, 16, 9, 0),
+        mock_analyze.return_value = self._analyze_return(
+            CaseMetadata(
+                report_number="3",
+                report_year=2026,
+                exam_objective="Examinar.",
+                requesting_authority="Dr. Silva",
+                occurrence_report="BO-3",
+                police_inquiry="IP-3",
+                police_district="1º DP",
+                designation_date=date(2026, 1, 15),
+                occurrence_at=datetime(2026, 1, 10, 14, 30),
+                requisition_at=datetime(2026, 1, 11, 9, 0),
+                attendance_protocol="PROT-3",
+                examination_at=datetime(2026, 1, 16, 9, 0),
+                photography="N/I",
+                scanning_3d="N/I",
+                sketch="N/I",
+            )
         )
         self.client.login(username="perito_bootstrap", password="senha-segura")
         report = create_forensic_report_shell(author=self.user, examiner=self.examiner)
@@ -220,12 +262,10 @@ class ForensicBootstrapPhaseOneTests(TestCase):
         self.assertEqual(response.status_code, 400)
         self.assertEqual(bootstrap_state(report), STATE_SHELL_CREATED)
 
-    @patch(
-        "institution_ic_sp.forensic_report.views.forensic_bootstrap_api_views.analyze_case_metadata_from_documents"
-    )
+    @patch(ANALYZE_PATCH)
     def test_bootstrap_finalize_batch_skips_and_submits(self, mock_analyze):
         """Garante finalização em lote antes da montagem com skip e resposta única."""
-        mock_analyze.return_value = CaseMetadata(report_year=2026)
+        mock_analyze.return_value = self._analyze_return(CaseMetadata(report_year=2026))
         self.client.login(username="perito_bootstrap", password="senha-segura")
         report = create_forensic_report_shell(author=self.user, examiner=self.examiner)
         analyze_url = reverse("reports:forensic_bootstrap_analyze", kwargs={"pk": report.pk})
@@ -242,13 +282,7 @@ class ForensicBootstrapPhaseOneTests(TestCase):
             data=json.dumps(
                 {
                     "answers": {"report_number": "15"},
-                    "skipped": [
-                        "police_district",
-                        "occurrence_report",
-                        "designation_date",
-                        "occurrence_at",
-                        "examination_at",
-                    ],
+                    "skipped": self._prompt_skips_without_report_number(),
                 }
             ),
             content_type="application/json",
@@ -267,12 +301,10 @@ class ForensicBootstrapPhaseOneTests(TestCase):
         self.assertEqual(bootstrap_state(report), STATE_READY)
         self.assertIn("15/2026", report.title)
 
-    @patch(
-        "institution_ic_sp.forensic_report.views.forensic_bootstrap_api_views.analyze_case_metadata_from_documents"
-    )
+    @patch(ANALYZE_PATCH)
     def test_bootstrap_finalize_rejects_incomplete_batch(self, mock_analyze):
         """Garante rejeição quando lote não cobre todos os prompts pendentes."""
-        mock_analyze.return_value = CaseMetadata(report_year=2026)
+        mock_analyze.return_value = self._analyze_return(CaseMetadata(report_year=2026))
         self.client.login(username="perito_bootstrap", password="senha-segura")
         report = create_forensic_report_shell(author=self.user, examiner=self.examiner)
         analyze_url = reverse("reports:forensic_bootstrap_analyze", kwargs={"pk": report.pk})
@@ -288,12 +320,10 @@ class ForensicBootstrapPhaseOneTests(TestCase):
         )
         self.assertEqual(response.status_code, 400)
 
-    @patch(
-        "institution_ic_sp.forensic_report.views.forensic_bootstrap_api_views.analyze_case_metadata_from_documents"
-    )
+    @patch(ANALYZE_PATCH)
     def test_bootstrap_prompt_submit_updates_report_number(self, mock_analyze):
         """Garante atualização do título ao informar número do laudo no prompt."""
-        mock_analyze.return_value = CaseMetadata(report_year=2026)
+        mock_analyze.return_value = self._analyze_return(CaseMetadata(report_year=2026))
         self.client.login(username="perito_bootstrap", password="senha-segura")
         report = create_forensic_report_shell(author=self.user, examiner=self.examiner)
         analyze_url = reverse("reports:forensic_bootstrap_analyze", kwargs={"pk": report.pk})
@@ -307,13 +337,7 @@ class ForensicBootstrapPhaseOneTests(TestCase):
             data=json.dumps(
                 {
                     "answers": {"report_number": "15"},
-                    "skipped": [
-                        "police_district",
-                        "occurrence_report",
-                        "designation_date",
-                        "occurrence_at",
-                        "examination_at",
-                    ],
+                    "skipped": self._prompt_skips_without_report_number(),
                 }
             ),
             content_type="application/json",

@@ -15,12 +15,15 @@ from institution_ic_sp.forensic_report.common.ai.client import is_ai_configured
 from institution_ic_sp.forensic_report.common.ai.document_text import extract_text_from_uploads
 from institution_ic_sp.forensic_report.common.services.case_metadata import normalize_case_metadata
 from institution_ic_sp.forensic_report.common.services.case_metadata_extraction import (
-    analyze_case_metadata_from_documents,
+    analyze_case_metadata_with_coverage,
 )
 from institution_ic_sp.forensic_report.common.services.case_metadata_serialization import (
     case_metadata_to_form_dict,
 )
 from institution_ic_sp.forensic_report.mixins import ForensicExaminerSPRequiredMixin
+from institution_ic_sp.forensic_report.services.forensic_bootstrap_field_coverage import (
+    ALL_PROMPT_FIELD_NAMES,
+)
 from institution_ic_sp.forensic_report.services.forensic_bootstrap import (
     CRITICAL_PROMPT_FIELDS,
     STATE_ANALYZED,
@@ -48,6 +51,9 @@ from institution_ic_sp.forensic_report.services.forensic_report_body_incremental
     BUILD_STEP_IDS,
     BUILD_STEP_LABELS,
     advance_forensic_body_build_step,
+    count_completed_interactive_steps,
+    count_interactive_build_steps,
+    is_interactive_build_step,
 )
 from institution_ic_sp.forensic_report.services.forensic_report_metadata_sync import (
     apply_prompt_field_value,
@@ -110,11 +116,11 @@ class ForensicBootstrapAnalyzeView(ForensicReportAuthorMixin, View):
         if not manual.examiner.strip() and examiner_name:
             manual = normalize_case_metadata(replace(manual, examiner=examiner_name))
 
-        merged = analyze_case_metadata_from_documents(
+        merged, field_coverage = analyze_case_metadata_with_coverage(
             manual=manual,
             uploaded_files=uploaded_files,
         )
-        save_bootstrap_after_analyze(report, merged)
+        save_bootstrap_after_analyze(report, merged, field_coverage=field_coverage)
 
         warnings: list[str] = []
         try:
@@ -136,7 +142,10 @@ class ForensicBootstrapAnalyzeView(ForensicReportAuthorMixin, View):
         response: dict[str, object] = {
             "state": current_state,
             "metadata": case_metadata_to_form_dict(merged),
-            "pending_prompts": compute_pending_prompts(merged),
+            "pending_prompts": compute_pending_prompts(
+                merged,
+                field_coverage=field_coverage,
+            ),
             "warnings": warnings,
         }
         if current_state == STATE_COLLECTING_PROMPTS:
@@ -230,13 +239,17 @@ class ForensicBootstrapBuildStepView(ForensicReportAuthorMixin, View):
         progress = bootstrap.get("build_progress") if isinstance(bootstrap.get("build_progress"), dict) else {}
         step_index = progress.get("step_index", len(BUILD_STEP_IDS) if done else 0)
 
+        interactive_total = count_interactive_build_steps(metadata)
+        interactive_index = count_completed_interactive_steps(metadata, step_index)
+
         response = {
             "state": final_state,
             "done": done,
             "step_id": step_id,
             "step_label": BUILD_STEP_LABELS.get(step_id or "", "Montando laudo…"),
-            "step_index": step_index,
-            "total_steps": len(BUILD_STEP_IDS),
+            "step_index": interactive_index,
+            "total_steps": interactive_total,
+            "animated": is_interactive_build_step(step_id),
             "blocks_html": [
                 render_editable_block_html(node, request) for node in created_nodes
             ],
@@ -271,7 +284,7 @@ class ForensicBootstrapPromptView(ForensicReportAuthorMixin, View):
 
         field_name = str(payload.get("field", "")).strip()
         action = str(payload.get("action", "")).strip().lower()
-        allowed_fields = {name for name, _label in CRITICAL_PROMPT_FIELDS}
+        allowed_fields = ALL_PROMPT_FIELD_NAMES
         if field_name not in allowed_fields:
             return JsonResponse({"errors": ["Campo de prompt inválido."]}, status=400)
         if action not in {"submit", "skip"}:

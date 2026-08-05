@@ -54,3 +54,37 @@ def infer_case_metadata(
         return CaseMetadata()
 
     return case_metadata_from_ai_payload(payload)
+
+
+def infer_case_metadata_ai_payload(
+    *,
+    uploaded_files: list[UploadedFile] | None = None,
+    supplementary_prompt: str = "",
+) -> dict | None:
+    """
+    Retorna JSON bruto inferido pela IA ou ``None`` quando indisponível.
+
+    Usado para classificar cobertura parcial de datas e horas no bootstrap.
+    """
+    document_excerpts = extract_text_from_uploads(uploaded_files)
+    if not document_excerpts:
+        return None
+
+    system_prompt = load_prompt_markdown(
+        workflow_slug=GENERIC_WORKFLOW.slug,
+        task="metadata_extraction",
+        name="system",
+    )
+    user_template = load_prompt_markdown(
+        workflow_slug=GENERIC_WORKFLOW.slug,
+        task="metadata_extraction",
+        name="user",
+    )
+    user_prompt = render_prompt_template(
+        user_template,
+        document_excerpts=document_excerpts,
+        supplementary_prompt=supplementary_prompt.strip() or "(nenhuma)",
+        output_schema_summary=load_case_metadata_schema_summary(),
+    )
+
+    return complete_json_chat(system=system_prompt, user=user_prompt)

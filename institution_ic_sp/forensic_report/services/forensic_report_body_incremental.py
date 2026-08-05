@@ -58,6 +58,29 @@ BUILD_STEP_IDS: tuple[str, ...] = (
     "finalize",
 )
 
+INTERACTIVE_BUILD_STEP_IDS: frozenset[str] = frozenset(
+    {
+        "main_title",
+        "preamble",
+        "objective_heading",
+        "objective_body",
+        "requisition_heading",
+        "requisition_list",
+        "attendance_heading",
+        "attendance_list",
+    }
+)
+
+SILENT_BUILD_STEP_IDS: frozenset[str] = frozenset(
+    {
+        "body_spacer",
+        "closing_phrase",
+        "closing_notice",
+        "signature",
+        "finalize",
+    }
+)
+
 BUILD_STEP_LABELS: dict[str, str] = {
     "main_title": "Inserindo título do laudo…",
     "preamble": "Escrevendo preâmbulo…",
@@ -73,6 +96,46 @@ BUILD_STEP_LABELS: dict[str, str] = {
     "signature": "Posicionando assinatura…",
     "finalize": "Finalizando laudo…",
 }
+
+
+def step_should_run(step_id: str, metadata: CaseMetadata) -> bool:
+    """Indica se o passo produz conteúdo a partir dos metadados inferidos pela IA."""
+    if step_id in SILENT_BUILD_STEP_IDS:
+        return True
+    if step_id in {"main_title", "preamble"}:
+        return True
+    if step_id in {"objective_heading", "objective_body"}:
+        return bool(metadata.exam_objective.strip())
+    if step_id in {"requisition_heading", "requisition_list"}:
+        return bool(metadata.requisition_list_items())
+    if step_id in {"attendance_heading", "attendance_list"}:
+        return bool(metadata.attendance_list_items())
+    return True
+
+
+def count_interactive_build_steps(metadata: CaseMetadata) -> int:
+    """Conta passos animados que serão exibidos na montagem incremental."""
+    return sum(
+        1
+        for step_id in BUILD_STEP_IDS
+        if step_id in INTERACTIVE_BUILD_STEP_IDS and step_should_run(step_id, metadata)
+    )
+
+
+def count_completed_interactive_steps(metadata: CaseMetadata, step_index: int) -> int:
+    """Conta passos interativos já concluídos até ``step_index``."""
+    completed = 0
+    for index, step_id in enumerate(BUILD_STEP_IDS):
+        if index >= step_index:
+            break
+        if step_id in INTERACTIVE_BUILD_STEP_IDS and step_should_run(step_id, metadata):
+            completed += 1
+    return completed
+
+
+def is_interactive_build_step(step_id: str | None) -> bool:
+    """Indica se o passo entra na animação visível do editor."""
+    return bool(step_id and step_id in INTERACTIVE_BUILD_STEP_IDS)
 
 
 @dataclass
@@ -375,7 +438,8 @@ def advance_forensic_body_build_step(
         report.save(update_fields=["page_layout", "updated_at"])
         return [], True, final_state, None
 
-    step_id = BUILD_STEP_IDS[step_index]
+    step_id: str | None = None
+    created_nodes: list[ReportNode] = []
     ctx = _context_from_progress(
         report,
         examiner=examiner,
@@ -383,9 +447,23 @@ def advance_forensic_body_build_step(
         institution=institution,
         progress=progress,
     )
-    created_nodes = _run_build_step(step_id, ctx)
 
-    progress["step_index"] = step_index + 1
+    while step_index < len(BUILD_STEP_IDS):
+        candidate = BUILD_STEP_IDS[step_index]
+        step_index += 1
+        if not step_should_run(candidate, metadata):
+            continue
+        step_id = candidate
+        created_nodes = _run_build_step(step_id, ctx)
+        break
+
+    if step_id is None:
+        final_state = _complete_bootstrap_after_build(report, metadata, nodes=ctx.node_registry)
+        _save_build_progress(report, None)
+        report.save(update_fields=["page_layout", "updated_at"])
+        return [], True, final_state, None
+
+    progress["step_index"] = step_index
     progress["position"] = ctx.position
     progress["nodes"] = ctx.node_registry
     _save_build_progress(report, progress)

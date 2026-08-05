@@ -20,17 +20,17 @@
 
     /** Intervalos [mínimo, máximo] em ms — velocidade varia a cada pausa. */
     const TIMING = {
-        TYPEWRITER_MS: [8, 32],
-        LIST_ITEM_MS: [95, 380],
-        STEP_PAUSE_MS: [130, 520],
-        MIN_STEP_MS: [240, 960],
-        ANALYZE_CLOSE_MS: [120, 480],
-        LIVE_BUILD_WARMUP_MS: [105, 420],
-        BLOCK_PENDING_MS: [40, 160],
-        BLOCK_REVEAL_MS: [80, 320],
-        BLOCK_REVEAL_SHORT_MS: [90, 360],
-        BLOCK_REVEAL_NO_EDIT_MS: [105, 420],
-        LIST_TRANSITION_MS: [70, 280],
+        TYPEWRITER_MS: [1, 2],
+        LIST_ITEM_MS: [4, 16],
+        STEP_PAUSE_MS: [6, 22],
+        MIN_STEP_MS: [10, 40],
+        ANALYZE_CLOSE_MS: [5, 20],
+        LIVE_BUILD_WARMUP_MS: [5, 18],
+        BLOCK_PENDING_MS: [2, 7],
+        BLOCK_REVEAL_MS: [4, 14],
+        BLOCK_REVEAL_SHORT_MS: [4, 15],
+        BLOCK_REVEAL_NO_EDIT_MS: [5, 18],
+        LIST_TRANSITION_MS: [3, 12],
     };
 
     let config = null;
@@ -75,7 +75,7 @@
             window.setTimeout(() => {
                 statusText.textContent = label;
                 statusText.classList.remove("is-changing");
-            }, 30);
+            }, 5);
         }
         if (progressPillText) {
             progressPillText.textContent = label;
@@ -284,8 +284,13 @@
         }
     }
 
-    async function animateBlockAppearance(blockElement) {
+    async function animateBlockAppearance(blockElement, animated) {
         if (!blockElement) {
+            return;
+        }
+
+        if (animated === false) {
+            blockElement.classList.add("forensic-bootstrap-block-reveal");
             return;
         }
 
@@ -400,10 +405,13 @@
             }
 
             const blocksHtml = Array.isArray(payload.blocks_html) ? payload.blocks_html : [];
+            const animated = payload.animated !== false;
             for (const html of blocksHtml) {
                 const blockElement = insertBlockHtml(html);
-                await animateBlockAppearance(blockElement);
-                await sleepRandom(TIMING.STEP_PAUSE_MS);
+                await animateBlockAppearance(blockElement, animated);
+                if (animated) {
+                    await sleepRandom(TIMING.STEP_PAUSE_MS);
+                }
             }
 
             applyOutlinePayload(payload);
@@ -416,7 +424,9 @@
 
             done = Boolean(payload.done);
             config.state = payload.state || config.state;
-            await enforceMinStepDuration(stepStartedAt);
+            if (animated) {
+                await enforceMinStepDuration(stepStartedAt);
+            }
         }
     }
 
