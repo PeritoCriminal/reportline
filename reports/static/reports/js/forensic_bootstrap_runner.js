@@ -17,22 +17,48 @@
         "Preparando montagem do laudo…",
     ];
     const ANALYZE_STATUS_ROTATE_MS = 2200;
+    const TIMING_PROFILE_STORAGE_KEY = "reportline.forensic_bootstrap.timing_profile";
+    const TIMING_PROFILE_COMPLETED_KEY = "reportline.forensic_bootstrap.completed_once";
 
-    /** Intervalos [mínimo, máximo] em ms — velocidade varia a cada pausa. */
-    const TIMING = {
-        TYPEWRITER_MS: [1, 2],
-        LIST_ITEM_MS: [4, 16],
-        STEP_PAUSE_MS: [6, 22],
-        MIN_STEP_MS: [10, 40],
-        ANALYZE_CLOSE_MS: [5, 20],
-        LIVE_BUILD_WARMUP_MS: [5, 18],
-        BLOCK_PENDING_MS: [2, 7],
-        BLOCK_REVEAL_MS: [4, 14],
-        BLOCK_REVEAL_SHORT_MS: [4, 15],
-        BLOCK_REVEAL_NO_EDIT_MS: [5, 18],
-        LIST_TRANSITION_MS: [3, 12],
+    /**
+     * Perfis de ritmo da montagem incremental.
+     *
+     * Intervalos [mínimo, máximo] em ms; cada pausa sorteia dentro do intervalo.
+     * FIRST_RUN — onboarding (~1,5 s de montagem típica com 8 passos animados).
+     * RETURNING — retorno experiente (streaming rápido, próximo ao instantâneo).
+     */
+    const TIMING_PROFILES = {
+        FIRST_RUN: {
+            TYPEWRITER_MS: [2, 4],
+            /** Teto por bloco longo (ex.: preâmbulo); acelera caractere a caractere se ultrapassar. */
+            TYPEWRITER_BLOCK_MAX_MS: 220,
+            LIST_ITEM_MS: [12, 24],
+            STEP_PAUSE_MS: [8, 18],
+            MIN_STEP_MS: [40, 70],
+            ANALYZE_CLOSE_MS: [40, 70],
+            LIVE_BUILD_WARMUP_MS: [28, 48],
+            BLOCK_PENDING_MS: [10, 20],
+            BLOCK_REVEAL_MS: [12, 24],
+            BLOCK_REVEAL_SHORT_MS: [8, 18],
+            BLOCK_REVEAL_NO_EDIT_MS: [10, 20],
+            LIST_TRANSITION_MS: [32, 55],
+        },
+        RETURNING: {
+            TYPEWRITER_MS: [1, 2],
+            LIST_ITEM_MS: [4, 16],
+            STEP_PAUSE_MS: [6, 22],
+            MIN_STEP_MS: [10, 40],
+            ANALYZE_CLOSE_MS: [5, 20],
+            LIVE_BUILD_WARMUP_MS: [5, 18],
+            BLOCK_PENDING_MS: [2, 7],
+            BLOCK_REVEAL_MS: [4, 14],
+            BLOCK_REVEAL_SHORT_MS: [4, 15],
+            BLOCK_REVEAL_NO_EDIT_MS: [5, 18],
+            LIST_TRANSITION_MS: [3, 12],
+        },
     };
 
+    let timing = TIMING_PROFILES.RETURNING;
     let config = null;
     let shell = null;
     let progressPill = null;
@@ -63,6 +89,86 @@
 
     async function sleepRandom(range) {
         await sleep(pickRandomMs(range));
+    }
+
+    function pickTypewriterCharDelay(plainTextLength) {
+        const range = timing.TYPEWRITER_MS;
+        const blockMax = timing.TYPEWRITER_BLOCK_MAX_MS;
+        if (!plainTextLength || blockMax == null) {
+            return pickRandomMs(range);
+        }
+        const idealAvg = (range[0] + range[1]) / 2;
+        if (plainTextLength * idealAvg <= blockMax) {
+            return pickRandomMs(range);
+        }
+        const scaled = blockMax / plainTextLength;
+        const variance = scaled * 0.12;
+        return randomMs(Math.max(0.5, scaled - variance), scaled + variance);
+    }
+
+    function isKnownTimingProfile(name) {
+        return Boolean(name && Object.prototype.hasOwnProperty.call(TIMING_PROFILES, name));
+    }
+
+    function readStoredTimingProfile() {
+        try {
+            const stored = window.localStorage.getItem(TIMING_PROFILE_STORAGE_KEY);
+            return isKnownTimingProfile(stored) ? stored : null;
+        } catch (_error) {
+            return null;
+        }
+    }
+
+    function hasCompletedBootstrapBefore() {
+        try {
+            return window.localStorage.getItem(TIMING_PROFILE_COMPLETED_KEY) === "1";
+        } catch (_error) {
+            return false;
+        }
+    }
+
+    function resolveTimingProfile(options) {
+        if (options && isKnownTimingProfile(options.timingProfile)) {
+            return options.timingProfile;
+        }
+        const stored = readStoredTimingProfile();
+        if (stored) {
+            return stored;
+        }
+        return hasCompletedBootstrapBefore() ? "RETURNING" : "FIRST_RUN";
+    }
+
+    function applyTimingProfile(profileName) {
+        timing = TIMING_PROFILES[profileName] || TIMING_PROFILES.RETURNING;
+    }
+
+    function persistTimingProfile(profileName) {
+        if (!isKnownTimingProfile(profileName)) {
+            return;
+        }
+        try {
+            window.localStorage.setItem(TIMING_PROFILE_STORAGE_KEY, profileName);
+        } catch (_error) {
+            /* ignore quota / private mode */
+        }
+    }
+
+    function markBootstrapCompletedOnce() {
+        try {
+            window.localStorage.setItem(TIMING_PROFILE_COMPLETED_KEY, "1");
+        } catch (_error) {
+            /* ignore */
+        }
+    }
+
+    function setTimingProfile(profileName, persist) {
+        if (!isKnownTimingProfile(profileName)) {
+            throw new Error(`Perfil de animação desconhecido: ${profileName}`);
+        }
+        applyTimingProfile(profileName);
+        if (persist !== false) {
+            persistTimingProfile(profileName);
+        }
     }
 
     function setStatusMessage(message, stepIndex, totalSteps) {
@@ -209,7 +315,7 @@
         if (shell) {
             shell.classList.add("is-closing");
         }
-        await sleepRandom(TIMING.ANALYZE_CLOSE_MS);
+        await sleepRandom(timing.ANALYZE_CLOSE_MS);
         if (shell) {
             shell.hidden = true;
             shell.classList.remove("is-closing");
@@ -224,7 +330,7 @@
         if (canvas) {
             canvas.scrollTo({ top: 0, behavior: "smooth" });
         }
-        await sleepRandom(TIMING.LIVE_BUILD_WARMUP_MS);
+        await sleepRandom(timing.LIVE_BUILD_WARMUP_MS);
     }
 
     function insertBlockHtml(html) {
@@ -262,7 +368,7 @@
         editable.classList.add("forensic-bootstrap-typewriter-active");
         for (let index = 0; index < plainText.length; index += 1) {
             editable.textContent = plainText.slice(0, index + 1);
-            await sleepRandom(TIMING.TYPEWRITER_MS);
+            await sleep(pickTypewriterCharDelay(plainText.length));
         }
         editable.innerHTML = targetHtml;
         editable.classList.remove("forensic-bootstrap-typewriter-active");
@@ -276,11 +382,11 @@
         });
         blockElement.classList.add("forensic-bootstrap-block-reveal");
         for (const item of items) {
-            const transitionMs = Math.round(pickRandomMs(TIMING.LIST_TRANSITION_MS));
+            const transitionMs = Math.round(pickRandomMs(timing.LIST_TRANSITION_MS));
             item.style.transition = `opacity ${transitionMs}ms ease, transform ${transitionMs}ms ease`;
             item.style.opacity = "1";
             item.style.transform = "translateY(0)";
-            await sleepRandom(TIMING.LIST_ITEM_MS);
+            await sleepRandom(timing.LIST_ITEM_MS);
         }
     }
 
@@ -307,7 +413,7 @@
         }
 
         scrollBlockIntoView(blockElement);
-        await sleepRandom(TIMING.BLOCK_PENDING_MS);
+        await sleepRandom(timing.BLOCK_PENDING_MS);
         blockElement.classList.remove("forensic-bootstrap-block-pending");
         blockElement.classList.add("forensic-bootstrap-block-writing");
 
@@ -322,14 +428,14 @@
 
         if (!editable) {
             blockElement.classList.add("forensic-bootstrap-block-reveal");
-            await sleepRandom(TIMING.BLOCK_REVEAL_NO_EDIT_MS);
+            await sleepRandom(timing.BLOCK_REVEAL_NO_EDIT_MS);
             blockElement.classList.remove("forensic-bootstrap-block-reveal", "forensic-bootstrap-block-writing");
             return;
         }
 
         if (!plainText) {
             blockElement.classList.add("forensic-bootstrap-block-reveal");
-            await sleepRandom(TIMING.BLOCK_REVEAL_SHORT_MS);
+            await sleepRandom(timing.BLOCK_REVEAL_SHORT_MS);
             blockElement.classList.remove("forensic-bootstrap-block-reveal", "forensic-bootstrap-block-writing");
             return;
         }
@@ -337,12 +443,12 @@
         await typewriterEditable(editable, targetHtml, plainText);
         blockElement.classList.remove("forensic-bootstrap-block-writing");
         blockElement.classList.add("forensic-bootstrap-block-reveal");
-        await sleepRandom(TIMING.BLOCK_REVEAL_MS);
+        await sleepRandom(timing.BLOCK_REVEAL_MS);
         blockElement.classList.remove("forensic-bootstrap-block-reveal");
     }
 
     async function enforceMinStepDuration(stepStartedAt) {
-        const targetMs = pickRandomMs(TIMING.MIN_STEP_MS);
+        const targetMs = pickRandomMs(timing.MIN_STEP_MS);
         const elapsed = Date.now() - stepStartedAt;
         if (elapsed < targetMs) {
             await sleep(targetMs - elapsed);
@@ -410,7 +516,7 @@
                 const blockElement = insertBlockHtml(html);
                 await animateBlockAppearance(blockElement, animated);
                 if (animated) {
-                    await sleepRandom(TIMING.STEP_PAUSE_MS);
+                    await sleepRandom(timing.STEP_PAUSE_MS);
                 }
             }
 
@@ -487,6 +593,10 @@
             }
 
             hideBuildUi();
+            markBootstrapCompletedOnce();
+            if (!readStoredTimingProfile()) {
+                persistTimingProfile("RETURNING");
+            }
             isRunning = false;
         } catch (error) {
             showError(error.message || "Falha ao preparar o laudo.");
@@ -496,6 +606,7 @@
 
     function init(options) {
         config = options || {};
+        applyTimingProfile(resolveTimingProfile(config));
         shell = document.getElementById("forensic-bootstrap-build-shell");
         progressPill = document.getElementById("forensic-bootstrap-build-progress-pill");
         progressPillText = document.getElementById("forensic-bootstrap-build-progress-text");
@@ -517,5 +628,12 @@
         }
     }
 
-    window.ReportLineForensicBootstrapRunner = { init };
+    window.ReportLineForensicBootstrapRunner = {
+        init,
+        TIMING_PROFILES,
+        setTimingProfile,
+        getTimingProfile() {
+            return readStoredTimingProfile() || resolveTimingProfile(config);
+        },
+    };
 })();
