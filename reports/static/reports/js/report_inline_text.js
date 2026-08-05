@@ -84,11 +84,21 @@
         return resolved.length ? resolved.join(" ") : null;
     }
 
+    function normalizePlainTextLineBreaks(text, allowBreaks) {
+        if (!text || !allowBreaks || !/[\r\n]/.test(text)) {
+            return text || "";
+        }
+        const lines = text.replace(/\r\n/g, "\n").replace(/\r/g, "\n").split("\n");
+        return lines.map((line, index) => (
+            index < lines.length - 1 ? `${line}<br>` : line
+        )).join("");
+    }
+
     function sanitizeNode(node, options) {
         const allowBreaks = options && options.allowBreaks;
 
         if (node.nodeType === Node.TEXT_NODE) {
-            return node.textContent;
+            return normalizePlainTextLineBreaks(node.textContent || "", allowBreaks);
         }
 
         if (node.nodeType !== Node.ELEMENT_NODE) {
@@ -138,15 +148,15 @@
         if (!html) {
             return "";
         }
+        const allowBreaks = Boolean(options && options.allowBreaks);
         if (!/[<>]/.test(html)) {
-            return html;
+            return normalizePlainTextLineBreaks(html, allowBreaks);
         }
 
         const template = document.createElement("template");
         template.innerHTML = html;
         let result = "";
         let hasContent = false;
-        const allowBreaks = Boolean(options && options.allowBreaks);
         Array.from(template.content.childNodes).forEach((child) => {
             if (
                 allowBreaks

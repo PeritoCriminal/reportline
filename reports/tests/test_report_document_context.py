@@ -294,6 +294,39 @@ class ReportDocumentContextTests(TestCase):
         self.assertIn("Rua A", text_html)
         self.assertIn("Rua B", text_html)
 
+    def test_table_text_cell_literal_newlines_render_as_breaks(self):
+        """Garante newline literal salvo na célula apareça como quebra no preview."""
+        self._create_node(
+            ReportBlockType.TABLE,
+            {
+                "headers": [],
+                "rows": [
+                    [
+                        {"type": "text", "text": "", "align": "center"},
+                        {
+                            "type": "text",
+                            "text": (
+                                "<strong>Endereço:</strong><br>Rua A\nNova linha<br>"
+                                '<a href="https://maps.example/place">Maps</a>'
+                            ),
+                            "align": "left",
+                        },
+                    ]
+                ],
+                "show_borders": False,
+                "show_header": False,
+                "column_widths": [22, 78],
+            },
+            position=Decimal("2"),
+        )
+
+        context = build_report_document_context(self.report, self._request())
+        section = next(
+            item for item in context["sections"] if item.block_type == ReportBlockType.TABLE
+        )
+        text_html = section.content["rows"][0][1]["text"]
+        self.assertIn("Rua A<br>Nova linha", text_html)
+
     def test_image_figures_use_absolute_url(self):
         """Garante URL absoluta de imagem para consumo externo (preview/PDF)."""
         self._create_node(

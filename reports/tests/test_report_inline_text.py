@@ -129,6 +129,21 @@ class ReportInlineTextTests(TestCase):
         result = sanitize_inline_text_html("<p>Primeira</p><p>Segunda</p>")
         self.assertEqual(result, "Primeira<br>Segunda")
 
+    def test_inline_sanitizer_converts_literal_newlines_in_plain_text(self):
+        """Garante que quebras literais de Shift+Enter virem ``<br>`` ao salvar."""
+        result = sanitize_inline_text_html("Linha 1\nLinha 2")
+        self.assertEqual(result, "Linha 1<br>Linha 2")
+
+    def test_inline_sanitizer_converts_literal_newlines_inside_markup(self):
+        """Garante conversão de newline em células com rótulo, endereço e link."""
+        html = (
+            "<strong>Endereço:</strong><br>Rua A\nNova linha<br>"
+            '<a href="https://maps.google.com">Maps</a>'
+        )
+        result = sanitize_inline_text_html(html)
+        self.assertIn("Rua A<br>Nova linha", result)
+        self.assertIn('target="_blank"', result)
+
 
 class SanitizeHeaderTextHtmlTests(TestCase):
     """Testes de sanitização de HTML de célula de cabeçalho."""

@@ -85,6 +85,14 @@ def normalize_inline_link_href(href: str) -> str | None:
     return f"https://{cleaned.lstrip('/')}"
 
 
+def _normalize_plain_text_line_breaks(value: str) -> str:
+    """Converte quebras de linha literais em ``<br>`` para texto sem tags HTML."""
+    normalized = value.replace("\r\n", "\n").replace("\r", "\n")
+    if "\n" not in normalized:
+        return normalized
+    return "<br>".join(normalized.split("\n"))
+
+
 class _InlineTextSanitizer(HTMLParser):
     """Reconstrói HTML permitindo somente formatação inline segura."""
 
@@ -146,7 +154,16 @@ class _InlineTextSanitizer(HTMLParser):
             self._parts.append(f"</{normalized}>")
 
     def handle_data(self, data: str) -> None:
-        self._parts.append(escape(data))
+        normalized = data.replace("\r\n", "\n").replace("\r", "\n")
+        if "\n" not in normalized:
+            self._parts.append(escape(normalized))
+            return
+
+        lines = normalized.split("\n")
+        for index, line in enumerate(lines):
+            self._parts.append(escape(line))
+            if index < len(lines) - 1:
+                self._parts.append("<br>")
 
     def handle_entityref(self, name: str) -> None:
         self._parts.append(f"&{name};")
@@ -181,7 +198,7 @@ def sanitize_header_text_html(value: str) -> str:
     if not value:
         return ""
     if "<" not in value and ">" not in value:
-        return value
+        return _normalize_plain_text_line_breaks(value)
 
     parser = _HeaderTextSanitizer()
     parser.feed(value)
@@ -193,15 +210,16 @@ def sanitize_inline_text_html(value: str) -> str:
     """
     Remove markup perigoso e normaliza tags de formatação inline.
 
-    Texto sem tags permanece inalterado; ``<br>`` e blocos ``div``/``p`` viram
-    quebras de linha suaves equivalentes a Shift+Enter no editor.
+    Texto sem tags permanece inalterado, exceto quebras de linha literais
+    convertidas em ``<br>``; blocos ``div``/``p`` viram quebras suaves equivalentes
+    a Shift+Enter no editor.
     """
     if not isinstance(value, str):
         return ""
     if not value:
         return ""
     if "<" not in value and ">" not in value:
-        return value
+        return _normalize_plain_text_line_breaks(value)
 
     parser = _InlineTextSanitizer()
     parser.feed(value)

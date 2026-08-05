@@ -144,6 +144,31 @@
         return helpers ? helpers.getPlainText(editable) : (editable.textContent || "");
     }
 
+    function insertSoftLineBreak(editable) {
+        if (!editable) {
+            return false;
+        }
+
+        const selection = window.getSelection();
+        if (!selection || selection.rangeCount === 0) {
+            return false;
+        }
+
+        const range = selection.getRangeAt(0);
+        if (!editable.contains(range.commonAncestorContainer)) {
+            return false;
+        }
+
+        range.deleteContents();
+        const breakNode = document.createElement("br");
+        range.insertNode(breakNode);
+        range.setStartAfter(breakNode);
+        range.collapse(true);
+        selection.removeAllRanges();
+        selection.addRange(range);
+        return true;
+    }
+
     function splitEditableAtCaret(editable) {
         const helpers = getInlineTextHelpers();
         if (helpers) {
@@ -3656,7 +3681,9 @@
             if (event.key === "Enter" && event.shiftKey) {
                 if (editable.classList.contains("report-editor-table-cell")) {
                     event.preventDefault();
-                    document.execCommand("insertLineBreak");
+                    if (!insertSoftLineBreak(editable)) {
+                        document.execCommand("insertLineBreak");
+                    }
                     scheduleDebouncedHistoryFinalize(block);
                     scheduleDebouncedSave(block);
                     return;
