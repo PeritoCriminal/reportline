@@ -267,3 +267,32 @@ class ReportEditorContextTests(TestCase):
 
         self.assertIsInstance(context["outline_tree"][0].node_id, uuid.UUID)
         self.assertEqual(context["outline_tree"][0].node_id, node.pk)
+
+    def test_table_with_show_header_enriches_headers_for_all_body_columns(self):
+        """Garante cabeçalhos alinhados ao corpo ao exibir header em tabela sem headers."""
+        self._create_node(
+            ReportBlockType.TABLE,
+            {
+                "headers": [],
+                "rows": [
+                    [
+                        {"type": "text", "text": "QR", "align": "center"},
+                        {"type": "text", "text": "Endereço", "align": "left"},
+                    ]
+                ],
+                "show_borders": False,
+                "show_header": True,
+                "column_widths": [28, 72],
+            },
+            position=Decimal("1"),
+        )
+
+        context = build_report_editor_context(self.report)
+        table_entry = next(
+            entry for entry in context["body_entries"]
+            if entry.block_type == ReportBlockType.TABLE
+        )
+
+        self.assertEqual(len(table_entry.content["headers"]), 2)
+        self.assertEqual(len(table_entry.content["rows"][0]), 2)
+        self.assertEqual(table_entry.content["column_widths"], [28, 72])

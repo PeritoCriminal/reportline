@@ -134,6 +134,30 @@ class ReportBlockContentTests(TestCase):
         self.assertEqual(normalized["column_widths"], [35, 65])
         self.assertFalse(normalized["show_header"])
 
+    def test_normalize_table_show_header_pads_headers_to_match_body_columns(self):
+        """Garante que exibir cabeçalho não trunque colunas do corpo (QR + endereço)."""
+        normalized = normalize_block_content(
+            ReportBlockType.TABLE,
+            {
+                "headers": [{"text": "", "align": "left"}],
+                "rows": [
+                    [
+                        {"type": "image", "alt": "QR", "file": "reports/x/qr.png", "image_id": "1", "width": 102, "height": 102, "align": "center"},
+                        {"type": "text", "text": "Endereço", "align": "left"},
+                    ]
+                ],
+                "show_borders": False,
+                "show_header": True,
+                "column_widths": [28, 72],
+            },
+        )
+
+        self.assertEqual(len(normalized["headers"]), 2)
+        self.assertEqual(len(normalized["rows"][0]), 2)
+        self.assertEqual(normalized["rows"][0][0]["type"], "image")
+        self.assertEqual(normalized["rows"][0][1]["text"], "Endereço")
+        self.assertEqual(normalized["column_widths"], [28, 72])
+
     def test_normalize_table_show_borders_defaults_to_true(self):
         """Garante bordas visíveis por padrão quando o campo não é enviado."""
         normalized = normalize_block_content(

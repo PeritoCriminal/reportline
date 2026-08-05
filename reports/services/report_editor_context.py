@@ -66,19 +66,24 @@ def _enrich_block_content(block_type: str, content: dict[str, Any]) -> dict[str,
         from reports.services.report_table_cell_content import enrich_table_body_cell, enrich_table_header_cell
         from reports.services.report_table_column_widths import normalize_column_widths
 
-        headers = enriched.get("headers", [])
-        enriched["headers"] = [enrich_table_header_cell(header) for header in headers]
+        from reports.services.report_table_column_widths import resolve_table_column_count
+
         rows = enriched.get("rows", [])
+        show_header = enriched.get("show_header", True) is not False
+        column_count = resolve_table_column_count(enriched)
+        enriched_headers = [
+            enrich_table_header_cell(header) for header in enriched.get("headers", [])
+        ]
+        if show_header and column_count > 0:
+            while len(enriched_headers) < column_count:
+                enriched_headers.append(enrich_table_header_cell({"text": "", "align": "left"}))
+            enriched["headers"] = enriched_headers[:column_count]
+        else:
+            enriched["headers"] = []
         enriched["rows"] = [
             [enrich_table_body_cell(cell) for cell in row]
             for row in rows
         ]
-        column_count = len(headers)
-        if column_count == 0 and rows:
-            column_count = max(
-                (len(row) for row in rows if isinstance(row, list)),
-                default=0,
-            )
         enriched["column_widths"] = normalize_column_widths(
             enriched.get("column_widths"),
             column_count,

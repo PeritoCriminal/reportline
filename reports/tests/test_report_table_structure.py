@@ -36,6 +36,29 @@ def _sample_table(rows: int = 2, cols: int = 2) -> dict:
     }
 
 
+def _location_style_table() -> dict:
+    """Tabela 2×1 sem cabeçalho, como a de localização com QR."""
+    return {
+        "headers": [],
+        "rows": [[
+            {
+                "type": "image",
+                "alt": "QR",
+                "file": "reports/x/qr.png",
+                "image_id": "img-1",
+                "width": 102,
+                "height": 102,
+                "align": "center",
+            },
+            {"type": "text", "text": "<strong>Endereço:</strong><br>Rua A", "align": "left"},
+        ]],
+        "show_borders": False,
+        "show_header": False,
+        "column_widths": [28, 72],
+        "display_width": 100,
+    }
+
+
 class ReportTableStructureTests(TestCase):
     """Testes de mutações estruturais no JSON da tabela."""
 
@@ -142,3 +165,28 @@ class ReportTableStructureTests(TestCase):
 
         self.assertEqual(len(updated["headers"]), 1)
         self.assertEqual(updated["rows"][0][0]["type"], "text")
+
+    def test_insert_column_after_on_headerless_location_table(self):
+        """Garante nova coluna visível em tabela sem cabeçalho (QR + endereço)."""
+        content = _location_style_table()
+        updated = insert_column_after(content, 0)
+
+        self.assertEqual(updated["headers"], [])
+        self.assertFalse(updated["show_header"])
+        self.assertEqual(len(updated["rows"][0]), 3)
+        self.assertEqual(updated["rows"][0][0]["type"], "image")
+        self.assertEqual(updated["rows"][0][1]["type"], "text")
+        self.assertEqual(updated["rows"][0][1]["text"], "")
+        self.assertEqual(updated["rows"][0][2]["type"], "text")
+        self.assertEqual(sum(updated["column_widths"]), 100)
+        self.assertGreater(min(updated["column_widths"]), 0)
+
+    def test_delete_column_on_headerless_location_table(self):
+        """Garante exclusão de coluna em tabela sem cabeçalho."""
+        content = _location_style_table()
+        updated = delete_column(content, 1)
+
+        self.assertEqual(updated["headers"], [])
+        self.assertEqual(len(updated["rows"][0]), 1)
+        self.assertEqual(updated["rows"][0][0]["type"], "image")
+        self.assertEqual(updated["column_widths"], [100])

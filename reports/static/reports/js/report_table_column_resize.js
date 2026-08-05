@@ -79,33 +79,35 @@
     }
 
     function getTableColumnCount(block) {
+        let count = 0;
+
         const raw = block.dataset.tableColumnWidths || "";
         if (raw) {
             const parts = raw.split(",").map((part) => part.trim()).filter(Boolean);
             if (parts.length) {
-                return parts.length;
+                count = Math.max(count, parts.length);
             }
         }
 
         const cols = block.querySelectorAll("colgroup col");
         if (cols.length) {
-            return cols.length;
+            count = Math.max(count, cols.length);
         }
 
         const headerCount = block.querySelectorAll('[data-table-part="header"]').length;
         if (headerCount) {
-            return headerCount;
+            count = Math.max(count, headerCount);
         }
 
         const firstRow = block.querySelector("tbody tr");
         if (firstRow) {
             const bodyCount = firstRow.querySelectorAll("td").length;
             if (bodyCount) {
-                return bodyCount;
+                count = Math.max(count, bodyCount);
             }
         }
 
-        return 1;
+        return count || 1;
     }
 
     function parseColumnWidths(block) {

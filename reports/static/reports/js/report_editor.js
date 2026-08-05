@@ -1564,33 +1564,35 @@
     }
 
     function getTableColumnCount(block) {
+        let count = 0;
+
         const raw = block.dataset.tableColumnWidths || "";
         if (raw) {
             const parts = raw.split(",").map((part) => part.trim()).filter(Boolean);
             if (parts.length) {
-                return parts.length;
+                count = Math.max(count, parts.length);
             }
         }
 
         const cols = block.querySelectorAll("colgroup col");
         if (cols.length) {
-            return cols.length;
+            count = Math.max(count, cols.length);
         }
 
         const headerCount = block.querySelectorAll('[data-table-part="header"]').length;
         if (headerCount) {
-            return headerCount;
+            count = Math.max(count, headerCount);
         }
 
         const firstRow = block.querySelector("tbody tr");
         if (firstRow) {
             const bodyCount = firstRow.querySelectorAll("td").length;
             if (bodyCount) {
-                return bodyCount;
+                count = Math.max(count, bodyCount);
             }
         }
 
-        return 1;
+        return count || 1;
     }
 
     function parseTableColumnWidths(block, columnCount) {
@@ -3934,6 +3936,19 @@
     const MAX_TABLE_BODY_ROWS = 19;
     const MAX_TABLE_COLUMNS = 12;
 
+    function getTableContentColumnCount(content) {
+        if (content.headers && content.headers.length > 0) {
+            return content.headers.length;
+        }
+        if (content.rows && content.rows[0] && content.rows[0].length) {
+            return content.rows[0].length;
+        }
+        if (content.column_widths && content.column_widths.length) {
+            return content.column_widths.length;
+        }
+        return 1;
+    }
+
     function cloneTableContent(content) {
         return {
             headers: content.headers.map((header) => {
@@ -3950,7 +3965,9 @@
             })),
             show_borders: content.show_borders !== false,
             show_header: content.show_header !== false,
-            column_widths: [...(content.column_widths || equalTableColumnWidths(content.headers.length))],
+            column_widths: [
+                ...(content.column_widths || equalTableColumnWidths(getTableContentColumnCount(content))),
+            ],
             display_width: content.display_width ?? 100,
         };
     }
@@ -3961,7 +3978,7 @@
         if (next.rows.length >= MAX_TABLE_BODY_ROWS) {
             throw new Error("A tabela não pode exceder 19 linhas de corpo.");
         }
-        const columnCount = next.headers.length || (next.rows[0] ? next.rows[0].length : 1);
+        const columnCount = getTableContentColumnCount(next);
         const newRow = Array.from({ length: columnCount }, () => emptyTableBodyCell());
         next.rows.splice(insertAt, 0, newRow);
         return next;
@@ -3996,39 +4013,57 @@
 
     function insertColumnAfterContent(content, colIndex) {
         const next = cloneTableContent(content);
-        if (colIndex < 0 || colIndex >= next.headers.length) {
+        const columnCount = getTableContentColumnCount(next);
+        if (colIndex < 0 || colIndex >= columnCount) {
             throw new Error("Índice de coluna inválido.");
         }
-        if (next.headers.length >= MAX_TABLE_COLUMNS) {
+        if (columnCount >= MAX_TABLE_COLUMNS) {
             throw new Error("A tabela não pode exceder 12 colunas.");
         }
         next.column_widths = splitTableColumnWidth(
-            next.column_widths || equalTableColumnWidths(next.headers.length),
+            next.column_widths || equalTableColumnWidths(columnCount),
             colIndex
         );
-        next.headers.splice(colIndex + 1, 0, "");
         next.rows = next.rows.map((row) => {
             const cells = [...row];
             cells.splice(colIndex + 1, 0, emptyTableBodyCell());
             return cells;
         });
+        if (next.show_header !== false) {
+            while (next.headers.length < columnCount) {
+                next.headers.push({ text: "", align: "left" });
+            }
+            next.headers.splice(colIndex + 1, 0, { text: "", align: "left" });
+        } else {
+            next.headers = [];
+        }
         return next;
     }
 
     function deleteColumnContent(content, colIndex) {
         const next = cloneTableContent(content);
-        if (colIndex < 0 || colIndex >= next.headers.length) {
+        const columnCount = getTableContentColumnCount(next);
+        if (colIndex < 0 || colIndex >= columnCount) {
             throw new Error("Índice de coluna inválido.");
         }
-        if (next.headers.length <= 1) {
+        if (columnCount <= 1) {
             throw new Error("A tabela deve manter ao menos uma coluna.");
         }
         next.column_widths = mergeTableColumnWidth(
-            next.column_widths || equalTableColumnWidths(next.headers.length),
+            next.column_widths || equalTableColumnWidths(columnCount),
             colIndex
         );
-        next.headers.splice(colIndex, 1);
         next.rows = next.rows.map((row) => row.filter((_, index) => index !== colIndex));
+        if (next.show_header !== false) {
+            while (next.headers.length < columnCount) {
+                next.headers.push({ text: "", align: "left" });
+            }
+            if (colIndex < next.headers.length) {
+                next.headers.splice(colIndex, 1);
+            }
+        } else {
+            next.headers = [];
+        }
         return next;
     }
 
@@ -4313,8 +4348,9 @@
 
         if (multiSelection && multiSelection.colIndices.length > 0) {
             newContent = deleteColumnsContent(content, multiSelection.colIndices);
+            const sourceColumnCount = getTableContentColumnCount(content);
             const remainingCols = new Set(
-                content.headers.map((_, index) => index)
+                Array.from({ length: sourceColumnCount }, (_, index) => index)
                     .filter((index) => !multiSelection.colIndices.includes(index))
             );
             focusCol = remainingCols.size > 0 ? Math.min(...remainingCols) : 0;
@@ -4330,7 +4366,7 @@
                 return null;
             }
             newContent = deleteColumnContent(content, context.colIndex);
-            focusCol = Math.min(context.colIndex, newContent.headers.length - 1);
+            focusCol = Math.min(context.colIndex, getTableContentColumnCount(newContent) - 1);
             focusPart = context.part === "header" ? "header" : "cell";
             focusRow = context.part === "cell" ? context.rowIndex : undefined;
         }
@@ -4365,14 +4401,23 @@
         }
 
         const content = collectBlockContent(context.block);
-        const hidingHeader = content.show_header !== false;
-        content.show_header = content.show_header === false;
+        const showingHeader = content.show_header === false;
+        content.show_header = showingHeader;
+
+        if (showingHeader) {
+            const columnCount = getTableContentColumnCount(content);
+            while (content.headers.length < columnCount) {
+                content.headers.push({ text: "", align: "left" });
+            }
+        } else {
+            content.headers = [];
+        }
 
         let focusPart = context.part === "header" ? "header" : "cell";
         let focusRow = context.part === "cell" ? context.rowIndex : undefined;
         const focusCol = context.colIndex;
 
-        if (hidingHeader && context.part === "header") {
+        if (!showingHeader && context.part === "header") {
             focusPart = "cell";
             focusRow = 0;
         }

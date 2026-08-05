@@ -14,6 +14,33 @@ from django.core.exceptions import ValidationError
 MIN_COLUMN_WIDTH_PERCENT = 5
 
 
+def resolve_table_column_count(content: dict[str, Any]) -> int:
+    """
+    Infere o número de colunas a partir de cabeçalhos, linhas ou larguras.
+
+    Usa o maior valor disponível para evitar truncar o corpo quando o
+    cabeçalho está ausente ou incompleto (ex.: tabela de localização com QR).
+    """
+    header_count = 0
+    headers = content.get("headers", [])
+    if isinstance(headers, list) and headers:
+        header_count = len(headers)
+
+    body_count = 0
+    rows = content.get("rows", [])
+    if isinstance(rows, list):
+        for row in rows:
+            if isinstance(row, list) and row:
+                body_count = max(body_count, len(row))
+
+    width_count = 0
+    column_widths = content.get("column_widths", [])
+    if isinstance(column_widths, list) and column_widths:
+        width_count = len(column_widths)
+
+    return max(header_count, body_count, width_count)
+
+
 def equal_column_widths(column_count: int) -> list[int]:
     """Distribui 100% igualmente entre ``column_count`` colunas."""
     if column_count <= 0:

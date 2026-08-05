@@ -169,20 +169,6 @@
                         {% endfor %}
                     </tr>
                 </thead>
-                {% elif entry.content.show_header != False %}
-                <thead>
-                    <tr>
-                        <th scope="col">
-                            <div class="report-editor-block-editable report-editor-table-cell"
-                                 contenteditable="true"
-                                 data-table-part="header"
-                                 data-col-index="0"
-                                 data-text-align="left"
-                                 data-placeholder="Coluna 1"
-                                 {% if autofocus %}data-autofocus="true"{% endif %}></div>
-                        </th>
-                    </tr>
-                </thead>
                 {% endif %}
                 <tbody>
                     {% for row in entry.content.rows %}

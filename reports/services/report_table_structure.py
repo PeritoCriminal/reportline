@@ -17,6 +17,7 @@ from reports.services.report_block_content import normalize_block_content
 from reports.services.report_table_column_widths import (
     merge_column_width,
     normalize_column_widths,
+    resolve_table_column_count,
     split_column_width,
 )
 
@@ -31,9 +32,9 @@ def _empty_body_cell() -> dict[str, str]:
     return {"type": "text", "text": "", "align": "left"}
 
 
-def _column_count(content: dict[str, Any]) -> int:
-    """Retorna número de colunas a partir dos cabeçalhos."""
-    return len(content.get("headers", []))
+def _header_visible(content: dict[str, Any]) -> bool:
+    """Indica se a tabela exibe linha de cabeçalho no editor."""
+    return content.get("show_header", True) is not False
 
 
 def _normalize_table(content: dict[str, Any]) -> dict[str, Any]:
@@ -59,7 +60,7 @@ def insert_row_after(content: dict[str, Any], row_index: int) -> dict[str, Any]:
     if len(rows) >= MAX_TABLE_BODY_ROWS:
         raise ValidationError(f"A tabela não pode exceder {MAX_TABLE_BODY_ROWS} linhas de corpo.")
 
-    column_count = _column_count(payload) or len(rows[max(row_index, 0)])
+    column_count = resolve_table_column_count(payload) or len(rows[max(row_index, 0)])
     new_row = [_empty_body_cell() for _ in range(column_count)]
     insert_at = 0 if row_index < 0 else row_index + 1
     rows.insert(insert_at, new_row)
@@ -86,20 +87,19 @@ def delete_row(content: dict[str, Any], row_index: int) -> dict[str, Any]:
 def insert_column_after(content: dict[str, Any], col_index: int) -> dict[str, Any]:
     """Insere coluna vazia após ``col_index`` (0-based)."""
     payload = deepcopy(content)
-    headers = list(payload.get("headers", []))
     rows = list(payload.get("rows", []))
+    column_count = resolve_table_column_count(payload)
 
-    if not headers:
-        headers = [""]
+    if column_count <= 0:
+        raise ValidationError("Tabela sem colunas.")
 
-    if col_index < 0 or col_index >= len(headers):
+    if col_index < 0 or col_index >= column_count:
         raise ValidationError("Índice de coluna inválido.")
 
-    if len(headers) >= MAX_TABLE_COLUMNS:
+    if column_count >= MAX_TABLE_COLUMNS:
         raise ValidationError(f"A tabela não pode exceder {MAX_TABLE_COLUMNS} colunas.")
 
-    widths = normalize_column_widths(payload.get("column_widths"), len(headers))
-    headers.insert(col_index + 1, "")
+    widths = normalize_column_widths(payload.get("column_widths"), column_count)
     new_rows = []
     for row in rows:
         row_cells = list(row)
@@ -107,32 +107,53 @@ def insert_column_after(content: dict[str, Any], col_index: int) -> dict[str, An
         new_rows.append(row_cells)
 
     while len(new_rows) < MIN_TABLE_BODY_ROWS:
-        new_rows.append([_empty_body_cell() for _ in range(len(headers))])
+        new_rows.append([_empty_body_cell() for _ in range(column_count + 1)])
 
-    payload["headers"] = headers
     payload["rows"] = new_rows
     payload["column_widths"] = split_column_width(widths, col_index)
+
+    if _header_visible(payload):
+        headers = list(payload.get("headers", []))
+        while len(headers) < column_count:
+            headers.append("")
+        headers.insert(col_index + 1, "")
+        payload["headers"] = headers
+    else:
+        payload["headers"] = []
+
     return _normalize_table(payload)
 
 
 def delete_column(content: dict[str, Any], col_index: int) -> dict[str, Any]:
     """Remove coluna na posição informada."""
     payload = deepcopy(content)
-    headers = list(payload.get("headers", []))
     rows = list(payload.get("rows", []))
+    column_count = resolve_table_column_count(payload)
 
-    if col_index < 0 or col_index >= len(headers):
+    if column_count <= 0:
+        raise ValidationError("Tabela sem colunas.")
+
+    if col_index < 0 or col_index >= column_count:
         raise ValidationError("Índice de coluna inválido.")
 
-    if len(headers) <= MIN_TABLE_COLUMNS:
+    if column_count <= MIN_TABLE_COLUMNS:
         raise ValidationError("A tabela deve manter ao menos uma coluna.")
 
-    widths = normalize_column_widths(payload.get("column_widths"), len(headers))
-    headers.pop(col_index)
-    payload["headers"] = headers
+    widths = normalize_column_widths(payload.get("column_widths"), column_count)
     payload["rows"] = [
         [cell for index, cell in enumerate(row) if index != col_index]
         for row in rows
     ]
     payload["column_widths"] = merge_column_width(widths, col_index)
+
+    if _header_visible(payload):
+        headers = list(payload.get("headers", []))
+        while len(headers) < column_count:
+            headers.append("")
+        if col_index < len(headers):
+            headers.pop(col_index)
+        payload["headers"] = headers
+    else:
+        payload["headers"] = []
+
     return _normalize_table(payload)

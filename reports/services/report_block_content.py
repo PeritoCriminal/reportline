@@ -97,24 +97,18 @@ def normalize_block_content(block_type: str, content: Any) -> dict[str, Any]:
             normalize_table_body_cell,
             normalize_table_header_cell,
         )
-        from reports.services.report_table_column_widths import normalize_column_widths
+        from reports.services.report_table_column_widths import (
+            normalize_column_widths,
+            resolve_table_column_count,
+        )
         from reports.services.report_table_display_width import normalize_display_width
 
         normalized_headers = [normalize_table_header_cell(header) for header in headers]
-        column_count = len(normalized_headers)
-        if column_count == 0 and rows:
-            column_count = max(
-                (len(row) for row in rows if isinstance(row, list)),
-                default=0,
-            )
-        normalized_rows = []
-        for row in rows:
-            if not isinstance(row, list):
-                raise ValidationError("Cada linha da tabela deve ser uma lista.")
-            cells = [normalize_table_body_cell(cell) for cell in row][:column_count]
-            while len(cells) < column_count:
-                cells.append({"type": "text", "text": "", "align": "left"})
-            normalized_rows.append(cells)
+        column_count = resolve_table_column_count({
+            "headers": normalized_headers,
+            "rows": rows,
+            "column_widths": content.get("column_widths"),
+        })
 
         show_borders = content.get("show_borders", True)
         if not isinstance(show_borders, bool):
@@ -123,6 +117,24 @@ def normalize_block_content(block_type: str, content: Any) -> dict[str, Any]:
         show_header = content.get("show_header", True)
         if not isinstance(show_header, bool):
             raise ValidationError("O campo show_header deve ser verdadeiro ou falso.")
+
+        if show_header and column_count > 0:
+            while len(normalized_headers) < column_count:
+                normalized_headers.append(
+                    normalize_table_header_cell({"text": "", "align": "left"})
+                )
+            normalized_headers = normalized_headers[:column_count]
+        else:
+            normalized_headers = []
+
+        normalized_rows = []
+        for row in rows:
+            if not isinstance(row, list):
+                raise ValidationError("Cada linha da tabela deve ser uma lista.")
+            cells = [normalize_table_body_cell(cell) for cell in row][:column_count]
+            while len(cells) < column_count:
+                cells.append({"type": "text", "text": "", "align": "left"})
+            normalized_rows.append(cells)
 
         column_widths = normalize_column_widths(content.get("column_widths"), column_count)
         display_width = normalize_display_width(content.get("display_width"))
