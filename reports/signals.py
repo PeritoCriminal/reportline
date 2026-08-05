@@ -10,8 +10,9 @@ from django.db.models.signals import post_delete, pre_delete
 from django.dispatch import receiver
 
 from reports.models import Report, ReportBlock, ReportNode
-from reports.services.report_block_image_cleanup import delete_block_images
 from reports.services.author_snapshot import snapshot_author_fields
+from reports.services.report_block_image_cleanup import delete_block_images
+from reports.services.report_media_cleanup import delete_report_media_folder
 
 
 @receiver(post_delete, sender=ReportNode)
@@ -26,6 +27,12 @@ def remove_block_after_node_delete(sender, instance, **kwargs):
         delete_block_images(block.block_type, block.content or {})
 
     ReportBlock.objects.filter(pk=block_id).delete()
+
+
+@receiver(post_delete, sender=Report)
+def remove_report_media_folder(sender, instance, **kwargs):
+    """Remove pasta de mídia do laudo após exclusão permanente do registro."""
+    delete_report_media_folder(instance.pk)
 
 
 @receiver(pre_delete, sender=settings.AUTH_USER_MODEL)
