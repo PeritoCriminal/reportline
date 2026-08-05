@@ -1,0 +1,38 @@
+{# Painel de status da montagem em background do bootstrap pericial. #}
+<div class="forensic-bootstrap-build-shell"
+     id="forensic-bootstrap-build-shell"
+     hidden
+     role="status"
+     aria-live="polite"
+     aria-busy="true">
+    <div class="forensic-bootstrap-build-panel card border-primary-subtle shadow-sm">
+        <div class="card-body p-4">
+            <div class="d-flex align-items-start gap-2 mb-3">
+                <span class="ai-analyze-icon text-primary" aria-hidden="true">
+                    <i class="bi bi-stars"></i>
+                </span>
+                <div>
+                    <h2 class="h6 mb-1" id="forensic-bootstrap-build-title">
+                        Preparando laudo com IA
+                    </h2>
+                    <p class="text-muted small mb-0" id="forensic-bootstrap-build-help">
+                        O laudo será montado automaticamente nesta tela.
+                    </p>
+                </div>
+            </div>
+            <div class="analyze-status-panel forensic-bootstrap-build-status"
+                 id="forensic-bootstrap-build-status"
+                 aria-hidden="true">
+                <span class="analyze-status-dot" aria-hidden="true"></span>
+                <span class="analyze-status-dot" aria-hidden="true"></span>
+                <span class="analyze-status-dot" aria-hidden="true"></span>
+                <span class="analyze-status-text" id="forensic-bootstrap-build-status-text">
+                    Lendo documentos com IA…
+                </span>
+            </div>
+            <div class="invalid-feedback d-block mt-2"
+                 id="forensic-bootstrap-build-error"
+                 hidden></div>
+        </div>
+    </div>
+</div>

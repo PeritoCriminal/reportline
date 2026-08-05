@@ -257,6 +257,43 @@ def save_bootstrap_after_metadata_update(
     return report
 
 
+def set_bootstrap_state(report: Report, state: str) -> Report:
+    """Atualiza apenas o estado do bootstrap no laudo."""
+    bootstrap = get_bootstrap_meta(report.page_layout) or empty_bootstrap_payload()
+    bootstrap["state"] = state
+    report.page_layout = attach_bootstrap_meta(report.page_layout, bootstrap)
+    report.save(update_fields=["page_layout", "updated_at"])
+    return report
+
+
+def forensic_bootstrap_editor_config(report: Report) -> dict[str, Any] | None:
+    """Monta configuração JSON do bootstrap para o editor de laudos."""
+    if not is_forensic_bootstrap_pending(report):
+        return None
+
+    from django.urls import reverse
+
+    state = bootstrap_state(report)
+    config: dict[str, Any] = {
+        "state": state,
+        "reportId": str(report.pk),
+        "analyzeUrl": reverse("reports:forensic_bootstrap_analyze", kwargs={"pk": report.pk}),
+        "buildUrl": reverse("reports:forensic_bootstrap_build", kwargs={"pk": report.pk}),
+        "statusUrl": reverse("reports:forensic_bootstrap_status", kwargs={"pk": report.pk}),
+    }
+
+    if state == STATE_PROMPTING:
+        metadata = metadata_from_bootstrap(report.page_layout)
+        config["finalizeUrl"] = reverse(
+            "reports:forensic_bootstrap_finalize",
+            kwargs={"pk": report.pk},
+        )
+        config["metadata"] = case_metadata_to_form_dict(metadata)
+        config["pendingPrompts"] = pending_prompt_catalog(report.page_layout)
+
+    return config
+
+
 def pending_prompt_catalog(page_layout: dict[str, Any] | None) -> list[dict[str, str]]:
     """Lista descritores de todos os prompts pendentes para o frontend."""
     bootstrap = get_bootstrap_meta(page_layout) or {}

@@ -15,6 +15,7 @@ from django.urls import reverse
 
 from institution_ic_sp.forensic_report.common.services.case_metadata import CaseMetadata
 from institution_ic_sp.forensic_report.services.forensic_bootstrap import (
+    STATE_ANALYZED,
     STATE_PROMPTING,
     STATE_READY,
     STATE_SHELL_CREATED,
@@ -153,7 +154,32 @@ class ForensicBootstrapPhaseOneTests(TestCase):
 
         self.assertContains(response, "btn-open-report-quick")
         self.assertContains(response, "case_intake_quick.js")
+        self.assertContains(response, "forensic_bootstrap_documents.js")
         self.assertContains(response, "Preencher ou revisar dados manualmente")
+
+    def test_editor_exposes_runner_config_when_shell_created(self):
+        """Garante URLs de bootstrap no editor quando laudo está em casca."""
+        self.client.login(username="perito_bootstrap", password="senha-segura")
+        report = create_forensic_report_shell(author=self.user, examiner=self.examiner)
+        response = self.client.get(reverse("reports:edit", kwargs={"pk": report.pk}))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "forensic_bootstrap_runner.js")
+        self.assertContains(response, "forensic-bootstrap-build-shell")
+        self.assertContains(
+            response,
+            reverse("reports:forensic_bootstrap_analyze", kwargs={"pk": report.pk}),
+        )
+
+    def test_bootstrap_build_rejects_shell_without_analyze(self):
+        """Garante que montagem exige análise prévia dos documentos."""
+        self.client.login(username="perito_bootstrap", password="senha-segura")
+        report = create_forensic_report_shell(author=self.user, examiner=self.examiner)
+        build_url = reverse("reports:forensic_bootstrap_build", kwargs={"pk": report.pk})
+
+        response = self.client.post(build_url, content_type="application/json", data="{}")
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(bootstrap_state(report), STATE_SHELL_CREATED)
 
     @patch(
         "institution_ic_sp.forensic_report.views.forensic_bootstrap_api_views.analyze_case_metadata_from_documents"

@@ -20,12 +20,8 @@ from reports.services.report_editor_context import (
 )
 from institution_ic_sp.forensic_report.services.forensic_bootstrap import (
     bootstrap_state,
+    forensic_bootstrap_editor_config,
     is_forensic_bootstrap_pending,
-    metadata_from_bootstrap,
-    pending_prompt_catalog,
-)
-from institution_ic_sp.forensic_report.common.services.case_metadata_serialization import (
-    case_metadata_to_form_dict,
 )
 from reports.services.report_image_processing import MAX_IMAGE_SIDE_PX
 from reports.services.report_kind import ensure_institutional_page_layout_snapshot, is_forensic_report
@@ -68,19 +64,9 @@ class ReportEditorView(LoginRequiredMixin, DetailView):
         context["header_logo_initial_height_px"] = HEADER_LOGO_INITIAL_HEIGHT_PX
         context["forensic_bootstrap_pending"] = is_forensic_bootstrap_pending(self.object)
         context["forensic_bootstrap_state"] = bootstrap_state(self.object)
-        if is_forensic_bootstrap_pending(self.object):
-            metadata = metadata_from_bootstrap(self.object.page_layout)
-            context["forensic_bootstrap_config"] = json.dumps(
-                {
-                    "state": bootstrap_state(self.object),
-                    "finalizeUrl": reverse(
-                        "reports:forensic_bootstrap_finalize",
-                        kwargs={"pk": self.object.pk},
-                    ),
-                    "metadata": case_metadata_to_form_dict(metadata),
-                    "pendingPrompts": pending_prompt_catalog(self.object.page_layout),
-                }
-            )
+        bootstrap_config = forensic_bootstrap_editor_config(self.object)
+        if bootstrap_config is not None:
+            context["forensic_bootstrap_config"] = json.dumps(bootstrap_config)
         return context
 
 

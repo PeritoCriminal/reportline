@@ -24,8 +24,10 @@ from institution_ic_sp.forensic_report.mixins import ForensicExaminerSPRequiredM
 from institution_ic_sp.forensic_report.services.forensic_bootstrap import (
     CRITICAL_PROMPT_FIELDS,
     STATE_ANALYZED,
+    STATE_BUILDING,
     STATE_PROMPTING,
     STATE_READY,
+    STATE_SHELL_CREATED,
     bootstrap_state,
     bootstrap_status_payload,
     compute_pending_prompts,
@@ -33,6 +35,7 @@ from institution_ic_sp.forensic_report.services.forensic_bootstrap import (
     metadata_from_bootstrap,
     save_bootstrap_after_metadata_update,
     save_bootstrap_metadata,
+    set_bootstrap_state,
 )
 from institution_ic_sp.forensic_report.services.forensic_bootstrap_finalize import (
     finalize_bootstrap_prompts,
@@ -74,6 +77,11 @@ class ForensicBootstrapAnalyzeView(ForensicReportAuthorMixin, View):
         if state == STATE_READY:
             return JsonResponse(
                 {"errors": ["Este laudo já foi montado."]},
+                status=400,
+            )
+        if state in (STATE_BUILDING, STATE_PROMPTING):
+            return JsonResponse(
+                {"errors": ["A análise não está disponível nesta etapa do laudo."]},
                 status=400,
             )
 
@@ -130,9 +138,18 @@ class ForensicBootstrapBuildView(ForensicReportAuthorMixin, View):
     def post(self, request, pk):
         """Persiste blocos padronizados e marca bootstrap como concluído."""
         report = self.get_report()
-        if bootstrap_state(report) == STATE_READY:
+        state = bootstrap_state(report)
+        if state == STATE_READY:
             return JsonResponse(bootstrap_status_payload(report))
+        if state == STATE_BUILDING:
+            return JsonResponse(bootstrap_status_payload(report))
+        if state != STATE_ANALYZED:
+            return JsonResponse(
+                {"errors": ["Analise os documentos antes de montar o laudo."]},
+                status=400,
+            )
 
+        set_bootstrap_state(report, STATE_BUILDING)
         metadata = metadata_from_bootstrap(report.page_layout)
         try:
             build_forensic_report_from_bootstrap(
@@ -141,7 +158,11 @@ class ForensicBootstrapBuildView(ForensicReportAuthorMixin, View):
                 metadata=metadata,
             )
         except ValidationError as exc:
+            set_bootstrap_state(report, STATE_ANALYZED)
             return _validation_error_response(exc)
+        except Exception:
+            set_bootstrap_state(report, STATE_ANALYZED)
+            raise
 
         report.refresh_from_db()
         return JsonResponse(bootstrap_status_payload(report))

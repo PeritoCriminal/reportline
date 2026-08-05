@@ -1,5 +1,5 @@
 /**
- * Fluxo rápido de intake: casca → análise → montagem → editor.
+ * Fluxo rápido de intake: casca → editor → análise e montagem em background.
  */
 (function () {
     "use strict";
@@ -14,16 +14,6 @@
     if (!form || !quickButton || !documentsInput) {
         return;
     }
-
-    const QUICK_STATUS_MESSAGES = [
-        "Preparando laudo…",
-        "Lendo documentos com IA…",
-        "Montando estrutura do laudo…",
-    ];
-    const STATUS_ROTATE_MS = 2200;
-
-    let statusRotateTimer = null;
-    let statusMessageIndex = 0;
 
     function getCsrfToken() {
         const csrfInput = form.querySelector("[name=csrfmiddlewaretoken]");
@@ -67,22 +57,6 @@
         }, 120);
     }
 
-    function startStatusRotation() {
-        statusMessageIndex = 0;
-        setStatusMessage(QUICK_STATUS_MESSAGES[0]);
-        statusRotateTimer = window.setInterval(() => {
-            statusMessageIndex = (statusMessageIndex + 1) % QUICK_STATUS_MESSAGES.length;
-            setStatusMessage(QUICK_STATUS_MESSAGES[statusMessageIndex]);
-        }, STATUS_ROTATE_MS);
-    }
-
-    function stopStatusRotation() {
-        if (statusRotateTimer !== null) {
-            window.clearInterval(statusRotateTimer);
-            statusRotateTimer = null;
-        }
-    }
-
     function setQuickBusy(isBusy) {
         quickButton.disabled = isBusy;
         quickButton.classList.toggle("is-analyzing", isBusy);
@@ -91,22 +65,8 @@
             statusPanel.hidden = !isBusy;
         }
         if (isBusy) {
-            startStatusRotation();
-            return;
+            setStatusMessage("Abrindo editor…");
         }
-        stopStatusRotation();
-    }
-
-    function buildAnalyzeFormData() {
-        const formData = new FormData();
-        const supplementary = form.querySelector("[name=supplementary_prompt]");
-        if (supplementary) {
-            formData.append("supplementary_prompt", supplementary.value || "");
-        }
-        Array.from(documentsInput.files || []).forEach((file) => {
-            formData.append("documents", file);
-        });
-        return formData;
     }
 
     async function postJson(url, options) {
@@ -140,6 +100,12 @@
             return;
         }
 
+        const docStore = window.ReportLineForensicBootstrapDocuments;
+        if (!docStore || !docStore.storePendingDocuments) {
+            showToast("Armazenamento local indisponível neste navegador.", "warning");
+            return;
+        }
+
         setQuickBusy(true);
         try {
             const shellFormData = new FormData();
@@ -154,30 +120,10 @@
                 body: shellFormData,
             });
 
-            setStatusMessage("Lendo documentos com IA…");
-            const analyzePayload = await postJson(shell.analyze_url, {
-                method: "POST",
-                headers: { "X-CSRFToken": getCsrfToken() },
-                body: buildAnalyzeFormData(),
-            });
-
-            const warnings = Array.isArray(analyzePayload.warnings) ? analyzePayload.warnings : [];
-            warnings.forEach((warning) => showToast(warning, "warning"));
-
-            setStatusMessage("Montando estrutura do laudo…");
-            await postJson(shell.build_url, {
-                method: "POST",
-                headers: {
-                    "X-CSRFToken": getCsrfToken(),
-                    "Content-Type": "application/json",
-                },
-                body: "{}",
-            });
-
+            await docStore.storePendingDocuments(shell.report_id, files);
             window.location.assign(shell.edit_url);
         } catch (error) {
             showToast(error.message || "Falha ao preparar o laudo.", "danger");
-        } finally {
             setQuickBusy(false);
         }
     });
