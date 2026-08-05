@@ -11,6 +11,10 @@ from institution_ic_sp.forensic_report.common.services.datetime_display import (
     format_designation_date,
     format_forensic_datetime,
 )
+from institution_ic_sp.forensic_report.common.services.exam_category import (
+    EXAM_CATEGORY_UNKNOWN,
+    normalize_exam_category,
+)
 
 UPPERCASE_TEXT_FIELDS = frozenset(
     {
@@ -60,6 +64,7 @@ class CaseMetadata:
     report_year: int = 0
     designation_date: date | None = None
     exam_objective: str = ""
+    exam_category: str = EXAM_CATEGORY_UNKNOWN
     supplementary_prompt: str = ""
     requesting_authority: str = ""
     police_district: str = ""

@@ -14,6 +14,7 @@ from institution_ic_sp.forensic_report.common.services.case_metadata import (
     normalize_case_metadata,
     normalize_text_field,
 )
+from institution_ic_sp.forensic_report.common.services.exam_category import normalize_exam_category
 
 DATETIME_INPUT_FORMATS = (
     "%Y-%m-%dT%H:%M",
@@ -72,6 +73,7 @@ def case_metadata_from_post(post: QueryDict) -> CaseMetadata:
             report_year=report_year,
             designation_date=_parse_date(_clean_str(post.get("designation_date"))),
             exam_objective=_clean_str(post.get("exam_objective"), field_name="exam_objective"),
+            exam_category=normalize_exam_category(post.get("exam_category")),
             supplementary_prompt=_clean_str(
                 post.get("supplementary_prompt"),
                 field_name="supplementary_prompt",
@@ -121,6 +123,7 @@ def case_metadata_to_form_dict(metadata: CaseMetadata) -> dict[str, str | int]:
         "report_year": metadata.report_year or "",
         "designation_date": _format_date(metadata.designation_date),
         "exam_objective": metadata.exam_objective,
+        "exam_category": metadata.exam_category,
         "supplementary_prompt": metadata.supplementary_prompt,
         "requesting_authority": metadata.requesting_authority,
         "police_district": metadata.police_district,

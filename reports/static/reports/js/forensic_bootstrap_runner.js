@@ -8,6 +8,7 @@
     "use strict";
 
     const STATE_SHELL_CREATED = "shell_created";
+    const STATE_COLLECTING_SCENE_CONTINUATION = "collecting_scene_continuation";
     const STATE_ANALYZED = "analyzed";
     const STATE_COLLECTING_PROMPTS = "collecting_prompts";
     const STATE_BUILDING = "building";
@@ -542,6 +543,27 @@
         });
     }
 
+    async function runSceneContinuation() {
+        if (!window.ReportLineSceneExaminationContinuation?.run) {
+            throw new Error("Continuação de exame de local indisponível nesta tela.");
+        }
+        await closeAnalyzeOverlay();
+        const response = await window.ReportLineSceneExaminationContinuation.run({
+            sceneContinuationUrl: config.sceneContinuationUrl,
+            imageUploadUrl: config.imageUploadUrl,
+            examCategory: config.examCategory || config.metadata?.exam_category,
+            metadata: config.metadata,
+        });
+        config.state = response.state || config.state;
+        config.examCategory = response.exam_category || config.examCategory;
+        if (response.metadata) {
+            config.metadata = response.metadata;
+        }
+        if (response.prompt_config) {
+            Object.assign(config, response.prompt_config);
+        }
+    }
+
     async function runPromptCollection(promptConfig) {
         if (!window.ReportLineForensicBootstrap?.runPromptFlow) {
             throw new Error("Coleta de dados indisponível nesta tela.");
@@ -571,9 +593,21 @@
                 }
                 const analyzePayload = await runAnalyze(files);
                 config.state = analyzePayload.state || STATE_ANALYZED;
-                if (analyzePayload.prompt_config) {
+                if (analyzePayload.metadata) {
+                    config.metadata = analyzePayload.metadata;
+                }
+                if (analyzePayload.exam_category) {
+                    config.examCategory = analyzePayload.exam_category;
+                }
+                if (config.state === STATE_COLLECTING_SCENE_CONTINUATION) {
+                    await runSceneContinuation();
+                } else if (analyzePayload.prompt_config) {
                     await runPromptCollection(analyzePayload.prompt_config);
                 }
+            }
+
+            if (config.state === STATE_COLLECTING_SCENE_CONTINUATION) {
+                await runSceneContinuation();
             }
 
             if (config.state === STATE_COLLECTING_PROMPTS) {
@@ -620,6 +654,7 @@
 
         if (
             config.state === STATE_SHELL_CREATED ||
+            config.state === STATE_COLLECTING_SCENE_CONTINUATION ||
             config.state === STATE_COLLECTING_PROMPTS ||
             config.state === STATE_ANALYZED ||
             config.state === STATE_BUILDING

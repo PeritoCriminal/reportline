@@ -17,6 +17,10 @@
       "type": "string",
       "description": "Objetivo ou finalidade do exame pericial, transcrito ou parafraseado fielmente. Prioridade: Requisição de Exame Pericial. Não incluir narrativa dos fatos."
     },
+    "exam_category": {
+      "type": "string",
+      "description": "Categoria do exame pericial inferida a partir do objetivo, natureza da ocorrência e documentos. Valores permitidos: property_scene (exame de local de furto, roubo ou dano patrimonial), traffic_accident (acidente de trânsito), work_accident (acidente de trabalho), unknown (não foi possível inferir). Inferir somente quando houver indício explícito nos documentos ou no objetivo do exame; não deduzir a partir de contexto vago."
+    },
     "requesting_authority": {
       "type": "string",
       "description": "Autoridade requisitante (delegado/delegada). Prioridade: Requisição > BO > Inquérito. Incluir Dr. ou Dra. quando constar no documento."

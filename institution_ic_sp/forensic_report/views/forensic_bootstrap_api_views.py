@@ -20,6 +20,13 @@ from institution_ic_sp.forensic_report.common.services.case_metadata_extraction 
 from institution_ic_sp.forensic_report.common.services.case_metadata_serialization import (
     case_metadata_to_form_dict,
 )
+from institution_ic_sp.forensic_report.common.services.exam_category import (
+    DEFERRED_MODULE_TODO_MESSAGES,
+    EXAM_CATEGORY_PROPERTY_SCENE,
+    VALID_EXAM_CATEGORIES,
+    is_deferred_module_category,
+    normalize_exam_category,
+)
 from institution_ic_sp.forensic_report.mixins import ForensicExaminerSPRequiredMixin
 from institution_ic_sp.forensic_report.services.forensic_bootstrap_field_coverage import (
     ALL_PROMPT_FIELD_NAMES,
@@ -29,6 +36,7 @@ from institution_ic_sp.forensic_report.services.forensic_bootstrap import (
     STATE_ANALYZED,
     STATE_BUILDING,
     STATE_COLLECTING_PROMPTS,
+    STATE_COLLECTING_SCENE_CONTINUATION,
     STATE_PROMPTING,
     STATE_READY,
     STATE_SHELL_CREATED,
@@ -59,6 +67,9 @@ from institution_ic_sp.forensic_report.services.forensic_report_metadata_sync im
     apply_prompt_field_value,
     sync_forensic_metadata_fields,
     validate_prompt_submit_value,
+)
+from institution_ic_sp.forensic_report.services.scene_examination_continuation import (
+    save_scene_examination_continuation,
 )
 from institution_ic_sp.forensic_report.workflows.generic.services.report_draft_builder import (
     build_forensic_report_from_bootstrap,
@@ -98,7 +109,7 @@ class ForensicBootstrapAnalyzeView(ForensicReportAuthorMixin, View):
                 {"errors": ["Este laudo já foi montado."]},
                 status=400,
             )
-        if state in (STATE_BUILDING, STATE_PROMPTING, STATE_COLLECTING_PROMPTS):
+        if state in (STATE_BUILDING, STATE_PROMPTING, STATE_COLLECTING_PROMPTS, STATE_COLLECTING_SCENE_CONTINUATION):
             return JsonResponse(
                 {"errors": ["A análise não está disponível nesta etapa do laudo."]},
                 status=400,
@@ -148,6 +159,8 @@ class ForensicBootstrapAnalyzeView(ForensicReportAuthorMixin, View):
             ),
             "warnings": warnings,
         }
+        if current_state == STATE_COLLECTING_SCENE_CONTINUATION:
+            response["exam_category"] = normalize_exam_category(merged.exam_category)
         if current_state == STATE_COLLECTING_PROMPTS:
             response["prompt_config"] = forensic_bootstrap_prompt_config(report)
         return JsonResponse(response)
@@ -167,12 +180,14 @@ class ForensicBootstrapBuildView(ForensicReportAuthorMixin, View):
             return JsonResponse(bootstrap_status_payload(report))
         if state == STATE_BUILDING:
             return JsonResponse(bootstrap_status_payload(report))
-        if state != STATE_ANALYZED:
-            message = (
-                "Responda aos dados pendentes antes de montar o laudo."
-                if state == STATE_COLLECTING_PROMPTS
-                else "Analise os documentos antes de montar o laudo."
-            )
+        if state not in (STATE_ANALYZED, STATE_BUILDING):
+            message = "Complete a continuação do exame antes de montar o laudo."
+            if state == STATE_COLLECTING_SCENE_CONTINUATION:
+                message = "Informe o tipo de exame antes de montar o laudo."
+            elif state == STATE_COLLECTING_PROMPTS:
+                message = "Responda aos dados pendentes antes de montar o laudo."
+            elif state == STATE_SHELL_CREATED:
+                message = "Analise os documentos antes de montar o laudo."
             return JsonResponse({"errors": [message]}, status=400)
 
         set_bootstrap_state(report, STATE_BUILDING)
@@ -217,10 +232,12 @@ class ForensicBootstrapBuildStepView(ForensicReportAuthorMixin, View):
         report = self.get_report()
         state = bootstrap_state(report)
         if state not in (STATE_ANALYZED, STATE_BUILDING):
-            return JsonResponse(
-                {"errors": ["A montagem incremental não está disponível nesta etapa."]},
-                status=400,
-            )
+            message = "Complete a continuação do exame antes de montar o laudo."
+            if state == STATE_COLLECTING_SCENE_CONTINUATION:
+                message = "Informe o tipo de exame antes de montar o laudo."
+            elif state == STATE_COLLECTING_PROMPTS:
+                message = "Responda aos dados pendentes antes de montar o laudo."
+            return JsonResponse({"errors": [message]}, status=400)
 
         try:
             created_nodes, done, final_state, step_id = advance_forensic_body_build_step(
@@ -362,6 +379,65 @@ class ForensicBootstrapFinalizeView(ForensicReportAuthorMixin, View):
         report.refresh_from_db()
         response = bootstrap_status_payload(report)
         response["reload"] = bootstrap_state(report) == STATE_READY
+        return JsonResponse(response)
+
+    def http_method_not_allowed(self, request, *args, **kwargs):
+        return HttpResponseNotAllowed(["POST"])
+
+
+class ForensicBootstrapSceneContinuationView(ForensicReportAuthorMixin, View):
+    """Registra tipo de exame e características do local no bootstrap."""
+
+    def post(self, request, pk):
+        """Persiste continuação de exame de local e avança o bootstrap."""
+        report = self.get_report()
+        state = bootstrap_state(report)
+        if state != STATE_COLLECTING_SCENE_CONTINUATION:
+            return JsonResponse(
+                {"errors": ["A continuação de exame de local não está disponível nesta etapa."]},
+                status=400,
+            )
+
+        try:
+            payload = json.loads(request.body.decode("utf-8") or "{}")
+        except json.JSONDecodeError:
+            return JsonResponse({"errors": ["JSON inválido."]}, status=400)
+
+        raw_category = str(payload.get("exam_category", "")).strip().lower()
+        if raw_category not in VALID_EXAM_CATEGORIES:
+            return JsonResponse({"errors": ["Categoria de exame inválida."]}, status=400)
+        exam_category = raw_category
+
+        prompt = str(payload.get("prompt", "")).strip()
+        raw_image_ids = payload.get("image_ids", [])
+        if not isinstance(raw_image_ids, list):
+            return JsonResponse({"errors": ["Informe image_ids como lista."]}, status=400)
+        image_ids = [str(item) for item in raw_image_ids if str(item).strip()]
+
+        if exam_category == EXAM_CATEGORY_PROPERTY_SCENE and not prompt and not image_ids:
+            return JsonResponse(
+                {"errors": ["Informe imagens ou orientações sobre o local."]},
+                status=400,
+            )
+
+        save_scene_examination_continuation(
+            report,
+            exam_category=exam_category,
+            prompt=prompt,
+            image_ids=image_ids,
+        )
+
+        report.refresh_from_db()
+        current_state = bootstrap_state(report)
+        response: dict[str, object] = {
+            "state": current_state,
+            "exam_category": exam_category,
+            "metadata": case_metadata_to_form_dict(metadata_from_bootstrap(report.page_layout)),
+        }
+        if is_deferred_module_category(exam_category):
+            response["todo_message"] = DEFERRED_MODULE_TODO_MESSAGES[exam_category]
+        if current_state == STATE_COLLECTING_PROMPTS:
+            response["prompt_config"] = forensic_bootstrap_prompt_config(report)
         return JsonResponse(response)
 
     def http_method_not_allowed(self, request, *args, **kwargs):

@@ -18,11 +18,13 @@ from institution_ic_sp.forensic_report.services.forensic_bootstrap import (
     STATE_ANALYZED,
     STATE_BUILDING,
     STATE_COLLECTING_PROMPTS,
+    STATE_COLLECTING_SCENE_CONTINUATION,
     STATE_PROMPTING,
     STATE_READY,
     STATE_SHELL_CREATED,
     bootstrap_state,
 )
+from institution_ic_sp.forensic_report.common.services.exam_category import EXAM_CATEGORY_TRAFFIC_ACCIDENT
 from institution_ic_sp.forensic_report.services.forensic_report_shell import create_forensic_report_shell
 from institution_ic_sp.models import ForensicTeam
 from profiles.models import ForensicExaminerSP, ForensicJobTitle, GenderCalling
@@ -87,6 +89,14 @@ class ForensicBootstrapPhaseOneTests(TestCase):
             "requisicao.pdf",
             b"%PDF-1.4 bootstrap test",
             content_type="application/pdf",
+        )
+
+    def _complete_scene_continuation(self, report_pk, *, category=EXAM_CATEGORY_TRAFFIC_ACCIDENT):
+        """Conclui etapa de continuação de exame de local nos testes de bootstrap."""
+        return self.client.post(
+            reverse("reports:forensic_bootstrap_scene_continuation", kwargs={"pk": report_pk}),
+            data=json.dumps({"exam_category": category}),
+            content_type="application/json",
         )
 
     def test_quick_shell_creates_forensic_report_without_body(self):
@@ -155,6 +165,7 @@ class ForensicBootstrapPhaseOneTests(TestCase):
         response = self.client.post(analyze_url, {"documents": self._pdf_upload()})
         self.assertEqual(response.status_code, 200)
         mock_analyze.assert_called_once()
+        self._complete_scene_continuation(report.pk)
 
         response = self.client.post(
             build_url,
@@ -179,12 +190,17 @@ class ForensicBootstrapPhaseOneTests(TestCase):
         response = self.client.post(analyze_url, {"documents": self._pdf_upload()})
         self.assertEqual(response.status_code, 200)
         payload = response.json()
-        self.assertEqual(payload.get("state"), STATE_COLLECTING_PROMPTS)
-        self.assertTrue(payload.get("pending_prompts"))
-        self.assertIn("prompt_config", payload)
+        self.assertEqual(payload.get("state"), STATE_COLLECTING_SCENE_CONTINUATION)
 
+        self._complete_scene_continuation(report.pk)
         report.refresh_from_db()
         self.assertEqual(bootstrap_state(report), STATE_COLLECTING_PROMPTS)
+
+        status_response = self.client.get(
+            reverse("reports:forensic_bootstrap_status", kwargs={"pk": report.pk})
+        )
+        status_payload = status_response.json()
+        self.assertTrue(status_payload.get("pending_prompts"))
         self.assertEqual(report.nodes.count(), 0)
 
     def test_intake_page_exposes_quick_flow_assets(self):
@@ -205,6 +221,7 @@ class ForensicBootstrapPhaseOneTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "forensic_bootstrap_runner.js")
+        self.assertContains(response, "scene_examination_continuation.js")
         self.assertContains(response, "forensic-bootstrap-build-shell")
         self.assertContains(
             response,
@@ -239,6 +256,7 @@ class ForensicBootstrapPhaseOneTests(TestCase):
         build_step_url = reverse("reports:forensic_bootstrap_build_step", kwargs={"pk": report.pk})
 
         self.client.post(analyze_url, {"documents": self._pdf_upload()})
+        self._complete_scene_continuation(report.pk)
 
         response = self.client.post(build_step_url, content_type="application/json", data="{}")
         self.assertEqual(response.status_code, 200)
@@ -273,6 +291,7 @@ class ForensicBootstrapPhaseOneTests(TestCase):
         finalize_url = reverse("reports:forensic_bootstrap_finalize", kwargs={"pk": report.pk})
 
         self.client.post(analyze_url, {"documents": self._pdf_upload()})
+        self._complete_scene_continuation(report.pk)
 
         report.refresh_from_db()
         self.assertEqual(bootstrap_state(report), STATE_COLLECTING_PROMPTS)
@@ -312,6 +331,7 @@ class ForensicBootstrapPhaseOneTests(TestCase):
         finalize_url = reverse("reports:forensic_bootstrap_finalize", kwargs={"pk": report.pk})
 
         self.client.post(analyze_url, {"documents": self._pdf_upload()})
+        self._complete_scene_continuation(report.pk)
 
         response = self.client.post(
             finalize_url,
@@ -331,6 +351,7 @@ class ForensicBootstrapPhaseOneTests(TestCase):
         finalize_url = reverse("reports:forensic_bootstrap_finalize", kwargs={"pk": report.pk})
 
         self.client.post(analyze_url, {"documents": self._pdf_upload()})
+        self._complete_scene_continuation(report.pk)
 
         response = self.client.post(
             finalize_url,

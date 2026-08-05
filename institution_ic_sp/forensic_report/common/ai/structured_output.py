@@ -9,6 +9,7 @@ from typing import Any
 
 from django.utils import timezone
 
+from institution_ic_sp.forensic_report.common.services.exam_category import normalize_exam_category
 from institution_ic_sp.forensic_report.common.services.case_metadata import (
     CaseMetadata,
     normalize_case_metadata,
@@ -78,6 +79,7 @@ def case_metadata_from_ai_payload(payload: dict[str, Any]) -> CaseMetadata:
             report_year=_parse_ai_year(payload.get("report_year")),
             designation_date=_parse_ai_date(payload.get("designation_date")),
             exam_objective=_clean_ai_str(payload.get("exam_objective"), field_name="exam_objective"),
+            exam_category=normalize_exam_category(payload.get("exam_category")),
             requesting_authority=_clean_ai_str(
                 payload.get("requesting_authority"),
                 field_name="requesting_authority",

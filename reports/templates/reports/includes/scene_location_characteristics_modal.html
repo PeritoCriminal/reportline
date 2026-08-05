@@ -1,0 +1,66 @@
+{# Modal de características do local para exame patrimonial. #}
+<div class="modal fade"
+     id="sceneLocationCharacteristicsModal"
+     tabindex="-1"
+     aria-labelledby="sceneLocationCharacteristicsModalLabel"
+     aria-hidden="true"
+     data-bs-backdrop="static"
+     data-bs-keyboard="false">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content">
+            <div class="modal-header border-secondary-subtle">
+                <h2 class="modal-title fs-5" id="sceneLocationCharacteristicsModalLabel">
+                    <i class="bi bi-images text-primary me-2" aria-hidden="true"></i>
+                    Características do Local
+                </h2>
+            </div>
+            <div class="modal-body">
+                <p class="text-muted small mb-3">
+                    Arraste ou selecione imagens da fachada, da entrada, contendo o tipo
+                    de fechamento e ambientes internos que queira descrever.
+                </p>
+                <div class="scene-location-dropzone mb-3"
+                     id="scene-location-dropzone"
+                     role="button"
+                     tabindex="0"
+                     aria-describedby="scene-location-dropzone-help">
+                    <input type="file"
+                           id="scene-location-file-input"
+                           class="visually-hidden"
+                           accept="image/*"
+                           multiple>
+                    <div class="scene-location-dropzone-inner">
+                        <i class="bi bi-cloud-arrow-up scene-location-dropzone-icon" aria-hidden="true"></i>
+                        <p class="mb-1 fw-medium">Arraste imagens aqui ou clique para selecionar</p>
+                        <p class="text-muted small mb-0" id="scene-location-dropzone-help">
+                            Formatos de imagem comuns (JPG, PNG, WEBP).
+                        </p>
+                    </div>
+                </div>
+                <div class="scene-location-preview-grid mb-3"
+                     id="scene-location-preview-grid"
+                     hidden
+                     aria-live="polite"></div>
+                <div class="mb-0">
+                    <label class="form-label" for="scene-location-prompt-input">
+                        Orientações complementares
+                    </label>
+                    <textarea class="form-control"
+                              id="scene-location-prompt-input"
+                              rows="4"
+                              placeholder="Descreva detalhes do local, fechamentos, ambientes ou pontos de interesse…"></textarea>
+                </div>
+                <div class="invalid-feedback d-block"
+                     id="scene-location-error"
+                     hidden></div>
+            </div>
+            <div class="modal-footer border-secondary-subtle">
+                <button type="button"
+                        class="btn btn-primary"
+                        id="scene-location-submit">
+                    Continuar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>

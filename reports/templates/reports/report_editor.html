@@ -9,6 +9,7 @@
 
 {% block extra_css %}
 <link rel="stylesheet" href="{% versioned_static 'reports/css/report_editor.css' %}">
+<link rel="stylesheet" href="{% versioned_static 'reports/css/scene_examination_continuation.css' %}">
 {% endblock %}
 
 {% block content %}
@@ -40,6 +41,8 @@
 {% include "reports/includes/report_page_header_modal.html" %}
 {% include "reports/includes/report_page_footer_modal.html" %}
 {% include "reports/includes/report_config_modal.html" %}
+{% include "reports/includes/scene_examination_type_modal.html" %}
+{% include "reports/includes/scene_location_characteristics_modal.html" %}
 {% include "reports/includes/forensic_bootstrap_prompt_panel.html" %}
 {% include "reports/includes/forensic_bootstrap_build_panel.html" %}
 {{ report_config|json_script:"report-editor-initial-config" }}
@@ -96,6 +99,7 @@
 <script src="{% versioned_static 'reports/js/report_page_band_text.js' %}" defer></script>
 <script src="{% versioned_static 'reports/js/report_institutional_layout.js' %}" defer></script>
 <script src="{% versioned_static 'institution_ic_sp/js/forensic_bootstrap_documents.js' %}" defer></script>
+<script src="{% versioned_static 'reports/js/scene_examination_continuation.js' %}" defer></script>
 <script src="{% versioned_static 'reports/js/forensic_bootstrap_runner.js' %}" defer></script>
 <script src="{% versioned_static 'reports/js/forensic_bootstrap_prompts.js' %}" defer></script>
 <script src="{% versioned_static 'reports/js/report_page_header.js' %}" defer></script>
@@ -170,8 +174,15 @@
         if (window.ReportLineInstitutionalLayout && window.REPORT_EDITOR_PAGE_LAYOUT) {
             window.ReportLineInstitutionalLayout.init(window.REPORT_EDITOR_PAGE_LAYOUT);
         }
+        if (window.ReportLineSceneExaminationContinuation) {
+            window.ReportLineSceneExaminationContinuation.initDomReferences();
+        }
         if (window.ReportLineForensicBootstrapRunner && window.REPORT_EDITOR_FORENSIC_BOOTSTRAP) {
-            window.ReportLineForensicBootstrapRunner.init(window.REPORT_EDITOR_FORENSIC_BOOTSTRAP);
+            const bootstrapConfig = window.REPORT_EDITOR_FORENSIC_BOOTSTRAP;
+            if (window.REPORT_EDITOR_IMAGES?.uploadUrl) {
+                bootstrapConfig.imageUploadUrl = window.REPORT_EDITOR_IMAGES.uploadUrl;
+            }
+            window.ReportLineForensicBootstrapRunner.init(bootstrapConfig);
         }
         if (window.ReportLineReportConfig && window.REPORT_EDITOR_CONFIG) {
             const configScript = document.getElementById("report-editor-initial-config");

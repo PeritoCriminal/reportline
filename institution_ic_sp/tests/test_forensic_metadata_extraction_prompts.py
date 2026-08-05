@@ -58,6 +58,7 @@ class MetadataExtractionPromptTests(TestCase):
         summary = load_case_metadata_schema_summary()
 
         self.assertIn("requisition_at", summary)
+        self.assertIn("exam_category", summary)
         self.assertIn("assinatura da autoridade requisitante", summary.lower())
         self.assertIn("T00:00", summary)
         self.assertIn("não consta no bo", summary.lower())

@@ -28,6 +28,7 @@ from institution_ic_sp.forensic_report.views.forensic_bootstrap_api_views import
     ForensicBootstrapBuildView,
     ForensicBootstrapFinalizeView,
     ForensicBootstrapPromptView,
+    ForensicBootstrapSceneContinuationView,
     ForensicBootstrapStatusView,
 )
 
@@ -108,6 +109,11 @@ urlpatterns = [
         "<uuid:pk>/forensic-bootstrap/prompt/",
         ForensicBootstrapPromptView.as_view(),
         name="forensic_bootstrap_prompt",
+    ),
+    path(
+        "<uuid:pk>/forensic-bootstrap/scene-continuation/",
+        ForensicBootstrapSceneContinuationView.as_view(),
+        name="forensic_bootstrap_scene_continuation",
     ),
     path(
         "<uuid:pk>/forensic-bootstrap/finalize/",

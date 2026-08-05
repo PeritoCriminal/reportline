@@ -55,6 +55,7 @@ Entre documentos do mesmo nível, aplique a hierarquia da tabela de tipos acima.
 - Inventar horários, datas, endereços, nomes ou numerações (exceto `requisition_at` sem hora documentada: use `T00:00`).
 - Usar o **Boletim de Ocorrência** como fonte de `requisition_at` quando as informações complementares do perito não indicarem outro valor. A data/hora da requisição **não consta no BO** — datas como “data de elaboração”, “data de registro” ou “data de lavratura” do BO referem-se ao BO, não à requisição do exame.
 - Confundir `requisition_at` com `occurrence_at` ou `examination_at`.
-- Extrair nesta etapa: pessoas, vítimas, investigados, veículos, vestígios, cronologia dos fatos ou elementos técnicos do exame — isso pertence a etapas posteriores do sistema.
+- Extrair nesta etapa: pessoas, vítimas, investigados, veículos, vestígios, cronologia dos fatos ou elementos técnicos detalhados do exame — isso pertence a etapas posteriores do sistema.
+- **Exceção controlada:** inferir apenas o campo ``exam_category`` (categoria do exame) quando o objetivo do exame, a natureza da ocorrência ou o tipo de requisição indicarem explicitamente furto, roubo, dano patrimonial, acidente de trânsito ou acidente de trabalho. Use ``unknown`` quando não houver indício claro.
 
 Na dúvida, deixe o campo vazio — exceto se as informações complementares do perito resolverem a dúvida de forma explícita.

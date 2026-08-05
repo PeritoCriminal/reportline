@@ -1,0 +1,45 @@
+{# Modal de escolha do tipo de exame pericial após análise documental. #}
+<div class="modal fade"
+     id="sceneExamTypeModal"
+     tabindex="-1"
+     aria-labelledby="sceneExamTypeModalLabel"
+     aria-hidden="true"
+     data-bs-backdrop="static"
+     data-bs-keyboard="false">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header border-secondary-subtle">
+                <h2 class="modal-title fs-5" id="sceneExamTypeModalLabel">
+                    <i class="bi bi-signpost-split text-primary me-2" aria-hidden="true"></i>
+                    Tipo de exame
+                </h2>
+            </div>
+            <div class="modal-body">
+                <p class="text-muted small mb-3">
+                    Não foi possível identificar automaticamente o tipo de exame.
+                    Escolha a opção que melhor descreve este laudo.
+                </p>
+                <div class="d-grid gap-2" role="group" aria-label="Opções de tipo de exame">
+                    <button type="button"
+                            class="btn btn-outline-primary text-start scene-exam-type-option"
+                            data-exam-category="property_scene">
+                        <i class="bi bi-house-door me-2" aria-hidden="true"></i>
+                        Local de furto, roubo ou dano?
+                    </button>
+                    <button type="button"
+                            class="btn btn-outline-primary text-start scene-exam-type-option"
+                            data-exam-category="traffic_accident">
+                        <i class="bi bi-car-front me-2" aria-hidden="true"></i>
+                        Acidente de trânsito?
+                    </button>
+                    <button type="button"
+                            class="btn btn-outline-primary text-start scene-exam-type-option"
+                            data-exam-category="work_accident">
+                        <i class="bi bi-hard-hat me-2" aria-hidden="true"></i>
+                        Acidente de trabalho?
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

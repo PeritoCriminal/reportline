@@ -32,6 +32,7 @@ from reports.services.report_kind import REPORTLINE_META_KEY, is_forensic_report
 BOOTSTRAP_META_KEY = "bootstrap"
 
 STATE_SHELL_CREATED = "shell_created"
+STATE_COLLECTING_SCENE_CONTINUATION = "collecting_scene_continuation"
 STATE_ANALYZED = "analyzed"
 STATE_COLLECTING_PROMPTS = "collecting_prompts"
 STATE_BUILDING = "building"
@@ -221,6 +222,30 @@ def field_coverage_from_bootstrap(page_layout: dict[str, Any] | None) -> dict[st
     return {str(key): str(value) for key, value in raw.items()}
 
 
+def is_scene_continuation_completed(page_layout: dict[str, Any] | None) -> bool:
+    """Indica se a etapa de continuação de exame de local já foi concluída."""
+    bootstrap = get_bootstrap_meta(page_layout) or {}
+    return bool(bootstrap.get("scene_continuation_completed"))
+
+
+def resolve_state_after_analyze(
+    report: Report,
+    metadata: CaseMetadata,
+    *,
+    skipped: set[str] | None = None,
+    field_coverage: dict[str, str] | None = None,
+) -> str:
+    """Define estado do bootstrap após análise documental."""
+    if not is_scene_continuation_completed(report.page_layout):
+        return STATE_COLLECTING_SCENE_CONTINUATION
+    pending = compute_pending_prompts(
+        metadata,
+        skipped=skipped,
+        field_coverage=field_coverage,
+    )
+    return STATE_COLLECTING_PROMPTS if pending else STATE_ANALYZED
+
+
 def save_bootstrap_after_analyze(
     report: Report,
     metadata: CaseMetadata,
@@ -231,7 +256,12 @@ def save_bootstrap_after_analyze(
     skipped = skipped_prompts_from_bootstrap(report.page_layout)
     coverage = field_coverage or {}
     pending = compute_pending_prompts(metadata, skipped=skipped, field_coverage=coverage)
-    state = STATE_COLLECTING_PROMPTS if pending else STATE_ANALYZED
+    state = resolve_state_after_analyze(
+        report,
+        metadata,
+        skipped=skipped,
+        field_coverage=coverage,
+    )
     bootstrap = get_bootstrap_meta(report.page_layout) or empty_bootstrap_payload()
     bootstrap["metadata"] = case_metadata_to_form_dict(metadata)
     bootstrap["state"] = state
@@ -420,6 +450,10 @@ def forensic_bootstrap_editor_config(report: Report) -> dict[str, Any] | None:
         "state": state,
         "reportId": str(report.pk),
         "analyzeUrl": reverse("reports:forensic_bootstrap_analyze", kwargs={"pk": report.pk}),
+        "sceneContinuationUrl": reverse(
+            "reports:forensic_bootstrap_scene_continuation",
+            kwargs={"pk": report.pk},
+        ),
         "buildUrl": reverse("reports:forensic_bootstrap_build", kwargs={"pk": report.pk}),
         "buildStepUrl": reverse("reports:forensic_bootstrap_build_step", kwargs={"pk": report.pk}),
         "statusUrl": reverse("reports:forensic_bootstrap_status", kwargs={"pk": report.pk}),
@@ -429,8 +463,14 @@ def forensic_bootstrap_editor_config(report: Report) -> dict[str, Any] | None:
         ),
     }
 
-    if state in (STATE_COLLECTING_PROMPTS, STATE_PROMPTING):
-        config.update(forensic_bootstrap_prompt_config(report))
+    if state in (STATE_COLLECTING_SCENE_CONTINUATION, STATE_COLLECTING_PROMPTS, STATE_PROMPTING):
+        metadata = metadata_from_bootstrap(report.page_layout)
+        config["metadata"] = case_metadata_to_form_dict(metadata)
+        if state == STATE_COLLECTING_SCENE_CONTINUATION:
+            bootstrap = get_bootstrap_meta(report.page_layout) or {}
+            config["examCategory"] = bootstrap.get("exam_category") or metadata.exam_category
+        if state in (STATE_COLLECTING_PROMPTS, STATE_PROMPTING):
+            config.update(forensic_bootstrap_prompt_config(report))
 
     return config
 
