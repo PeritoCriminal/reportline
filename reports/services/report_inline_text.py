@@ -12,10 +12,20 @@ from html.parser import HTMLParser
 
 ALLOWED_INLINE_TAGS = frozenset({"strong", "em", "u", "s", "a", "sup", "sub", "span"})
 ALLOWED_INLINE_FONT_SIZE_CLASSES = frozenset({
+    "report-inline-font-xs",
     "report-inline-font-sm",
     "report-inline-font-md",
     "report-inline-font-lg",
 })
+ALLOWED_INLINE_FONT_FAMILY_CLASSES = frozenset({
+    "report-inline-font-serif",
+})
+INLINE_FONT_SIZE_CLASS_PRIORITY = (
+    "report-inline-font-xs",
+    "report-inline-font-sm",
+    "report-inline-font-md",
+    "report-inline-font-lg",
+)
 ALLOWED_LINK_PREFIXES = ("http://", "https://", "mailto:")
 BLOCKED_LINK_PREFIXES = ("javascript:", "data:", "vbscript:")
 TAG_ALIASES = {
@@ -24,6 +34,28 @@ TAG_ALIASES = {
     "strike": "s",
     "del": "s",
 }
+
+
+def resolve_inline_font_span_classes(class_names: str) -> str | None:
+    """Monta classes permitidas de tamanho e família tipográfica para ``span`` inline."""
+    tokens = class_names.split()
+    size_classes = {
+        name for name in tokens if name in ALLOWED_INLINE_FONT_SIZE_CLASSES
+    }
+    family_classes = {
+        name for name in tokens if name in ALLOWED_INLINE_FONT_FAMILY_CLASSES
+    }
+    if not size_classes and not family_classes:
+        return None
+
+    resolved: list[str] = []
+    for size_class in INLINE_FONT_SIZE_CLASS_PRIORITY:
+        if size_class in size_classes:
+            resolved.append(size_class)
+            break
+    if "report-inline-font-serif" in family_classes:
+        resolved.append("report-inline-font-serif")
+    return " ".join(resolved) if resolved else None
 
 
 def normalize_inline_link_href(href: str) -> str | None:
@@ -64,27 +96,11 @@ class _InlineTextSanitizer(HTMLParser):
         normalized = TAG_ALIASES.get(tag.lower(), tag.lower())
         if normalized == "span":
             class_names = dict(attrs).get("class", "")
-            allowed_classes = {
-                name
-                for name in class_names.split()
-                if name in ALLOWED_INLINE_FONT_SIZE_CLASSES
-            }
-            if not allowed_classes:
+            font_classes = resolve_inline_font_span_classes(class_names)
+            if not font_classes:
                 return
-            font_class = next(
-                (
-                    size_class
-                    for size_class in (
-                        "report-inline-font-sm",
-                        "report-inline-font-md",
-                        "report-inline-font-lg",
-                    )
-                    if size_class in allowed_classes
-                ),
-                "report-inline-font-md",
-            )
             self._tag_stack.append(normalized)
-            self._parts.append(f'<span class="{font_class}">')
+            self._parts.append(f'<span class="{font_classes}">')
             return
 
         if normalized == "a":

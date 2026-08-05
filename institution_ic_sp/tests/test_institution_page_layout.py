@@ -151,14 +151,14 @@ class InstitutionPageLayoutTests(TestCase):
             institution=self.institution,
             examiner=self.examiner,
             workflow="generic",
-            main_title_text="LAUDO PERICIAL Nº 42/2026",
+            main_title_text="Laudo pericial nº 42/2026",
         )
 
         extra_rows = layout["header"]["extra_rows"]
         self.assertEqual(len(extra_rows), 2)
         self.assertEqual(extra_rows[0]["type"], HEADER_EXTRA_ROW_TYPE_RULE)
         self.assertEqual(extra_rows[1]["align"], "right")
-        self.assertIn("LAUDO PERICIAL Nº 42/2026", extra_rows[1]["text"])
+        self.assertIn("Laudo pericial nº 42/2026", extra_rows[1]["text"])
         self.assertIn("report-inline-font-sm", extra_rows[1]["text"])
 
     def test_initial_header_logo_display_size_by_width_preserves_aspect_ratio(self):

@@ -8,9 +8,18 @@
         "STRONG", "EM", "U", "S", "B", "I", "STRIKE", "DEL", "A", "SUP", "SUB", "SPAN",
     ]);
     const ALLOWED_FONT_SIZE_CLASSES = new Set([
+        "report-inline-font-xs",
         "report-inline-font-sm",
         "report-inline-font-lg",
     ]);
+    const ALLOWED_FONT_FAMILY_CLASSES = new Set([
+        "report-inline-font-serif",
+    ]);
+    const FONT_SIZE_CLASS_PRIORITY = [
+        "report-inline-font-xs",
+        "report-inline-font-sm",
+        "report-inline-font-lg",
+    ];
     const TAG_MAP = {
         B: "STRONG",
         I: "EM",
@@ -53,6 +62,28 @@
         return TAG_MAP[tagName] || tagName;
     }
 
+    function resolveFontSpanClasses(classNames) {
+        const tokens = (classNames || "").split(/\s+/).filter(Boolean);
+        const sizeClasses = tokens.filter((name) => ALLOWED_FONT_SIZE_CLASSES.has(name));
+        const familyClasses = tokens.filter((name) => ALLOWED_FONT_FAMILY_CLASSES.has(name));
+        if (!sizeClasses.length && !familyClasses.length) {
+            return null;
+        }
+
+        const resolved = [];
+        FONT_SIZE_CLASS_PRIORITY.some((sizeClass) => {
+            if (sizeClasses.includes(sizeClass)) {
+                resolved.push(sizeClass);
+                return true;
+            }
+            return false;
+        });
+        if (familyClasses.includes("report-inline-font-serif")) {
+            resolved.push("report-inline-font-serif");
+        }
+        return resolved.length ? resolved.join(" ") : null;
+    }
+
     function sanitizeNode(node, options) {
         const allowBreaks = options && options.allowBreaks;
 
@@ -85,17 +116,12 @@
         }
 
         if (node.tagName === "SPAN") {
-            const classNames = (node.getAttribute("class") || "")
-                .split(/\s+/)
-                .filter((name) => ALLOWED_FONT_SIZE_CLASSES.has(name));
+            const fontClasses = resolveFontSpanClasses(node.getAttribute("class") || "");
             const inner = Array.from(node.childNodes).map((child) => sanitizeNode(child, options)).join("");
-            if (!classNames.length) {
+            if (!fontClasses) {
                 return inner;
             }
-            const fontClass = classNames.includes("report-inline-font-sm")
-                ? "report-inline-font-sm"
-                : "report-inline-font-lg";
-            return `<span class="${fontClass}">${inner}</span>`;
+            return `<span class="${fontClasses}">${inner}</span>`;
         }
 
         const tagName = normalizeTagName(node.tagName);
@@ -161,6 +187,66 @@
             return "";
         }
         return element.textContent || "";
+    }
+
+    function splitElementAtPlainTextOffset(element, offset) {
+        if (!element) {
+            return { beforeHtml: "", afterHtml: "" };
+        }
+
+        const totalLength = (element.textContent || "").length;
+        const safeOffset = Math.max(0, Math.min(offset, totalLength));
+
+        if (safeOffset <= 0) {
+            return { beforeHtml: "", afterHtml: getHtml(element) };
+        }
+        if (safeOffset >= totalLength) {
+            return { beforeHtml: getHtml(element), afterHtml: "" };
+        }
+
+        const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
+        let remaining = safeOffset;
+        let splitNode = null;
+        let splitOffset = 0;
+
+        while (walker.nextNode()) {
+            const node = walker.currentNode;
+            const length = node.textContent.length;
+            if (remaining <= length) {
+                splitNode = node;
+                splitOffset = remaining;
+                break;
+            }
+            remaining -= length;
+        }
+
+        if (!splitNode) {
+            return { beforeHtml: getHtml(element), afterHtml: "" };
+        }
+
+        const beforeRange = document.createRange();
+        beforeRange.selectNodeContents(element);
+        beforeRange.setEnd(splitNode, splitOffset);
+
+        const afterRange = document.createRange();
+        afterRange.selectNodeContents(element);
+        afterRange.setStart(splitNode, splitOffset);
+
+        const beforeContainer = document.createElement("div");
+        beforeContainer.appendChild(beforeRange.cloneContents());
+        const afterContainer = document.createElement("div");
+        afterContainer.appendChild(afterRange.cloneContents());
+
+        return {
+            beforeHtml: sanitize(beforeContainer.innerHTML),
+            afterHtml: sanitize(afterContainer.innerHTML),
+        };
+    }
+
+    function splitHtmlAtPlainTextOffset(html, offset) {
+        const container = document.createElement("div");
+        container.innerHTML = html || "";
+        return splitElementAtPlainTextOffset(container, offset);
     }
 
     function splitHtmlAtSelection(editable) {
@@ -316,6 +402,10 @@
         getPlainText,
         getPlainTextWithNewlinesFromHtml,
         splitHtmlAtSelection,
+        splitElementAtPlainTextOffset,
+        splitHtmlAtPlainTextOffset,
+        splitHtmlIntoLineFragments,
+        fragmentToHtml,
         getLastLinePlainTextFromHtml,
         removeLastLineFromHtml,
         isEmptyHtml,

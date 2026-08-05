@@ -31,6 +31,7 @@ class ReportBlockLineSpacing(models.TextChoices):
     """Espaçamento vertical entre linhas do bloco na renderização."""
 
     COMPACT = "compact", "Diminuir espaçamento entre linhas"
+    SNUG = "snug", "Espaçamento 1,2 entre linhas"
     NORMAL = "normal", "Espaçamento padrão"
     RELAXED = "relaxed", "Aumentar espaçamento entre linhas"
 

@@ -9,7 +9,11 @@ from datetime import date, datetime
 from django.http import QueryDict
 from django.utils import timezone
 
-from institution_ic_sp.forensic_report.common.services.case_metadata import CaseMetadata
+from institution_ic_sp.forensic_report.common.services.case_metadata import (
+    CaseMetadata,
+    normalize_case_metadata,
+    normalize_text_field,
+)
 
 DATETIME_INPUT_FORMATS = (
     "%Y-%m-%dT%H:%M",
@@ -20,11 +24,14 @@ DATETIME_INPUT_FORMATS = (
 DATE_INPUT_FORMATS = ("%Y-%m-%d", "%d/%m/%Y")
 
 
-def _clean_str(value: object) -> str:
+def _clean_str(value: object, *, field_name: str = "") -> str:
     """Normaliza valor textual opcional vindo do POST."""
     if value is None:
         return ""
-    return str(value).strip()
+    cleaned = str(value).strip()
+    if field_name:
+        return normalize_text_field(field_name, cleaned)
+    return cleaned
 
 
 def _parse_date(raw: str) -> date | None:
@@ -59,24 +66,38 @@ def case_metadata_from_post(post: QueryDict) -> CaseMetadata:
     year_raw = _clean_str(post.get("report_year"))
     report_year = int(year_raw) if year_raw.isdigit() else 0
 
-    return CaseMetadata(
-        report_number=_clean_str(post.get("report_number")),
-        report_year=report_year,
-        designation_date=_parse_date(_clean_str(post.get("designation_date"))),
-        exam_objective=_clean_str(post.get("exam_objective")),
-        supplementary_prompt=_clean_str(post.get("supplementary_prompt")),
-        requesting_authority=_clean_str(post.get("requesting_authority")),
-        police_district=_clean_str(post.get("police_district")),
-        occurrence_report=_clean_str(post.get("occurrence_report")),
-        police_inquiry=_clean_str(post.get("police_inquiry")),
-        occurrence_at=_parse_datetime(_clean_str(post.get("occurrence_at"))),
-        requisition_at=_parse_datetime(_clean_str(post.get("requisition_at"))),
-        attendance_protocol=_clean_str(post.get("attendance_protocol")),
-        examiner=_clean_str(post.get("examiner")),
-        examination_at=_parse_datetime(_clean_str(post.get("examination_at"))),
-        photography=_clean_str(post.get("photography")),
-        scanning_3d=_clean_str(post.get("scanning_3d")),
-        sketch=_clean_str(post.get("sketch")),
+    return normalize_case_metadata(
+        CaseMetadata(
+            report_number=_clean_str(post.get("report_number"), field_name="report_number"),
+            report_year=report_year,
+            designation_date=_parse_date(_clean_str(post.get("designation_date"))),
+            exam_objective=_clean_str(post.get("exam_objective"), field_name="exam_objective"),
+            supplementary_prompt=_clean_str(
+                post.get("supplementary_prompt"),
+                field_name="supplementary_prompt",
+            ),
+            requesting_authority=_clean_str(
+                post.get("requesting_authority"),
+                field_name="requesting_authority",
+            ),
+            police_district=_clean_str(post.get("police_district"), field_name="police_district"),
+            occurrence_report=_clean_str(
+                post.get("occurrence_report"),
+                field_name="occurrence_report",
+            ),
+            police_inquiry=_clean_str(post.get("police_inquiry"), field_name="police_inquiry"),
+            occurrence_at=_parse_datetime(_clean_str(post.get("occurrence_at"))),
+            requisition_at=_parse_datetime(_clean_str(post.get("requisition_at"))),
+            attendance_protocol=_clean_str(
+                post.get("attendance_protocol"),
+                field_name="attendance_protocol",
+            ),
+            examiner=_clean_str(post.get("examiner"), field_name="examiner"),
+            examination_at=_parse_datetime(_clean_str(post.get("examination_at"))),
+            photography=_clean_str(post.get("photography"), field_name="photography"),
+            scanning_3d=_clean_str(post.get("scanning_3d"), field_name="scanning_3d"),
+            sketch=_clean_str(post.get("sketch"), field_name="sketch"),
+        )
     )
 
 

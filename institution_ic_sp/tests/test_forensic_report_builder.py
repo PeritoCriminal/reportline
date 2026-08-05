@@ -16,6 +16,7 @@ from institution_ic_sp.forensic_report.workflows.generic.services.report_draft_b
 from institution_ic_sp.models import ForensicTeam
 from profiles.models import ForensicExaminerSP, ForensicJobTitle, GenderCalling
 from reports.models import ReportBlockType
+from reports.models.report_block import ReportBlockLineSpacing
 from reports.services.report_kind import is_forensic_report
 
 User = get_user_model()
@@ -75,6 +76,14 @@ class GenericForensicReportBuilderTests(TestCase):
         main_title = blocks[0]
         self.assertEqual(main_title[1]["text"], "LAUDO PERICIAL Nº 42/2026")
 
+        preamble_block = report.nodes.select_related("block").order_by("position")[1].block
+        self.assertEqual(preamble_block.block_type, ReportBlockType.PARAGRAPH)
+        self.assertEqual(preamble_block.indent_level, 5)
+        self.assertEqual(preamble_block.line_spacing, ReportBlockLineSpacing.COMPACT)
+        self.assertFalse(preamble_block.first_line_indent)
+        self.assertIn("report-inline-font-xs", preamble_block.content["text"])
+        self.assertIn("report-inline-font-serif", preamble_block.content["text"])
+
         preamble_text = blocks[1][1]["text"]
         self.assertIn("Aos 10 de março de 2026", preamble_text)
         self.assertIn("pelo Exmo. Sr. Delegado de Polícia Dr. Delegado Central", preamble_text)
@@ -122,6 +131,17 @@ class GenericForensicReportBuilderTests(TestCase):
         ).count()
         self.assertEqual(list_count, 0)
 
+    def test_header_report_number_text_uses_normal_case(self):
+        """Garante texto do número do laudo no cabeçalho em caixa normal."""
+        self.assertEqual(
+            self.metadata.header_report_number_text,
+            "Laudo pericial nº 42/2026",
+        )
+        self.assertEqual(
+            self.metadata.main_title_text,
+            "LAUDO PERICIAL Nº 42/2026",
+        )
+
     def test_builder_enables_institution_page_layout(self):
         """Garante cabeçalho institucional ativo no laudo gerado."""
         report = build_generic_forensic_report_draft(
@@ -135,6 +155,6 @@ class GenericForensicReportBuilderTests(TestCase):
         self.assertTrue(header["enabled"])
         self.assertIn("SECRETARIA DA SEGURANÇA PÚBLICA", header["cells"][1]["text"])
         self.assertEqual(len(header["extra_rows"]), 2)
-        self.assertIn("LAUDO PERICIAL Nº 42/2026", header["extra_rows"][1]["text"])
+        self.assertIn("Laudo pericial nº 42/2026", header["extra_rows"][1]["text"])
         self.assertIn("report-inline-font-sm", header["extra_rows"][1]["text"])
         self.assertEqual(header["extra_rows"][1]["align"], "right")

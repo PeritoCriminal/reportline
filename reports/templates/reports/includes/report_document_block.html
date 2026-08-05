@@ -12,6 +12,8 @@
      {% if section.block_type == "paragraph" %}
      data-indent-level="{{ section.indent_level|default:0 }}"
      data-line-spacing="{{ section.line_spacing|default:'normal' }}"
+     {% elif section.block_type == "ordered_list" or section.block_type == "unordered_list" %}
+     data-indent-level="{{ section.indent_level|default:0 }}"
      {% endif %}
      {% if section.is_caption %}data-is-caption="true"{% endif %}>
     {% if section.block_type == "heading" %}

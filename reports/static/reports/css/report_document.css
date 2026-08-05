@@ -9,9 +9,11 @@
 .report-document {
     --report-document-font-family: Arial, Helvetica, sans-serif;
     --report-document-font-size: 12pt;
+    --report-inline-font-size-xs: 10pt;
     --report-inline-font-size-sm: 11pt;
     --report-inline-font-size-md: 12pt;
     --report-inline-font-size-lg: 13pt;
+    --report-inline-font-family-serif: "Times New Roman", Times, serif;
     --report-document-line-height: 1.5;
     --report-document-small-font-size: 10pt;
     --report-document-small-line-height: 1;
@@ -29,6 +31,12 @@
     --report-document-page-margin-left: 3cm;
     --report-document-page-bg: #fff;
     --report-document-preview-canvas-bg: #1e1e1e;
+    --report-header-bottom-margin: 24pt;
+    --report-heading-font-size: 12pt;
+    --report-heading-font-weight: 700;
+    --report-horizontal-rule-margin-y: 0.5rem;
+    --report-page-header-extra-rule-margin-top: 6pt;
+    --report-page-header-extra-rule-margin-bottom: 3pt;
 }
 
 /* --- Paginação ABNT (@page) --- */
@@ -143,7 +151,7 @@ body.report-document-pdf .report-document-flow {
 
 .report-document-page-header.report-page-header-root {
     width: 100%;
-    margin-bottom: 0.75rem;
+    margin-bottom: var(--report-header-bottom-margin);
 }
 
 /* --- Rodapé (repetido por página no preview) --- */
@@ -390,7 +398,8 @@ body.report-document-pdf .report-document-flow {
 }
 
 .report-page-header-extra-rule {
-    margin: 0.15rem 0 0.1rem;
+    margin: var(--report-page-header-extra-rule-margin-top) 0
+        var(--report-page-header-extra-rule-margin-bottom);
     border: 0;
     border-top: 1px solid var(--report-document-border, #666);
     opacity: 1;
@@ -425,6 +434,8 @@ body.report-document-pdf .report-document-flow {
 .report-document-block--horizontal_rule {
     break-before: auto;
     page-break-before: auto;
+    padding-top: var(--report-horizontal-rule-margin-y);
+    padding-bottom: var(--report-horizontal-rule-margin-y);
 }
 
 /* --- Alinhamento (paridade com editor) --- */
@@ -456,23 +467,33 @@ body.report-document-pdf .report-document-flow {
     text-align: initial;
 }
 
-.report-document-block[data-block-type="paragraph"][data-indent-level="1"] {
+.report-document-block[data-block-type="paragraph"][data-indent-level="1"],
+.report-document-block[data-block-type="ordered_list"][data-indent-level="1"],
+.report-document-block[data-block-type="unordered_list"][data-indent-level="1"] {
     padding-left: var(--report-document-indent-step);
 }
 
-.report-document-block[data-block-type="paragraph"][data-indent-level="2"] {
+.report-document-block[data-block-type="paragraph"][data-indent-level="2"],
+.report-document-block[data-block-type="ordered_list"][data-indent-level="2"],
+.report-document-block[data-block-type="unordered_list"][data-indent-level="2"] {
     padding-left: calc(2 * var(--report-document-indent-step));
 }
 
-.report-document-block[data-block-type="paragraph"][data-indent-level="3"] {
+.report-document-block[data-block-type="paragraph"][data-indent-level="3"],
+.report-document-block[data-block-type="ordered_list"][data-indent-level="3"],
+.report-document-block[data-block-type="unordered_list"][data-indent-level="3"] {
     padding-left: calc(3 * var(--report-document-indent-step));
 }
 
-.report-document-block[data-block-type="paragraph"][data-indent-level="4"] {
+.report-document-block[data-block-type="paragraph"][data-indent-level="4"],
+.report-document-block[data-block-type="ordered_list"][data-indent-level="4"],
+.report-document-block[data-block-type="unordered_list"][data-indent-level="4"] {
     padding-left: calc(4 * var(--report-document-indent-step));
 }
 
-.report-document-block[data-block-type="paragraph"][data-indent-level="5"] {
+.report-document-block[data-block-type="paragraph"][data-indent-level="5"],
+.report-document-block[data-block-type="ordered_list"][data-indent-level="5"],
+.report-document-block[data-block-type="unordered_list"][data-indent-level="5"] {
     padding-left: calc(5 * var(--report-document-indent-step));
 }
 
@@ -552,43 +573,33 @@ body.report-document-pdf .report-document-flow {
 
 .report-document-heading-number {
     flex-shrink: 0;
-    color: var(--report-document-muted);
-    font-weight: 600;
+    color: inherit;
+    font-size: var(--report-heading-font-size);
+    font-weight: var(--report-heading-font-weight);
     user-select: none;
 }
 
 .report-document-heading {
     flex: 1 1 auto;
     min-width: 0;
-    font-weight: 600;
+    font-size: var(--report-heading-font-size);
+    font-weight: var(--report-heading-font-weight);
     line-height: 1.3;
     margin: 0;
 }
 
 .report-document-heading-wrap[data-level="0"] .report-document-heading,
-.report-document-heading-wrap--main .report-document-heading {
-    font-size: 18pt;
-}
-
-.report-document-heading-wrap[data-level="1"] .report-document-heading {
-    font-size: 15pt;
-}
-
-.report-document-heading-wrap[data-level="2"] .report-document-heading {
-    font-size: 13.5pt;
-}
-
-.report-document-heading-wrap[data-level="3"] .report-document-heading {
-    font-size: 12pt;
-}
-
+.report-document-heading-wrap--main .report-document-heading,
+.report-document-heading-wrap[data-level="1"] .report-document-heading,
+.report-document-heading-wrap[data-level="2"] .report-document-heading,
+.report-document-heading-wrap[data-level="3"] .report-document-heading,
 .report-document-heading-wrap[data-level="4"] .report-document-heading,
 .report-document-heading-wrap[data-level="5"] .report-document-heading,
 .report-document-heading-wrap[data-level="6"] .report-document-heading,
 .report-document-heading-wrap[data-level="7"] .report-document-heading,
 .report-document-heading-wrap[data-level="8"] .report-document-heading,
 .report-document-heading-wrap[data-level="9"] .report-document-heading {
-    font-size: 11.25pt;
+    font-size: var(--report-heading-font-size);
 }
 
 /* --- Parágrafos --- */
@@ -598,10 +609,21 @@ body.report-document-pdf .report-document-flow {
     white-space: pre-wrap;
     word-break: break-word;
     line-height: var(--report-document-line-height);
+    orphans: 2;
+    widows: 2;
+}
+
+.report-document-block--paragraph.report-document-block--continued
+    .report-document-paragraph {
+    text-indent: 0;
 }
 
 .report-document-paragraph--line-spacing-compact {
     line-height: 1;
+}
+
+.report-document-paragraph--line-spacing-snug {
+    line-height: 1.2;
 }
 
 .report-document-paragraph--line-spacing-normal {
@@ -662,14 +684,41 @@ body.report-document-pdf .report-document-flow {
 /* --- Listas --- */
 
 .report-document-list {
-    margin: 0 0 1rem 1.25rem;
-    padding: 0;
+    --report-list-marker-width: 1.5em;
+    margin: 0 0 1rem;
+    padding-left: var(--report-list-marker-width);
+    list-style: none;
 }
 
 .report-document-list-item {
+    position: relative;
     margin: 0 0 0.25rem;
     white-space: pre-wrap;
     word-break: break-word;
+}
+
+.report-document-list--unordered .report-document-list-item::before {
+    content: "–";
+    position: absolute;
+    left: calc(-1 * var(--report-list-marker-width));
+    width: var(--report-list-marker-width);
+    text-align: left;
+}
+
+.report-document-list--ordered {
+    counter-reset: report-list-item;
+}
+
+.report-document-list--ordered .report-document-list-item {
+    counter-increment: report-list-item;
+}
+
+.report-document-list--ordered .report-document-list-item::before {
+    content: counter(report-list-item) ".";
+    position: absolute;
+    left: calc(-1 * var(--report-list-marker-width));
+    width: var(--report-list-marker-width);
+    text-align: left;
 }
 
 .report-document-list-item:last-child {
@@ -842,7 +891,7 @@ body.report-document-pdf .report-document-flow {
 .report-document-horizontal-rule {
     border: 0;
     border-top: 1px solid var(--report-document-border);
-    margin: 0.75rem 0;
+    margin: 0;
     opacity: 1;
 }
 
@@ -873,6 +922,12 @@ body.report-document-pdf .report-document-flow {
     text-decoration: underline;
 }
 
+.report-document-block .report-inline-font-xs,
+.report-page-header-text--read .report-inline-font-xs,
+.report-page-footer-text--read .report-inline-font-xs {
+    font-size: var(--report-inline-font-size-xs);
+}
+
 .report-document-block .report-inline-font-sm,
 .report-page-header-text--read .report-inline-font-sm,
 .report-page-footer-text--read .report-inline-font-sm {
@@ -889,6 +944,12 @@ body.report-document-pdf .report-document-flow {
 .report-page-header-text--read .report-inline-font-lg,
 .report-page-footer-text--read .report-inline-font-lg {
     font-size: var(--report-inline-font-size-lg);
+}
+
+.report-document-block .report-inline-font-serif,
+.report-page-header-text--read .report-inline-font-serif,
+.report-page-footer-text--read .report-inline-font-serif {
+    font-family: var(--report-inline-font-family-serif);
 }
 
 .report-page-header-text--read sup,

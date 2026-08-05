@@ -82,14 +82,20 @@ def build_report_document_context(report: Report, request: HttpRequest) -> dict[
 
 def load_report_document_script() -> str:
     """
-    Carrega script de paginação do preview para embutir inline no HTML.
+    Carrega scripts de paginação do preview para embutir inline no HTML.
 
-    Mantém o documento autônomo (sem dependência de cache de estático externo).
+    Inclui utilitários de texto inline usados na quebra de parágrafos entre
+    páginas. Mantém o documento autônomo (sem dependência de estático externo).
     """
-    script_path = finders.find("reports/js/report_document_pagination.js")
-    if not script_path:
+    inline_text_path = finders.find("reports/js/report_inline_text.js")
+    pagination_path = finders.find("reports/js/report_document_pagination.js")
+    if not inline_text_path:
+        raise FileNotFoundError("Arquivo reports/js/report_inline_text.js não encontrado.")
+    if not pagination_path:
         raise FileNotFoundError("Arquivo reports/js/report_document_pagination.js não encontrado.")
-    return Path(script_path).read_text(encoding="utf-8")
+    inline_text = Path(inline_text_path).read_text(encoding="utf-8")
+    pagination = Path(pagination_path).read_text(encoding="utf-8")
+    return f"{inline_text}\n{pagination}"
 
 
 def load_report_document_styles() -> str:

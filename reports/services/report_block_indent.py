@@ -14,6 +14,12 @@ from reports.models.report_block import ReportBlockLineSpacing
 
 MAX_INDENT_LEVEL = 5
 
+INDENTABLE_BLOCK_TYPES = frozenset({
+    ReportBlockType.PARAGRAPH,
+    ReportBlockType.ORDERED_LIST,
+    ReportBlockType.UNORDERED_LIST,
+})
+
 
 def normalize_indent_level(value, *, default: int = 0) -> int:
     """Valida nível de recuo de bloco ou retorna o padrão informado."""
@@ -110,15 +116,21 @@ def validate_paragraph_indent_patch(
     first_line_indent: bool | None,
     line_spacing: str | None = None,
 ) -> None:
-    """Garante que alterações de recuo se apliquem somente a parágrafos de corpo."""
+    """Garante que alterações de recuo respeitem o tipo de bloco."""
     if indent_level is None and first_line_indent is None and line_spacing is None:
         return
 
     block = node.block
-    if block.block_type != ReportBlockType.PARAGRAPH:
-        raise ValidationError("Recuo aplica-se somente a parágrafos.")
+    if block.block_type not in INDENTABLE_BLOCK_TYPES:
+        raise ValidationError("Recuo aplica-se somente a parágrafos e listas.")
 
-    if is_caption_paragraph_node(node):
+    if block.block_type != ReportBlockType.PARAGRAPH:
+        if first_line_indent is not None or line_spacing is not None:
+            raise ValidationError(
+                "Recuo de primeira linha e espaçamento aplicam-se somente a parágrafos."
+            )
+
+    if block.block_type == ReportBlockType.PARAGRAPH and is_caption_paragraph_node(node):
         raise ValidationError("Legendas de imagem não aceitam recuo.")
 
 

@@ -12,6 +12,7 @@ from django.test import RequestFactory, TestCase
 from reports.models import Report, ReportBlock, ReportBlockType, ReportNode
 from reports.services.report_document_context import (
     build_report_document_context,
+    load_report_document_script,
     load_report_document_styles,
 )
 from reports.services.report_page_layout import (
@@ -281,12 +282,30 @@ class ReportDocumentContextTests(TestCase):
 
         self.assertIn(".report-document {", context["document_styles"])
 
+    def test_document_styles_include_orphan_widow_control(self):
+        """Garante controle tipográfico de linhas órfãs e viúvas em parágrafos."""
+        styles = load_report_document_styles()
+
+        self.assertIn("orphans: 2", styles)
+        self.assertIn("widows: 2", styles)
+        self.assertIn("report-document-block--continued", styles)
+
     def test_build_context_includes_document_script(self):
         """Garante script de paginação embutido no HTML do preview."""
         context = build_report_document_context(self.report, self._request())
 
         self.assertIn("paginateDocument", context["document_script"])
         self.assertIn("report-document-page-sheet", context["document_script"])
+        self.assertIn("splitParagraphBlock", context["document_script"])
+        self.assertIn("splitElementAtPlainTextOffset", context["document_script"])
+
+    def test_load_document_script_includes_inline_text_helpers(self):
+        """Garante utilitários de quebra de linha disponíveis na paginação."""
+        script = load_report_document_script()
+
+        self.assertIn("splitHtmlIntoLineFragments", script)
+        self.assertIn("splitParagraphBlock", script)
+        self.assertIn("splitElementAtPlainTextOffset", script)
 
     def test_report_document_template_renders_standalone_html(self):
         """Garante HTML autônomo de leitura com CSS inline e blocos do laudo."""

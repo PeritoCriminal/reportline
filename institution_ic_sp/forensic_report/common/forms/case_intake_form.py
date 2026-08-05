@@ -8,6 +8,11 @@ from datetime import date
 
 from django import forms
 
+from institution_ic_sp.forensic_report.common.services.case_metadata import (
+    UPPERCASE_TEXT_FIELDS,
+    normalize_case_metadata,
+)
+
 
 class CaseIntakeForm(forms.Form):
     """
@@ -124,10 +129,12 @@ class CaseIntakeForm(forms.Form):
         for name in ("occurrence_at", "requisition_at", "examination_at"):
             self.fields[name].input_formats = datetime_local_formats
 
-        for field in self.fields.values():
+        for name, field in self.fields.items():
             if isinstance(field.widget, forms.DateInput):
                 continue
-            field.widget.attrs.setdefault("class", "form-control")
+            css_class = field.widget.attrs.setdefault("class", "form-control")
+            if name in UPPERCASE_TEXT_FIELDS:
+                field.widget.attrs["class"] = f"{css_class} text-uppercase".strip()
 
         if examiner_display_name and not self.initial.get("examiner"):
             self.fields["examiner"].initial = examiner_display_name
@@ -139,22 +146,24 @@ class CaseIntakeForm(forms.Form):
         )
 
         cleaned = self.cleaned_data
-        return CaseMetadata(
-            report_number=cleaned["report_number"],
-            report_year=cleaned["report_year"],
-            designation_date=cleaned.get("designation_date"),
-            exam_objective=cleaned.get("exam_objective", ""),
-            supplementary_prompt=cleaned.get("supplementary_prompt", ""),
-            requesting_authority=cleaned.get("requesting_authority", ""),
-            police_district=cleaned.get("police_district", ""),
-            occurrence_report=cleaned.get("occurrence_report", ""),
-            police_inquiry=cleaned.get("police_inquiry", ""),
-            occurrence_at=cleaned.get("occurrence_at"),
-            requisition_at=cleaned.get("requisition_at"),
-            attendance_protocol=cleaned.get("attendance_protocol", ""),
-            examiner=cleaned.get("examiner", ""),
-            examination_at=cleaned.get("examination_at"),
-            photography=cleaned.get("photography", ""),
-            scanning_3d=cleaned.get("scanning_3d", ""),
-            sketch=cleaned.get("sketch", ""),
+        return normalize_case_metadata(
+            CaseMetadata(
+                report_number=cleaned["report_number"],
+                report_year=cleaned["report_year"],
+                designation_date=cleaned.get("designation_date"),
+                exam_objective=cleaned.get("exam_objective", ""),
+                supplementary_prompt=cleaned.get("supplementary_prompt", ""),
+                requesting_authority=cleaned.get("requesting_authority", ""),
+                police_district=cleaned.get("police_district", ""),
+                occurrence_report=cleaned.get("occurrence_report", ""),
+                police_inquiry=cleaned.get("police_inquiry", ""),
+                occurrence_at=cleaned.get("occurrence_at"),
+                requisition_at=cleaned.get("requisition_at"),
+                attendance_protocol=cleaned.get("attendance_protocol", ""),
+                examiner=cleaned.get("examiner", ""),
+                examination_at=cleaned.get("examination_at"),
+                photography=cleaned.get("photography", ""),
+                scanning_3d=cleaned.get("scanning_3d", ""),
+                sketch=cleaned.get("sketch", ""),
+            )
         )

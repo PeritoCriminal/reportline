@@ -1,6 +1,6 @@
 /**
  * Formatação inline de texto selecionado (negrito, itálico, sublinhado, riscado,
- * sobrescrito, subscrito e tamanhos de fonte 11/12/13 pt).
+ * sobrescrito, subscrito e tamanhos de fonte 10/11/12/13 pt).
  */
 (function () {
     "use strict";
@@ -15,13 +15,14 @@
     };
 
     const FONT_SIZE_FORMATS = {
+        "font-xs": "report-inline-font-xs",
         "font-sm": "report-inline-font-sm",
         "font-lg": "report-inline-font-lg",
     };
 
     const FONT_SIZE_CLASS_NAMES = Object.values(FONT_SIZE_FORMATS);
 
-    const FONT_SIZE_FORMAT_KEYS = new Set(["font-sm", "font-md", "font-lg"]);
+    const FONT_SIZE_FORMAT_KEYS = new Set(["font-xs", "font-sm", "font-md", "font-lg"]);
 
     const FORMAT_SHORTCUTS = {
         b: "bold",
@@ -32,6 +33,7 @@
     const FORMATS_REQUIRING_SELECTION = new Set([
         "superscript",
         "subscript",
+        "font-xs",
         "font-sm",
         "font-md",
         "font-lg",
@@ -183,7 +185,9 @@
             return;
         }
         const spans = root.querySelectorAll
-            ? root.querySelectorAll("span.report-inline-font-sm, span.report-inline-font-lg")
+            ? root.querySelectorAll(
+                "span.report-inline-font-xs, span.report-inline-font-sm, span.report-inline-font-lg"
+            )
             : [];
         Array.from(spans).reverse().forEach(unwrapFontSizeSpan);
     }
@@ -198,9 +202,14 @@
             return "font-md";
         }
 
-        const span = element.closest("span.report-inline-font-sm, span.report-inline-font-lg");
+        const span = element.closest(
+            "span.report-inline-font-xs, span.report-inline-font-sm, span.report-inline-font-lg"
+        );
         if (!span) {
             return "font-md";
+        }
+        if (span.classList.contains("report-inline-font-xs")) {
+            return "font-xs";
         }
         if (span.classList.contains("report-inline-font-sm")) {
             return "font-sm";

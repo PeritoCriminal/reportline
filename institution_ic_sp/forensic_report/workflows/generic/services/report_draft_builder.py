@@ -22,8 +22,10 @@ from institution_ic_sp.forensic_report.services.preamble import build_preamble_p
 from institution_ic_sp.models import Institution
 from profiles.models import ForensicExaminerSP
 from reports.models import Report, ReportBlock, ReportBlockType, ReportNode
+from reports.models.report_block import ReportBlockLineSpacing
 from reports.services.report_block_alignment import default_text_align_for_block
 from reports.services.report_block_content import normalize_block_content
+from reports.services.report_block_indent import MAX_INDENT_LEVEL
 from reports.services.report_creation import create_report
 
 CLOSING_PHRASE = "É o que havia a relatar."
@@ -39,6 +41,8 @@ def _create_report_node(
     is_main_title: bool = False,
     text_align: str | None = None,
     first_line_indent: bool | None = None,
+    indent_level: int | None = None,
+    line_spacing: str | None = None,
 ) -> ReportNode:
     """Cria bloco e nó raiz na posição informada."""
     if text_align is None:
@@ -56,12 +60,26 @@ def _create_report_node(
     }
     if first_line_indent is not None:
         block_kwargs["first_line_indent"] = first_line_indent
+    if indent_level is not None:
+        block_kwargs["indent_level"] = indent_level
+    if line_spacing is not None:
+        block_kwargs["line_spacing"] = line_spacing
 
     block = ReportBlock.objects.create(**block_kwargs)
     return ReportNode.objects.create(
         report=report,
         block=block,
         position=Decimal(str(position)),
+    )
+
+
+def _wrap_preamble_text(text: str) -> str:
+    """Envolve o preâmbulo em fonte 10 pt serifada para renderização no laudo."""
+    cleaned = text.strip()
+    if not cleaned:
+        return ""
+    return (
+        f'<span class="report-inline-font-xs report-inline-font-serif">{cleaned}</span>'
     )
 
 
@@ -132,7 +150,7 @@ def build_generic_forensic_report_draft(
         institution=institution,
         examiner=examiner,
         workflow=GENERIC_WORKFLOW.slug,
-        main_title_text=metadata.main_title_text,
+        main_title_text=metadata.header_report_number_text,
     )
     report.page_layout = page_layout
     report.save(update_fields=["page_layout", "updated_at"])
@@ -153,12 +171,17 @@ def build_generic_forensic_report_draft(
         position=position,
         block_type=ReportBlockType.PARAGRAPH,
         content={
-            "text": build_preamble_paragraph(
-                metadata,
-                examiner=examiner,
-                institution=institution,
+            "text": _wrap_preamble_text(
+                build_preamble_paragraph(
+                    metadata,
+                    examiner=examiner,
+                    institution=institution,
+                )
             )
         },
+        indent_level=MAX_INDENT_LEVEL,
+        first_line_indent=False,
+        line_spacing=ReportBlockLineSpacing.COMPACT,
     )
     position += 1
 

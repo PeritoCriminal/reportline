@@ -102,6 +102,20 @@
         });
     }
 
+    function isParagraphBlock(context) {
+        return Boolean(
+            context
+            && context.block
+            && context.block.dataset.blockType === "paragraph"
+        );
+    }
+
+    function setFirstLineIndentMenuVisibility(visible) {
+        document.querySelectorAll(".report-editor-paragraph-menu-first-line-indent").forEach((item) => {
+            item.hidden = !visible;
+        });
+    }
+
     function setLineSpacingMenuVisibility(visible) {
         document.querySelectorAll(".report-editor-paragraph-menu-line-spacing").forEach((item) => {
             item.hidden = !visible;
@@ -116,7 +130,7 @@
     }
 
     function updateLineSpacingMenuState(context) {
-        const visible = Boolean(context && context.block && !context.bandText);
+        const visible = Boolean(context && context.block && !context.bandText && isParagraphBlock(context));
         setLineSpacingMenuVisibility(visible);
         if (!visible) {
             return;
@@ -155,9 +169,15 @@
         }
 
         if (firstLineIndentButton) {
-            const active = hasFirstLineIndent(context);
-            firstLineIndentButton.classList.toggle("active", active);
-            firstLineIndentButton.setAttribute("aria-pressed", active ? "true" : "false");
+            const showFirstLineIndent = Boolean(
+                context && !context.bandText && isParagraphBlock(context)
+            );
+            setFirstLineIndentMenuVisibility(showFirstLineIndent);
+            if (showFirstLineIndent) {
+                const active = hasFirstLineIndent(context);
+                firstLineIndentButton.classList.toggle("active", active);
+                firstLineIndentButton.setAttribute("aria-pressed", active ? "true" : "false");
+            }
         }
 
         updateLineSpacingMenuState(context);

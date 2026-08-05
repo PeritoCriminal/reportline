@@ -85,6 +85,8 @@ class ReportEditorViewTests(TestCase):
         self.assertContains(response, 'data-block-type="heading"')
         self.assertContains(response, "contenteditable")
         self.assertContains(response, "report-editor-page")
+        self.assertContains(response, "report_block_navigation.js")
+        self.assertContains(response, "ReportLineBlockNavigation.init")
 
     def test_empty_report_bootstraps_heading_with_autofocus(self):
         """Garante título H1 vazio com foco quando relatório não possui blocos."""

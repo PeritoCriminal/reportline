@@ -13,7 +13,7 @@
             {{ entry.content.text|default:"" }}
         </p>
     {% elif entry.block_type == "ordered_list" %}
-        <ol class="report-editor-block-list">
+        <ol class="report-editor-block-list report-editor-block-list--ordered">
             {% for item in entry.content.items %}
                 <li>{{ item }}</li>
             {% empty %}
@@ -21,7 +21,7 @@
             {% endfor %}
         </ol>
     {% elif entry.block_type == "unordered_list" %}
-        <ul class="report-editor-block-list">
+        <ul class="report-editor-block-list report-editor-block-list--unordered">
             {% for item in entry.content.items %}
                 <li>{{ item }}</li>
             {% empty %}

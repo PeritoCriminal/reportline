@@ -12,6 +12,40 @@ from institution_ic_sp.forensic_report.common.services.datetime_display import (
     format_forensic_datetime,
 )
 
+UPPERCASE_TEXT_FIELDS = frozenset(
+    {
+        "report_number",
+        "attendance_protocol",
+        "occurrence_report",
+        "police_inquiry",
+    }
+)
+
+
+def normalize_text_field(name: str, value: str) -> str:
+    """
+    Normaliza campo textual conforme regras de caixa do intake.
+
+    Identificadores administrativos ficam em maiúsculas; nomes e textos
+    livres permanecem na caixa informada pelo perito.
+    """
+    cleaned = value.strip()
+    if name in UPPERCASE_TEXT_FIELDS:
+        return cleaned.upper()
+    return cleaned
+
+
+def normalize_case_metadata(metadata: CaseMetadata) -> CaseMetadata:
+    """Aplica regras de caixa alta/baixa aos campos textuais do intake."""
+    normalized: dict[str, object] = {}
+    for field_name in metadata.__dataclass_fields__:
+        value = getattr(metadata, field_name)
+        if isinstance(value, str):
+            normalized[field_name] = normalize_text_field(field_name, value)
+        else:
+            normalized[field_name] = value
+    return CaseMetadata(**normalized)
+
 
 @dataclass
 class CaseMetadata:
@@ -50,6 +84,17 @@ class CaseMetadata:
         if number:
             return f"LAUDO PERICIAL Nº {number}"
         return "LAUDO PERICIAL"
+
+    @property
+    def header_report_number_text(self) -> str:
+        """Texto do número do laudo exibido abaixo do cabeçalho institucional."""
+        number = self.report_number.strip()
+        year = self.report_year or 0
+        if number and year:
+            return f"Laudo pericial nº {number}/{year}"
+        if number:
+            return f"Laudo pericial nº {number}"
+        return "Laudo pericial"
 
     @property
     def list_title(self) -> str:

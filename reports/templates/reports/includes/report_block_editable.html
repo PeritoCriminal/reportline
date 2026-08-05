@@ -25,6 +25,8 @@
      {% if entry.block_type == "paragraph" %}
      data-indent-level="{{ entry.indent_level|default:0 }}"
      data-line-spacing="{{ entry.line_spacing|default:'normal' }}"
+     {% elif entry.block_type == "ordered_list" or entry.block_type == "unordered_list" %}
+     data-indent-level="{{ entry.indent_level|default:0 }}"
      {% endif %}
      {% if entry.block_type == "heading" and entry.is_main_title %}data-is-main-title="true"{% endif %}
      {% if is_caption %}data-is-caption="true"{% endif %}>
@@ -71,7 +73,7 @@
            {% if autofocus %}data-autofocus="true"{% endif %}>{{ entry.content.text|default:""|inline_text }}</p>
         {% endif %}
     {% elif entry.block_type == "ordered_list" %}
-        <ol class="report-editor-block-list" data-field="items">
+        <ol class="report-editor-block-list report-editor-block-list--ordered" data-field="items">
             {% for item in entry.content.items %}
                 <li class="report-editor-block-editable report-editor-list-item"
                     contenteditable="true"
@@ -87,7 +89,7 @@
             {% endfor %}
         </ol>
     {% elif entry.block_type == "unordered_list" %}
-        <ul class="report-editor-block-list" data-field="items">
+        <ul class="report-editor-block-list report-editor-block-list--unordered" data-field="items">
             {% for item in entry.content.items %}
                 <li class="report-editor-block-editable report-editor-list-item"
                     contenteditable="true"

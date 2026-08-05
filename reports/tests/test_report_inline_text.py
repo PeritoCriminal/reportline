@@ -28,16 +28,27 @@ class ReportInlineTextTests(TestCase):
         self.assertIn("<sub>SB</sub>", sanitized)
 
     def test_allowed_font_size_spans_preserved(self):
-        """Garante preservação de tamanhos inline 11 pt e 13 pt."""
+        """Garante preservação de tamanhos inline 10 pt, 11 pt e 13 pt."""
         html = (
-            '<span class="report-inline-font-sm">menor</span> '
+            '<span class="report-inline-font-xs">menor</span> '
+            '<span class="report-inline-font-sm">pequena</span> '
             '<span class="report-inline-font-lg">maior</span>'
         )
         sanitized = sanitize_inline_text_html(html)
         self.assertEqual(
             sanitized,
-            '<span class="report-inline-font-sm">menor</span> '
+            '<span class="report-inline-font-xs">menor</span> '
+            '<span class="report-inline-font-sm">pequena</span> '
             '<span class="report-inline-font-lg">maior</span>',
+        )
+
+    def test_preamble_font_span_preserves_size_and_serif(self):
+        """Garante preservação conjunta de fonte 10 pt e serifada no preâmbulo."""
+        html = '<span class="report-inline-font-xs report-inline-font-serif">Preâmbulo</span>'
+        sanitized = sanitize_inline_text_html(html)
+        self.assertEqual(
+            sanitized,
+            '<span class="report-inline-font-xs report-inline-font-serif">Preâmbulo</span>',
         )
 
     def test_font_size_span_with_extra_attributes_is_stripped(self):

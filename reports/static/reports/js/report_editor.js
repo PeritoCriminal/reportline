@@ -2021,6 +2021,7 @@
         paragraph.dataset.lineSpacing = lineSpacing;
         paragraph.classList.remove(
             "report-editor-block-paragraph--line-spacing-compact",
+            "report-editor-block-paragraph--line-spacing-snug",
             "report-editor-block-paragraph--line-spacing-normal",
             "report-editor-block-paragraph--line-spacing-relaxed"
         );
@@ -2244,11 +2245,9 @@
                     siblingInsertOptions(options, {
                         insertion: "before",
                         content: { text: "" },
+                        caretAtStart: true,
                     })
                 );
-                if (options.keepFocusInPlace) {
-                    placeCaretAtStart(editable);
-                }
                 return;
             }
 
@@ -2526,7 +2525,7 @@
         const newBlockType = blockType === "heading"
             ? "paragraph"
             : blockType;
-        await insertBlockAtCaret(block, editable, newBlockType, { keepFocusInPlace: true });
+        await insertBlockAtCaret(block, editable, newBlockType);
     }
 
     async function handleBlockEnter(block, editable) {
@@ -3394,15 +3393,25 @@
         }
 
         const block = editable.closest(".report-editor-block");
-        if (!block || block.dataset.blockType !== "paragraph") {
+        if (!block) {
             return null;
         }
 
-        if (block.dataset.isCaption === "true") {
-            return null;
+        const blockType = block.dataset.blockType;
+        if (blockType === "paragraph") {
+            if (block.dataset.isCaption === "true") {
+                return null;
+            }
+            return { block, editable };
         }
 
-        return { block, editable };
+        if (blockType === "ordered_list" || blockType === "unordered_list") {
+            if (editable.classList.contains("report-editor-list-item")) {
+                return { block, editable };
+            }
+        }
+
+        return null;
     }
 
     function rememberParagraphContext(context) {

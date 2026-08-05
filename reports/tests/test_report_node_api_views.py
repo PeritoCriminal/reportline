@@ -314,6 +314,41 @@ class ReportNodeApiViewTests(TestCase):
         self.assertEqual(paragraph_block.indent_level, 2)
         self.assertEqual(response.json()["indent_level"], 2)
 
+    def test_patch_indent_level_on_unordered_list(self):
+        """Garante atualização de recuo de bloco em lista com marcadores."""
+        list_block = ReportBlock.objects.create(
+            block_type=ReportBlockType.UNORDERED_LIST,
+            content={"items": ["Item 1"]},
+        )
+        list_node = ReportNode.objects.create(
+            report=self.report,
+            block=list_block,
+            position=Decimal("6.5"),
+        )
+
+        response = self._patch_node(list_node, {"indent_level": 2})
+
+        self.assertEqual(response.status_code, 200)
+        list_block.refresh_from_db()
+        self.assertEqual(list_block.indent_level, 2)
+        self.assertEqual(response.json()["indent_level"], 2)
+
+    def test_patch_first_line_indent_rejected_for_list(self):
+        """Garante que listas não aceitam recuo de primeira linha."""
+        list_block = ReportBlock.objects.create(
+            block_type=ReportBlockType.ORDERED_LIST,
+            content={"items": ["Item 1"]},
+        )
+        list_node = ReportNode.objects.create(
+            report=self.report,
+            block=list_block,
+            position=Decimal("6.6"),
+        )
+
+        response = self._patch_node(list_node, {"first_line_indent": False})
+
+        self.assertEqual(response.status_code, 400)
+
     def test_patch_first_line_indent_without_content(self):
         """Garante alternância do recuo de primeira linha via PATCH."""
         paragraph_block = ReportBlock.objects.create(

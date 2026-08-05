@@ -9,18 +9,25 @@ from typing import Any
 
 from django.utils import timezone
 
-from institution_ic_sp.forensic_report.common.services.case_metadata import CaseMetadata
+from institution_ic_sp.forensic_report.common.services.case_metadata import (
+    CaseMetadata,
+    normalize_case_metadata,
+    normalize_text_field,
+)
 from institution_ic_sp.forensic_report.common.services.case_metadata_serialization import (
     _parse_date,
     _parse_datetime,
 )
 
 
-def _clean_ai_str(value: Any) -> str:
+def _clean_ai_str(value: Any, *, field_name: str = "") -> str:
     """Normaliza string retornada pela IA."""
     if value is None:
         return ""
-    return str(value).strip()
+    cleaned = str(value).strip()
+    if field_name:
+        return normalize_text_field(field_name, cleaned)
+    return cleaned
 
 
 def _parse_ai_date(value: Any) -> date | None:
@@ -65,21 +72,35 @@ def _parse_ai_year(value: Any) -> int:
 
 def case_metadata_from_ai_payload(payload: dict[str, Any]) -> CaseMetadata:
     """Mapeia objeto JSON da IA para dataclass de metadados do intake."""
-    return CaseMetadata(
-        report_number=_clean_ai_str(payload.get("report_number")),
-        report_year=_parse_ai_year(payload.get("report_year")),
-        designation_date=_parse_ai_date(payload.get("designation_date")),
-        exam_objective=_clean_ai_str(payload.get("exam_objective")),
-        requesting_authority=_clean_ai_str(payload.get("requesting_authority")),
-        police_district=_clean_ai_str(payload.get("police_district")),
-        occurrence_report=_clean_ai_str(payload.get("occurrence_report")),
-        police_inquiry=_clean_ai_str(payload.get("police_inquiry")),
-        occurrence_at=_parse_ai_datetime(payload.get("occurrence_at")),
-        requisition_at=_parse_ai_datetime(payload.get("requisition_at")),
-        attendance_protocol=_clean_ai_str(payload.get("attendance_protocol")),
-        examiner=_clean_ai_str(payload.get("examiner")),
-        examination_at=_parse_ai_datetime(payload.get("examination_at")),
-        photography=_clean_ai_str(payload.get("photography")),
-        scanning_3d=_clean_ai_str(payload.get("scanning_3d")),
-        sketch=_clean_ai_str(payload.get("sketch")),
+    return normalize_case_metadata(
+        CaseMetadata(
+            report_number=_clean_ai_str(payload.get("report_number"), field_name="report_number"),
+            report_year=_parse_ai_year(payload.get("report_year")),
+            designation_date=_parse_ai_date(payload.get("designation_date")),
+            exam_objective=_clean_ai_str(payload.get("exam_objective"), field_name="exam_objective"),
+            requesting_authority=_clean_ai_str(
+                payload.get("requesting_authority"),
+                field_name="requesting_authority",
+            ),
+            police_district=_clean_ai_str(
+                payload.get("police_district"),
+                field_name="police_district",
+            ),
+            occurrence_report=_clean_ai_str(
+                payload.get("occurrence_report"),
+                field_name="occurrence_report",
+            ),
+            police_inquiry=_clean_ai_str(payload.get("police_inquiry"), field_name="police_inquiry"),
+            occurrence_at=_parse_ai_datetime(payload.get("occurrence_at")),
+            requisition_at=_parse_ai_datetime(payload.get("requisition_at")),
+            attendance_protocol=_clean_ai_str(
+                payload.get("attendance_protocol"),
+                field_name="attendance_protocol",
+            ),
+            examiner=_clean_ai_str(payload.get("examiner"), field_name="examiner"),
+            examination_at=_parse_ai_datetime(payload.get("examination_at")),
+            photography=_clean_ai_str(payload.get("photography"), field_name="photography"),
+            scanning_3d=_clean_ai_str(payload.get("scanning_3d"), field_name="scanning_3d"),
+            sketch=_clean_ai_str(payload.get("sketch"), field_name="sketch"),
+        )
     )
