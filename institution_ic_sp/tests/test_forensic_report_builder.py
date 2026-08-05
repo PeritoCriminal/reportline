@@ -10,6 +10,7 @@ from django.utils import timezone
 
 from institution_ic_sp.forensic_report.common.services.case_metadata import CaseMetadata
 from institution_ic_sp.forensic_report.workflows.generic.services.report_draft_builder import (
+    CLOSING_DIGITAL_ARCHIVE_NOTICE,
     CLOSING_PHRASE,
     build_generic_forensic_report_draft,
 )
@@ -112,7 +113,34 @@ class GenericForensicReportBuilderTests(TestCase):
         closing_blocks = [
             content["text"] for block_type, content, _ in blocks if block_type == ReportBlockType.PARAGRAPH
         ]
-        self.assertIn(CLOSING_PHRASE, closing_blocks)
+        self.assertTrue(any(CLOSING_PHRASE in text for text in closing_blocks))
+        self.assertIn(CLOSING_DIGITAL_ARCHIVE_NOTICE, closing_blocks)
+
+    def test_builder_closing_section_uses_institutional_phrase_and_signature(self):
+        """Garante fechamento institucional em itálico, aviso GDL e assinatura alinhada."""
+        report = build_generic_forensic_report_draft(
+            author=self.author,
+            examiner=self.examiner,
+            metadata=self.metadata,
+        )
+
+        closing_nodes = list(
+            report.nodes.select_related("block")
+            .order_by("-position")[:4]
+        )
+        closing_nodes.reverse()
+
+        _empty_block, phrase_block, archive_block, signature_block = [
+            node.block for node in closing_nodes
+        ]
+
+        self.assertEqual(phrase_block.content["text"], f"<em>{CLOSING_PHRASE}</em>")
+        self.assertEqual(archive_block.content["text"], CLOSING_DIGITAL_ARCHIVE_NOTICE)
+        self.assertEqual(
+            signature_block.content["text"],
+            "Dr. Builder<br>Perito Criminal",
+        )
+        self.assertEqual(signature_block.text_align, "right")
 
     def test_builder_omits_empty_list_sections(self):
         """Garante ausência de lista quando seção não possui itens preenchidos."""

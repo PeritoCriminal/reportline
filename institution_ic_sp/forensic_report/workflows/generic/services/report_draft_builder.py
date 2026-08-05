@@ -16,7 +16,6 @@ from institution_ic_sp.forensic_report.common.services.case_metadata import Case
 from institution_ic_sp.forensic_report.registry import GENERIC_WORKFLOW
 from institution_ic_sp.forensic_report.services.institution_page_layout import (
     build_institution_page_layout,
-    get_examiner_assignment_labels,
 )
 from institution_ic_sp.forensic_report.services.preamble import build_preamble_paragraph
 from institution_ic_sp.models import Institution
@@ -28,7 +27,11 @@ from reports.services.report_block_content import normalize_block_content
 from reports.services.report_block_indent import MAX_INDENT_LEVEL
 from reports.services.report_creation import create_report
 
-CLOSING_PHRASE = "É o que havia a relatar."
+CLOSING_PHRASE = "Nada mais havendo a consignar, encerra-se o presente laudo."
+CLOSING_DIGITAL_ARCHIVE_NOTICE = (
+    "Laudo assinado digitalmente e arquivado no sistema GDL da Superintendência "
+    "da Polícia Técnico-Científica do Estado de São Paulo."
+)
 
 
 def _create_report_node(
@@ -83,20 +86,30 @@ def _wrap_preamble_text(text: str) -> str:
     )
 
 
-def _signature_paragraph(examiner: ForensicExaminerSP) -> str:
-    """Monta bloco textual de assinatura com dados do perfil pericial."""
-    lines: list[str] = []
+def _wrap_italic_text(text: str) -> str:
+    """Envolve texto do fechamento em itálico para renderização no laudo."""
+    cleaned = text.strip()
+    if not cleaned:
+        return ""
+    return f"<em>{cleaned}</em>"
+
+
+def _examiner_display_name_text(examiner: ForensicExaminerSP) -> str:
+    """Retorna nome de exibição do perito para a assinatura do laudo."""
     display_name = examiner.display_name.strip() or examiner.user.get_full_name().strip()
-    if display_name:
-        lines.append(display_name)
+    return display_name or "Assinatura do perito"
+
+
+def _examiner_job_title_text(examiner: ForensicExaminerSP) -> str:
+    """Retorna cargo do perito para a assinatura do laudo."""
     if examiner.job_title:
-        lines.append(examiner.get_job_title_display())
-    unit_label, _city = get_examiner_assignment_labels(examiner)
-    if unit_label:
-        lines.append(unit_label)
-    if not lines:
-        lines.append("Assinatura do perito")
-    return "\n".join(lines)
+        return examiner.get_job_title_display()
+    return "Perito Criminal"
+
+
+def _examiner_signature_text(examiner: ForensicExaminerSP) -> str:
+    """Monta assinatura do perito com quebra suave entre nome e cargo."""
+    return f"{_examiner_display_name_text(examiner)}<br>{_examiner_job_title_text(examiner)}"
 
 
 def _append_section_with_optional_list(
@@ -228,7 +241,8 @@ def build_generic_forensic_report_draft(
         report,
         position=position,
         block_type=ReportBlockType.PARAGRAPH,
-        content={"text": CLOSING_PHRASE},
+        content={"text": _wrap_italic_text(CLOSING_PHRASE)},
+        first_line_indent=False,
     )
     position += 1
 
@@ -236,7 +250,16 @@ def build_generic_forensic_report_draft(
         report,
         position=position,
         block_type=ReportBlockType.PARAGRAPH,
-        content={"text": _signature_paragraph(examiner)},
+        content={"text": CLOSING_DIGITAL_ARCHIVE_NOTICE},
+        first_line_indent=False,
+    )
+    position += 1
+
+    _create_report_node(
+        report,
+        position=position,
+        block_type=ReportBlockType.PARAGRAPH,
+        content={"text": _examiner_signature_text(examiner)},
         text_align="right",
         first_line_indent=False,
     )

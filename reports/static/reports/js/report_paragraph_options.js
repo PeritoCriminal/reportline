@@ -11,6 +11,9 @@
     let decreaseIndentButton = null;
     let firstLineIndentButton = null;
     let headerExtraMenuItems = [];
+    let institutionalRestoreHeaderItem = null;
+    let institutionalRestoreFooterItem = null;
+    let institutionalRestoreDividerItem = null;
     let headerExtraMutedButton = null;
     let lineSpacingButtons = [];
     let headerExtraRuleButton = null;
@@ -156,10 +159,32 @@
         headerExtraMutedButton.setAttribute("aria-pressed", muted ? "true" : "false");
     }
 
+    function updateInstitutionalRestoreMenuState(context) {
+        const forensicEnabled = Boolean(
+            window.ReportLineInstitutionalLayout
+            && window.ReportLineInstitutionalLayout.isForensicReport
+            && window.ReportLineInstitutionalLayout.isForensicReport()
+        );
+        const inHeaderBand = Boolean(context && context.bandText && context.band === "header");
+        const inFooterBand = Boolean(context && context.bandText && context.band === "footer");
+        const showBandRestore = forensicEnabled && (inHeaderBand || inFooterBand);
+
+        if (institutionalRestoreDividerItem) {
+            institutionalRestoreDividerItem.hidden = !showBandRestore;
+        }
+        if (institutionalRestoreHeaderItem) {
+            institutionalRestoreHeaderItem.hidden = !(forensicEnabled && inHeaderBand);
+        }
+        if (institutionalRestoreFooterItem) {
+            institutionalRestoreFooterItem.hidden = !(forensicEnabled && inFooterBand);
+        }
+    }
+
     function updateParagraphMenuState(context) {
         if (!context || (!context.block && !context.bandText)) {
             setHeaderExtraMenuVisibility(false);
             setLineSpacingMenuVisibility(false);
+            updateInstitutionalRestoreMenuState(null);
             return;
         }
 
@@ -182,6 +207,7 @@
 
         updateLineSpacingMenuState(context);
         updateHeaderExtraMenuState(context);
+        updateInstitutionalRestoreMenuState(context);
     }
 
     function setOptionsToggleState(enabled) {
@@ -275,6 +301,15 @@
         );
         headerExtraRuleButton = document.querySelector("[data-report-header-extra-insert-rule]");
         headerExtraMutedButton = document.querySelector("[data-report-header-extra-toggle-muted]");
+        institutionalRestoreDividerItem = document.querySelector(
+            ".report-editor-paragraph-menu-institutional-restore hr"
+        )?.closest(".report-editor-paragraph-menu-institutional-restore") || null;
+        institutionalRestoreHeaderItem = document.querySelector(
+            '[data-report-restore-institutional="header"].dropdown-item'
+        )?.closest(".report-editor-paragraph-menu-institutional-restore") || null;
+        institutionalRestoreFooterItem = document.querySelector(
+            '[data-report-restore-institutional="footer"].dropdown-item'
+        )?.closest(".report-editor-paragraph-menu-institutional-restore") || null;
         const page = document.getElementById("report-editor-page");
 
         if (!paragraphOptionsToggle || !page) {

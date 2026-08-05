@@ -9,6 +9,7 @@ from reports.models import Report, ReportStatus
 from reports.services.report_kind import (
     FORENSIC_REPORT_KIND,
     REPORTLINE_META_KEY,
+    attach_institutional_page_layout_snapshot,
     forensic_report_meta,
     is_forensic_report,
 )
@@ -65,4 +66,37 @@ class ReportKindServiceTests(TestCase):
         self.assertEqual(
             normalized[REPORTLINE_META_KEY]["kind"],
             FORENSIC_REPORT_KIND,
+        )
+
+    def test_attach_institutional_page_layout_snapshot_preserves_bands(self):
+        """Garante cópia congelada de cabeçalho e rodapé em metadados do laudo."""
+        from reports.services.report_page_layout import (
+            FOOTER_TEMPLATE_TEXT_ONLY,
+            HEADER_TEMPLATE_LOGO_LEFT_TEXT_RIGHT,
+            apply_footer_template,
+            apply_header_template,
+        )
+
+        payload = apply_footer_template(
+            apply_header_template(default_page_layout(), HEADER_TEMPLATE_LOGO_LEFT_TEXT_RIGHT),
+            FOOTER_TEMPLATE_TEXT_ONLY,
+        )
+        payload["header"]["cells"][1]["text"] = "Cabeçalho original"
+        payload["footer"]["cells"][0]["text"] = "Rodapé original"
+        payload.update(forensic_report_meta(workflow="generic"))
+
+        with_snapshot = attach_institutional_page_layout_snapshot(payload)
+        snapshot = with_snapshot[REPORTLINE_META_KEY][
+            "institutional_page_layout_snapshot"
+        ]
+
+        self.assertEqual(snapshot["header"]["cells"][1]["text"], "Cabeçalho original")
+        self.assertEqual(snapshot["footer"]["cells"][0]["text"], "Rodapé original")
+
+        payload["header"]["cells"][1]["text"] = "Cabeçalho alterado"
+        self.assertEqual(
+            with_snapshot[REPORTLINE_META_KEY]["institutional_page_layout_snapshot"][
+                "header"
+            ]["cells"][1]["text"],
+            "Cabeçalho original",
         )

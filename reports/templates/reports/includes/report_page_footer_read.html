@@ -22,18 +22,10 @@
                         {% endif %}
                     {% else %}
                         <div class="report-page-footer-text report-page-footer-text--read"
+                             style="text-align: {{ cell.align|default:'left' }};"
                              data-text-align="{{ cell.align|default:'left' }}"
                              data-indent-level="{{ cell.indent_level|default:0 }}"
-                             data-first-line-indent="{% if cell.first_line_indent %}true{% else %}false{% endif %}">
-                            {{ cell.text|default:""|header_text }}
-                            {% if cell.show_page_number %}
-                            <span class="report-document-page-number"
-                                  data-report-page-number
-                                  aria-label="Numeração de página">
-                                Página <span data-report-page-current>{{ page_number|default:1 }}</span> de <span data-report-page-total>{{ page_count|default:1 }}</span>
-                            </span>
-                            {% endif %}
-                        </div>
+                             data-first-line-indent="{% if cell.first_line_indent %}true{% else %}false{% endif %}">{% if cell.text %}<div class="report-page-footer-disclaimer">{{ cell.text|default:""|header_text }}</div>{% endif %}{% if cell.show_page_number %}<span class="report-document-page-number" data-report-page-number aria-label="Numeração de página">Página <span data-report-page-current>{{ page_number|default:1 }}</span> de <span data-report-page-total>{{ page_count|default:1 }}</span></span>{% endif %}</div>
                     {% endif %}
                 </div>
             {% endfor %}

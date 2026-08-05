@@ -3,12 +3,14 @@
  *
  * Distribui blocos do corpo em folhas A4, repetindo cabeçalho e rodapé
  * configurados, atualizando a numeração "Página N de T" e permitindo
- * quebra de parágrafos longos entre páginas com controle de linhas mínimas.
+ * quebra de parágrafos e listas entre páginas com controle de linhas mínimas.
  */
 (function () {
     "use strict";
 
     const MIN_FRAGMENT_LINES = 2;
+    const MIN_FRAGMENT_ITEMS = 2;
+    const LINE_TOP_TOLERANCE_PX = 2;
 
     function paginateDocument() {
         const root = document.querySelector(".report-document-preview");
@@ -74,21 +76,19 @@
             return currentPage;
         }
 
-        if (isSplittableParagraphBlock(overflowBlock)) {
-            const tailBlock = splitParagraphBlock(overflowBlock, currentPage.body, maxBodyHeight);
-            if (tailBlock) {
-                currentPage = appendSheet(pagesContainer, headerTemplate, footerTemplate);
-                pages.push(currentPage);
-                return placeBlock(
-                    currentPage,
-                    tailBlock,
-                    maxBodyHeight,
-                    pagesContainer,
-                    headerTemplate,
-                    footerTemplate,
-                    pages
-                );
-            }
+        const tailBlock = splitOverflowBlock(overflowBlock, currentPage.body, maxBodyHeight);
+        if (tailBlock) {
+            currentPage = appendSheet(pagesContainer, headerTemplate, footerTemplate);
+            pages.push(currentPage);
+            return placeBlock(
+                currentPage,
+                tailBlock,
+                maxBodyHeight,
+                pagesContainer,
+                headerTemplate,
+                footerTemplate,
+                pages
+            );
         }
 
         if (currentPage.body.children.length > 1) {
@@ -109,6 +109,16 @@
         return currentPage;
     }
 
+    function splitOverflowBlock(block, bodyElement, maxBodyHeight) {
+        if (isSplittableParagraphBlock(block)) {
+            return splitParagraphBlock(block, bodyElement, maxBodyHeight);
+        }
+        if (isSplittableListBlock(block)) {
+            return splitListBlock(block, bodyElement, maxBodyHeight);
+        }
+        return null;
+    }
+
     function isSplittableParagraphBlock(block) {
         if (!block || !block.classList.contains("report-document-block--paragraph")) {
             return false;
@@ -119,26 +129,82 @@
         return Boolean(block.querySelector(".report-document-paragraph"));
     }
 
-    function countVisualLines(element) {
-        if (!element || !(element.textContent || "").length) {
-            return 0;
+    function isSplittableListBlock(block) {
+        if (!block) {
+            return false;
         }
-
-        const range = document.createRange();
-        range.selectNodeContents(element);
-        const rects = range.getClientRects();
-        if (!rects.length) {
-            return 1;
+        const blockType = block.dataset.blockType;
+        if (blockType !== "ordered_list" && blockType !== "unordered_list") {
+            return false;
         }
-
-        const lineTops = new Set();
-        for (let index = 0; index < rects.length; index += 1) {
-            lineTops.add(Math.round(rects[index].top));
-        }
-        return lineTops.size || 1;
+        return Boolean(block.querySelector(".report-document-list-item"));
     }
 
-    function paragraphFitsInBody(bodyElement, maxBodyHeight) {
+    function getInlineTextApi() {
+        const inlineApi = window.ReportLineInlineText;
+        if (!inlineApi || !inlineApi.splitElementAtPlainTextOffset) {
+            return null;
+        }
+        return inlineApi;
+    }
+
+    function getCaretTopAtOffset(element, offset) {
+        const range = document.createRange();
+        const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
+        let remaining = offset;
+
+        while (walker.nextNode()) {
+            const node = walker.currentNode;
+            const length = node.textContent.length;
+            if (remaining <= length) {
+                range.setStart(node, remaining);
+                range.collapse(true);
+                const rects = range.getClientRects();
+                return rects.length ? Math.round(rects[0].top) : null;
+            }
+            remaining -= length;
+        }
+
+        return null;
+    }
+
+    function getVisualLineStartOffsets(element) {
+        const totalLength = (element.textContent || "").length;
+        if (totalLength === 0) {
+            return [0];
+        }
+
+        const lineStarts = [0];
+        let lastTop = getCaretTopAtOffset(element, 0);
+
+        for (let offset = 1; offset < totalLength; offset += 1) {
+            const top = getCaretTopAtOffset(element, offset);
+            if (
+                top !== null
+                && lastTop !== null
+                && Math.abs(top - lastTop) > LINE_TOP_TOLERANCE_PX
+            ) {
+                lineStarts.push(offset);
+            }
+            if (top !== null) {
+                lastTop = top;
+            }
+        }
+
+        return lineStarts;
+    }
+
+    function splitOffsetForHeadLineCount(lineStarts, headLineCount, totalLength) {
+        if (headLineCount <= 0) {
+            return 0;
+        }
+        if (headLineCount >= lineStarts.length) {
+            return totalLength;
+        }
+        return lineStarts[headLineCount];
+    }
+
+    function blockFitsInBody(bodyElement, maxBodyHeight) {
         return bodyElement.scrollHeight <= maxBodyHeight;
     }
 
@@ -149,6 +215,88 @@
             }
             targetBlock.setAttribute(attribute.name, attribute.value);
         });
+    }
+
+    function findBestVisualLineSplit(element, bodyElement, maxBodyHeight, fitsCheck) {
+        const inlineApi = getInlineTextApi();
+        if (!inlineApi || !element) {
+            return null;
+        }
+
+        const originalHtml = element.innerHTML;
+        const totalLength = (element.textContent || "").length;
+        if (totalLength <= 0) {
+            return null;
+        }
+
+        element.innerHTML = originalHtml;
+        const lineStarts = getVisualLineStartOffsets(element);
+        const lineCount = lineStarts.length;
+
+        if (lineCount <= MIN_FRAGMENT_LINES) {
+            return null;
+        }
+
+        const minHeadLines = MIN_FRAGMENT_LINES;
+        const maxHeadLines = lineCount - MIN_FRAGMENT_LINES;
+        let bestHeadLines = 0;
+
+        for (let headLineCount = minHeadLines; headLineCount <= maxHeadLines; headLineCount += 1) {
+            const splitOffset = splitOffsetForHeadLineCount(
+                lineStarts,
+                headLineCount,
+                totalLength
+            );
+            if (splitOffset <= 0 || splitOffset >= totalLength) {
+                continue;
+            }
+
+            element.innerHTML = originalHtml;
+            const { beforeHtml } = inlineApi.splitElementAtPlainTextOffset(
+                element,
+                splitOffset
+            );
+            element.innerHTML = beforeHtml;
+
+            if (fitsCheck(bodyElement, maxBodyHeight)) {
+                bestHeadLines = headLineCount;
+            }
+        }
+
+        element.innerHTML = originalHtml;
+
+        if (bestHeadLines <= 0) {
+            return null;
+        }
+
+        const splitOffset = splitOffsetForHeadLineCount(
+            lineStarts,
+            bestHeadLines,
+            totalLength
+        );
+        const tailLineCount = lineCount - bestHeadLines;
+
+        if (
+            bestHeadLines < MIN_FRAGMENT_LINES
+            || tailLineCount < MIN_FRAGMENT_LINES
+            || splitOffset <= 0
+            || splitOffset >= totalLength
+        ) {
+            return null;
+        }
+
+        return { splitOffset, inlineApi, originalHtml };
+    }
+
+    function applyVisualLineSplit(element, splitPlan) {
+        const { splitOffset, inlineApi, originalHtml } = splitPlan;
+        element.innerHTML = originalHtml;
+        const { beforeHtml, afterHtml } = inlineApi.splitElementAtPlainTextOffset(
+            element,
+            splitOffset
+        );
+        element.innerHTML = beforeHtml;
+        return afterHtml;
     }
 
     function createParagraphContinuationBlock(sourceBlock, html) {
@@ -172,145 +320,150 @@
         return tailBlock;
     }
 
-    function applySplitToParagraph(paragraph, splitOffset, inlineApi) {
-        const { beforeHtml, afterHtml } = inlineApi.splitElementAtPlainTextOffset(
-            paragraph,
-            splitOffset
-        );
-        paragraph.innerHTML = beforeHtml;
-        return afterHtml;
-    }
-
-    function findSplitOffsetForOrphansWidows(
-        paragraph,
-        bodyElement,
-        maxBodyHeight,
-        splitOffset,
-        totalLength,
-        inlineApi
-    ) {
-        const originalHtml = paragraph.innerHTML;
-        let adjustedOffset = splitOffset;
-
-        function measureAtOffset(offset) {
-            paragraph.innerHTML = originalHtml;
-            const { beforeHtml, afterHtml } = inlineApi.splitElementAtPlainTextOffset(
-                paragraph,
-                offset
-            );
-            paragraph.innerHTML = beforeHtml;
-            const headLines = countVisualLines(paragraph);
-
-            const tailProbe = document.createElement("p");
-            tailProbe.className = paragraph.className
-                .replace(/\breport-document-paragraph--first-line-indent\b/g, "")
-                .trim();
-            tailProbe.style.visibility = "hidden";
-            tailProbe.style.position = "absolute";
-            tailProbe.style.pointerEvents = "none";
-            tailProbe.style.left = "-100000px";
-            tailProbe.style.width = `${paragraph.getBoundingClientRect().width}px`;
-            tailProbe.innerHTML = afterHtml;
-            paragraph.parentElement.appendChild(tailProbe);
-            const tailLines = countVisualLines(tailProbe);
-            tailProbe.remove();
-
-            paragraph.innerHTML = originalHtml;
-            return { headLines, tailLines, beforeHtml, afterHtml };
-        }
-
-        while (adjustedOffset > 1) {
-            paragraph.innerHTML = originalHtml;
-            const { beforeHtml } = inlineApi.splitElementAtPlainTextOffset(
-                paragraph,
-                adjustedOffset
-            );
-            paragraph.innerHTML = beforeHtml;
-            if (!paragraphFitsInBody(bodyElement, maxBodyHeight)) {
-                break;
-            }
-
-            const { headLines, tailLines } = measureAtOffset(adjustedOffset);
-            if (
-                headLines >= MIN_FRAGMENT_LINES
-                && tailLines >= MIN_FRAGMENT_LINES
-            ) {
-                return adjustedOffset;
-            }
-
-            if (tailLines < MIN_FRAGMENT_LINES) {
-                adjustedOffset -= 1;
-                continue;
-            }
-            if (headLines < MIN_FRAGMENT_LINES) {
-                break;
-            }
-            break;
-        }
-
-        paragraph.innerHTML = originalHtml;
-        return splitOffset;
-    }
-
     function splitParagraphBlock(block, bodyElement, maxBodyHeight) {
         const paragraph = block.querySelector(".report-document-paragraph");
-        const inlineApi = window.ReportLineInlineText;
-        if (!paragraph || !inlineApi || !inlineApi.splitElementAtPlainTextOffset) {
+        if (!paragraph) {
             return null;
         }
 
-        const originalHtml = paragraph.innerHTML;
-        const totalLength = (paragraph.textContent || "").length;
-        if (totalLength <= 0) {
-            return null;
-        }
-
-        paragraph.innerHTML = originalHtml;
-        if (countVisualLines(paragraph) <= 1) {
-            return null;
-        }
-
-        let low = 1;
-        let high = totalLength;
-        let bestOffset = 0;
-
-        while (low <= high) {
-            const mid = Math.floor((low + high) / 2);
-            paragraph.innerHTML = originalHtml;
-            const { beforeHtml } = inlineApi.splitElementAtPlainTextOffset(paragraph, mid);
-            paragraph.innerHTML = beforeHtml;
-
-            if (paragraphFitsInBody(bodyElement, maxBodyHeight)) {
-                bestOffset = mid;
-                low = mid + 1;
-            } else {
-                high = mid - 1;
-            }
-        }
-
-        paragraph.innerHTML = originalHtml;
-
-        if (bestOffset <= 0 || bestOffset >= totalLength) {
-            return null;
-        }
-
-        bestOffset = findSplitOffsetForOrphansWidows(
+        const splitPlan = findBestVisualLineSplit(
             paragraph,
             bodyElement,
             maxBodyHeight,
-            bestOffset,
-            totalLength,
-            inlineApi
+            blockFitsInBody
         );
+        if (!splitPlan) {
+            return null;
+        }
 
-        paragraph.innerHTML = originalHtml;
-        const afterHtml = applySplitToParagraph(paragraph, bestOffset, inlineApi);
+        const afterHtml = applyVisualLineSplit(paragraph, splitPlan);
         if (!afterHtml) {
-            paragraph.innerHTML = originalHtml;
+            paragraph.innerHTML = splitPlan.originalHtml;
             return null;
         }
 
         return createParagraphContinuationBlock(block, afterHtml);
+    }
+
+    function getListElement(block) {
+        return block.querySelector(".report-document-list");
+    }
+
+    function getListItems(block) {
+        const list = getListElement(block);
+        if (!list) {
+            return [];
+        }
+        return Array.from(list.querySelectorAll(":scope > .report-document-list-item"));
+    }
+
+    function createListContinuationBlock(sourceBlock, listItems, orderedStart) {
+        const sourceList = getListElement(sourceBlock);
+        if (!sourceList || !listItems.length) {
+            return null;
+        }
+
+        const tailBlock = document.createElement("div");
+        tailBlock.className = sourceBlock.className;
+        copyBlockAttributes(sourceBlock, tailBlock);
+        tailBlock.classList.add("report-document-block--continued");
+        tailBlock.removeAttribute("id");
+
+        const tailList = document.createElement(sourceList.tagName.toLowerCase());
+        tailList.className = sourceList.className;
+        if (sourceList.tagName === "OL" && orderedStart > 1) {
+            tailList.setAttribute("start", String(orderedStart));
+        }
+
+        listItems.forEach((item) => {
+            tailList.appendChild(item);
+        });
+        tailBlock.appendChild(tailList);
+        return tailBlock;
+    }
+
+    function setListItemsVisible(items, fromIndex, visible) {
+        for (let index = fromIndex; index < items.length; index += 1) {
+            items[index].style.display = visible ? "" : "none";
+        }
+    }
+
+    function splitListBlockByItems(block, bodyElement, maxBodyHeight) {
+        const list = getListElement(block);
+        const items = getListItems(block);
+        const itemCount = items.length;
+
+        if (!list || itemCount < MIN_FRAGMENT_ITEMS * 2) {
+            return null;
+        }
+
+        let bestHeadCount = 0;
+
+        for (
+            let headCount = MIN_FRAGMENT_ITEMS;
+            headCount <= itemCount - MIN_FRAGMENT_ITEMS;
+            headCount += 1
+        ) {
+            setListItemsVisible(items, headCount, false);
+
+            if (blockFitsInBody(bodyElement, maxBodyHeight)) {
+                bestHeadCount = headCount;
+            }
+
+            setListItemsVisible(items, headCount, true);
+        }
+
+        if (bestHeadCount <= 0) {
+            return null;
+        }
+
+        const tailItems = items.slice(bestHeadCount);
+        tailItems.forEach((item) => {
+            list.removeChild(item);
+        });
+
+        return createListContinuationBlock(block, tailItems, bestHeadCount + 1);
+    }
+
+    function splitLastListItemByLines(block, bodyElement, maxBodyHeight) {
+        const items = getListItems(block);
+        if (!items.length) {
+            return null;
+        }
+
+        const lastItem = items[items.length - 1];
+        const splitPlan = findBestVisualLineSplit(
+            lastItem,
+            bodyElement,
+            maxBodyHeight,
+            blockFitsInBody
+        );
+        if (!splitPlan) {
+            return null;
+        }
+
+        const afterHtml = applyVisualLineSplit(lastItem, splitPlan);
+        if (!afterHtml) {
+            lastItem.innerHTML = splitPlan.originalHtml;
+            return null;
+        }
+
+        const tailItem = document.createElement("li");
+        tailItem.className = lastItem.className;
+        tailItem.innerHTML = afterHtml;
+
+        const itemIndex = items.indexOf(lastItem);
+        const orderedStart = itemIndex + 1;
+
+        return createListContinuationBlock(block, [tailItem], orderedStart);
+    }
+
+    function splitListBlock(block, bodyElement, maxBodyHeight) {
+        const tailByItems = splitListBlockByItems(block, bodyElement, maxBodyHeight);
+        if (tailByItems) {
+            return tailByItems;
+        }
+        return splitLastListItemByLines(block, bodyElement, maxBodyHeight);
     }
 
     function appendSheet(container, headerTemplate, footerTemplate) {

@@ -93,6 +93,10 @@ class ReportDocumentPageLayoutTests(TestCase):
         self.assertIn(">2<", html)
         self.assertIn(">4<", html)
         self.assertIn("Página", html)
+        self.assertIn("report-document-page-number", html)
+        self.assertIn("report-page-footer-disclaimer", html)
+        self.assertIn('data-text-align="center"', html)
+        self.assertIn('style="text-align: center;"', html)
 
     def test_render_page_footer_read_html_empty_when_disabled(self):
         """Garante ausência de markup quando rodapé está desativado."""

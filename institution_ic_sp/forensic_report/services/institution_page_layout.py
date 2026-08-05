@@ -16,7 +16,7 @@ from institution_ic_sp.models import Institution
 from profiles.models import ForensicExaminerSP
 from reports.models import Report, ReportImage
 from reports.services.report_inline_text import sanitize_header_text_html
-from reports.services.report_kind import merge_reportline_meta
+from reports.services.report_kind import attach_institutional_page_layout_snapshot, merge_reportline_meta
 from reports.services.report_page_layout import (
     FOOTER_TEMPLATE_TEXT_ONLY,
     LAYOUT_TEMPLATE_LOGO_TEXT_LOGO,
@@ -25,6 +25,7 @@ from reports.services.report_page_layout import (
     default_header_extra_rule_row,
     default_header_extra_text_row,
     initial_header_logo_display_size_by_width,
+    normalize_footer_text_cell,
     normalize_text_cell,
     update_logo_cell_from_image,
 )
@@ -34,6 +35,17 @@ INSTITUTION_HEADER_SPTC = "SUPERINTENDÊNCIA DA POLÍCIA TÉCNICO-CIENTÍFICA (S
 INSTITUTION_HEADER_IC = "INSTITUTO DE CRIMINALÍSTICA"
 INSTITUTION_HEADER_NAMESAKE = (
     '"Perito Criminal Dr. Octávio Eduardo de Brito Alvarenga"'
+)
+INSTITUTION_FOOTER_DISCLAIMER_LINE_1 = (
+    "Esta folha é propriedade da Superintendência da Polícia Técnico-Científica "
+    "e seu conteúdo não"
+)
+INSTITUTION_FOOTER_DISCLAIMER_LINE_2 = (
+    "pode ser copiado ou revelado a terceiros sem autorização expressa."
+)
+INSTITUTION_HEADER_LOGO_CELL_SOURCES = (
+    (0, "sp_logo"),
+    (2, "sptc_logo"),
 )
 
 
@@ -136,12 +148,21 @@ def _build_header_text(institution: Institution, examiner: ForensicExaminerSP) -
     return sanitize_header_text_html("<br>".join(line for line in lines if line))
 
 
+def _styled_footer_disclaimer() -> str:
+    """Monta aviso institucional do rodapé (10 pt, itálico, centralizado)."""
+    inner = (
+        f'<span class="report-inline-font-xs">'
+        f"{INSTITUTION_FOOTER_DISCLAIMER_LINE_1}<br>"
+        f"{INSTITUTION_FOOTER_DISCLAIMER_LINE_2}"
+        f"</span>"
+    )
+    return f"<em>{inner}</em>"
+
+
 def _build_footer_text(institution: Institution) -> str:
     """Monta HTML do rodapé institucional."""
-    lines = [institution.acronym]
-    if institution.headquarters_city:
-        lines.append(institution.headquarters_city)
-    return sanitize_header_text_html(" — ".join(lines))
+    _ = institution
+    return sanitize_header_text_html(_styled_footer_disclaimer())
 
 
 def _build_header_extra_rows(main_title_text: str) -> list[dict[str, Any]]:
@@ -219,6 +240,69 @@ def _logo_payload(report_image: ReportImage) -> dict[str, Any]:
     }
 
 
+def rehydrate_institutional_header_logos(
+    report: Report,
+    layout: dict[str, Any],
+    *,
+    institution: Institution | None = None,
+) -> dict[str, Any]:
+    """
+    Garante emblemas do cabeçalho institucional após restauração do layout.
+
+    Reutiliza ``ReportImage`` do snapshot quando ainda existir; caso contrário,
+    copia novamente os arquivos originais da ``Institution``.
+    """
+    institution = institution or Institution.objects.first()
+    if institution is None:
+        return layout
+
+    header = layout.get("header")
+    if not isinstance(header, dict) or not header.get("enabled"):
+        return layout
+
+    cells = header.get("cells", [])
+    updated = layout
+
+    for cell_index, field_name in INSTITUTION_HEADER_LOGO_CELL_SOURCES:
+        if cell_index >= len(cells) or cells[cell_index].get("type") != "logo":
+            continue
+
+        image_payload = _resolve_institutional_logo_payload(
+            report,
+            cells[cell_index],
+            logo_field=getattr(institution, field_name, None),
+        )
+        if image_payload is None:
+            continue
+
+        updated = update_logo_cell_from_image(
+            updated,
+            cell_index=cell_index,
+            image_payload=image_payload,
+        )
+
+    return updated
+
+
+def _resolve_institutional_logo_payload(
+    report: Report,
+    logo_cell: dict[str, Any],
+    *,
+    logo_field,
+) -> dict[str, Any] | None:
+    """Resolve payload de logo reutilizando imagem do laudo ou copiando da instituição."""
+    image_id = logo_cell.get("image_id")
+    if image_id:
+        existing = ReportImage.objects.filter(pk=image_id, report=report).first()
+        if existing is not None and existing.image.name:
+            return _logo_payload(existing)
+
+    report_image = _copy_institution_logo_to_report(report, logo_field)
+    if report_image is None:
+        return None
+    return _logo_payload(report_image)
+
+
 def build_institution_page_layout(
     report: Report,
     *,
@@ -248,11 +332,13 @@ def build_institution_page_layout(
     header["extra_rows"] = _build_header_extra_rows(main_title_text)
 
     footer_cells = layout["footer"]["cells"]
-    footer_cells[0] = normalize_text_cell(
+    footer_cells[0] = normalize_footer_text_cell(
         {
             **footer_cells[0],
             "text": _build_footer_text(institution),
             "align": "center",
+            "indent_level": 0,
+            "first_line_indent": False,
             "show_page_number": True,
         }
     )
@@ -281,7 +367,8 @@ def build_institution_page_layout(
             image_payload=_logo_payload(sptc_logo),
         )
 
-    return merge_reportline_meta(layout, workflow=workflow)
+    layout = merge_reportline_meta(layout, workflow=workflow)
+    return attach_institutional_page_layout_snapshot(layout)
 
 
 def get_examiner_assignment_labels(examiner: ForensicExaminerSP) -> tuple[str, str]:

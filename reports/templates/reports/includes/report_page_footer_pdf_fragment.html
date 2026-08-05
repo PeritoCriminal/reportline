@@ -8,10 +8,10 @@
                          style="display: block;{% if cell.display_size_style %} {{ cell.display_size_style }}{% else %} max-width: 100%; width: auto; height: auto; object-fit: contain;{% endif %}">
                 </div>
             {% else %}
-                <div style="flex: 1 1 auto; min-width: 0; text-align: {{ cell.align|default:'left' }}; white-space: pre-wrap; word-break: break-word;">
+                <div style="flex: 1 1 auto; min-width: 0; text-align: {{ cell.align|default:'left' }}; white-space: pre-wrap; word-break: normal; overflow-wrap: normal; line-height: 1.2;">
                     {{ cell.text_html|default:""|safe }}
                     {% if cell.show_page_number %}
-                    <span style="white-space: nowrap;">
+                    <span style="display: block; margin-top: 3pt; font-size: 12pt; font-style: normal; font-weight: 400; line-height: 1.2; text-align: center; white-space: nowrap;">
                         Página <span class="pageNumber"></span> de <span class="totalPages"></span>
                     </span>
                     {% endif %}

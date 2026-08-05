@@ -29,6 +29,13 @@ from reports.services.report_page_layout_image_cleanup import (
 from reports.services.report_user_page_layout import sync_user_page_layout_preferences
 from reports.views.report_node_api_views import ReportAuthorMixin, _validation_error_response
 
+try:
+    from institution_ic_sp.forensic_report.services.institutional_page_layout_restore import (
+        restore_institutional_page_layout,
+    )
+except ImportError:  # pragma: no cover - app opcional em instalações mínimas
+    restore_institutional_page_layout = None
+
 
 class ReportPageLayoutView(ReportAuthorMixin, View):
     """Atualiza cabeçalho, rodapé e layout de página via PATCH."""
@@ -47,7 +54,23 @@ class ReportPageLayoutView(ReportAuthorMixin, View):
         old_layout = report.page_layout
 
         try:
-            if payload.get("apply_template"):
+            if payload.get("restore_institutional"):
+                if restore_institutional_page_layout is None:
+                    raise ValidationError(
+                        "Restauração institucional não está disponível nesta instalação."
+                    )
+                restore_section = payload.get("restore_section", band)
+                if restore_section == "both":
+                    section = "both"
+                elif restore_section in ("header", "footer"):
+                    section = restore_section
+                else:
+                    section = band
+                page_layout = restore_institutional_page_layout(
+                    report,
+                    section=section,
+                )
+            elif payload.get("apply_template"):
                 template_id = payload.get("template_id")
                 if not template_id:
                     raise ValidationError("Informe template_id.")
@@ -86,7 +109,7 @@ class ReportPageLayoutView(ReportAuthorMixin, View):
             delete_removed_page_layout_images(old_layout, page_layout)
             report.page_layout = page_layout
             report.save(update_fields=["page_layout", "updated_at"])
-            if report.author_id:
+            if report.author_id and not payload.get("restore_institutional"):
                 sync_user_page_layout_preferences(report.author, page_layout)
         except ValidationError as exc:
             return _validation_error_response(exc)

@@ -59,6 +59,7 @@
     window.REPORT_EDITOR_PAGE_LAYOUT = {
         updateUrl: "{% url 'reports:page_layout' pk=report.pk %}",
         uploadUrl: "{% url 'reports:image_upload' pk=report.pk %}",
+        isForensicReport: {% if is_forensic_report %}true{% else %}false{% endif %},
     };
     window.REPORT_EDITOR_CONFIG = {
         configUrl: "{% url 'reports:config' pk=report.pk %}",
@@ -87,6 +88,7 @@
 <script src="{% versioned_static 'reports/js/report_text_format.js' %}" defer></script>
 <script src="{% versioned_static 'reports/js/report_text_link.js' %}" defer></script>
 <script src="{% versioned_static 'reports/js/report_page_band_text.js' %}" defer></script>
+<script src="{% versioned_static 'reports/js/report_institutional_layout.js' %}" defer></script>
 <script src="{% versioned_static 'reports/js/report_page_header.js' %}" defer></script>
 <script src="{% versioned_static 'reports/js/report_page_footer.js' %}" defer></script>
 {# TODO(produção): remover bloco abaixo (atalho ipsumN) antes do deploy em produção. #}
@@ -155,6 +157,9 @@
         }
         if (window.ReportLinePageFooter && window.REPORT_EDITOR_PAGE_LAYOUT) {
             window.ReportLinePageFooter.init(window.REPORT_EDITOR_PAGE_LAYOUT);
+        }
+        if (window.ReportLineInstitutionalLayout && window.REPORT_EDITOR_PAGE_LAYOUT) {
+            window.ReportLineInstitutionalLayout.init(window.REPORT_EDITOR_PAGE_LAYOUT);
         }
         if (window.ReportLineReportConfig && window.REPORT_EDITOR_CONFIG) {
             const configScript = document.getElementById("report-editor-initial-config");

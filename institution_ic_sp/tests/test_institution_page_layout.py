@@ -6,6 +6,8 @@ from django.contrib.auth import get_user_model
 from django.test import TestCase
 
 from institution_ic_sp.forensic_report.services.institution_page_layout import (
+    INSTITUTION_FOOTER_DISCLAIMER_LINE_1,
+    INSTITUTION_FOOTER_DISCLAIMER_LINE_2,
     INSTITUTION_HEADER_IC,
     INSTITUTION_HEADER_SECURITY_SECRETARIAT,
     INSTITUTION_HEADER_SPTC,
@@ -160,6 +162,32 @@ class InstitutionPageLayoutTests(TestCase):
         self.assertEqual(extra_rows[1]["align"], "right")
         self.assertIn("Laudo pericial nº 42/2026", extra_rows[1]["text"])
         self.assertIn("report-inline-font-sm", extra_rows[1]["text"])
+
+    def test_footer_text_uses_institutional_disclaimer_with_styles(self):
+        """Garante aviso institucional do rodapé com 10 pt, itálico e numeração ativa."""
+        report = create_report(author=self.author, title="Laudo pericial 1/2026")
+        layout = build_institution_page_layout(
+            report,
+            institution=self.institution,
+            examiner=self.examiner,
+            workflow="generic",
+        )
+
+        footer = layout["footer"]
+        self.assertTrue(footer["enabled"])
+        footer_cell = footer["cells"][0]
+        footer_text = footer_cell["text"]
+
+        self.assertEqual(footer_cell["align"], "center")
+        self.assertEqual(footer_cell["indent_level"], 0)
+        self.assertFalse(footer_cell["first_line_indent"])
+        self.assertTrue(footer_cell["show_page_number"])
+        self.assertIn(INSTITUTION_FOOTER_DISCLAIMER_LINE_1, footer_text)
+        self.assertIn(INSTITUTION_FOOTER_DISCLAIMER_LINE_2, footer_text)
+        self.assertIn("Superintendência da Polícia Técnico-Científica", footer_text)
+        self.assertIn("<em>", footer_text)
+        self.assertIn("report-inline-font-xs", footer_text)
+        self.assertIn("<br>", footer_text)
 
     def test_initial_header_logo_display_size_by_width_preserves_aspect_ratio(self):
         """Garante largura inicial fixa de 1,5 cm com altura proporcional."""

@@ -8,11 +8,14 @@ from django.test import TestCase
 from django.urls import reverse
 
 from reports.models import Report, ReportBlock, ReportBlockType, ReportNode
+from reports.services.report_kind import attach_institutional_page_layout_snapshot, forensic_report_meta
 from reports.services.report_page_layout import (
     FOOTER_TEMPLATE_LOGO_LEFT_TEXT_RIGHT,
     FOOTER_TEMPLATE_LOGO_TEXT_LOGO,
     FOOTER_TEMPLATE_TEXT_ONLY,
     HEADER_TEMPLATE_LOGO_LEFT_TEXT_RIGHT,
+    apply_header_template,
+    default_page_layout,
 )
 
 User = get_user_model()
@@ -319,3 +322,34 @@ class ReportPageLayoutApiViewTests(TestCase):
             }
         )
         self.assertEqual(response.status_code, 404)
+
+    def test_restore_institutional_header_via_api(self):
+        """Garante restauração do cabeçalho institucional congelado via PATCH."""
+        layout = apply_header_template(default_page_layout(), HEADER_TEMPLATE_LOGO_LEFT_TEXT_RIGHT)
+        layout.update(forensic_report_meta(workflow="generic"))
+        layout = attach_institutional_page_layout_snapshot(layout)
+        layout["header"]["cells"][1]["text"] = "Cabeçalho original institucional"
+        layout["reportline_meta"]["institutional_page_layout_snapshot"]["header"]["cells"][1]["text"] = (
+            "Cabeçalho original institucional"
+        )
+        self.report.page_layout = layout
+        self.report.save(update_fields=["page_layout"])
+
+        self.report.page_layout["header"]["cells"][1]["text"] = "Cabeçalho editado"
+        self.report.save(update_fields=["page_layout"])
+
+        self.client.force_login(self.user)
+        response = self._patch(
+            {
+                "restore_institutional": True,
+                "restore_section": "header",
+            }
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.report.refresh_from_db()
+        self.assertEqual(
+            self.report.page_layout["header"]["cells"][1]["text"],
+            "Cabeçalho original institucional",
+        )
+        self.assertIn("header_html", response.json())

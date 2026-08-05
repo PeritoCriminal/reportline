@@ -114,6 +114,11 @@ class ReportInlineTextTests(TestCase):
         self.assertNotIn("<a ", sanitized)
         self.assertIn("Ataque", sanitized)
 
+    def test_inline_sanitizer_preserves_soft_line_breaks(self):
+        """Garante que quebras suaves ``<br>`` sejam preservadas em parágrafos."""
+        result = sanitize_inline_text_html("Dr. Builder<br>Perito Criminal")
+        self.assertEqual(result, "Dr. Builder<br>Perito Criminal")
+
 
 class SanitizeHeaderTextHtmlTests(TestCase):
     """Testes de sanitização de HTML de célula de cabeçalho."""
@@ -152,8 +157,3 @@ class SanitizeHeaderTextHtmlTests(TestCase):
         result = sanitize_header_text_html("<script>x</script>Texto")
         self.assertNotIn("script", result)
         self.assertIn("Texto", result)
-
-    def test_inline_sanitizer_still_strips_br(self):
-        """Garante que sanitização inline comum não preserve quebras de linha."""
-        result = sanitize_inline_text_html("A<br>B")
-        self.assertEqual(result, "AB")

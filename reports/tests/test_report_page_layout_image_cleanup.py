@@ -9,6 +9,7 @@ from PIL import Image
 
 from reports.models import Report, ReportImage
 from reports.services.report_image_upload import build_image_block_content, store_report_image
+from reports.services.report_kind import attach_institutional_page_layout_snapshot, forensic_report_meta
 from reports.services.report_page_layout import (
     HEADER_TEMPLATE_LOGO_LEFT_TEXT_RIGHT,
     apply_header_template,
@@ -96,4 +97,24 @@ class ReportPageLayoutImageCleanupTests(TestCase):
 
         self.assertEqual(updated["header"]["cells"][0]["image_id"], str(new_image.pk))
         self.assertFalse(ReportImage.objects.filter(pk=old_image_id).exists())
+        self.assertTrue(ReportImage.objects.filter(pk=new_image.pk).exists())
+
+    def test_snapshot_protected_logo_is_not_deleted_on_replace(self):
+        """Garante que emblemas do snapshot institucional não sejam removidos ao trocar logo."""
+        snapshot_image = self._store_image("green")
+        new_image = self._store_image("cyan")
+        layout = apply_header_template(None, HEADER_TEMPLATE_LOGO_LEFT_TEXT_RIGHT)
+        layout["header"]["cells"][0] = self._logo_cell_from_image(snapshot_image)
+        layout.update(forensic_report_meta(workflow="generic"))
+        layout = attach_institutional_page_layout_snapshot(layout)
+
+        new_payload = build_image_block_content(new_image)
+        updated = update_logo_cell_from_image(
+            layout,
+            cell_index=0,
+            image_payload=new_payload,
+        )
+        delete_removed_page_layout_images(layout, updated)
+
+        self.assertTrue(ReportImage.objects.filter(pk=snapshot_image.pk).exists())
         self.assertTrue(ReportImage.objects.filter(pk=new_image.pk).exists())

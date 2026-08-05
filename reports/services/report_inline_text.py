@@ -94,6 +94,9 @@ class _InlineTextSanitizer(HTMLParser):
 
     def handle_starttag(self, tag: str, attrs) -> None:
         normalized = TAG_ALIASES.get(tag.lower(), tag.lower())
+        if normalized == "br":
+            self._parts.append("<br>")
+            return
         if normalized == "span":
             class_names = dict(attrs).get("class", "")
             font_classes = resolve_inline_font_span_classes(class_names)
@@ -143,7 +146,10 @@ class _InlineTextSanitizer(HTMLParser):
         while self._tag_stack:
             tag = self._tag_stack.pop()
             self._parts.append(f"</{tag}>")
-        return "".join(self._parts)
+        html = "".join(self._parts)
+        while html.endswith("<br>"):
+            html = html[:-4]
+        return html
 
 
 class _HeaderTextSanitizer(_InlineTextSanitizer):

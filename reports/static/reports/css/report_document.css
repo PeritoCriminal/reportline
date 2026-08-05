@@ -196,6 +196,12 @@ body.report-document-pdf .report-document-flow {
     min-width: 0;
 }
 
+.report-page-footer-cell--text:only-child {
+    flex: 1 1 100%;
+    width: 100%;
+    max-width: 100%;
+}
+
 .report-page-footer-cell--logo-start .report-page-footer-logo-slot {
     justify-content: flex-start;
     width: auto;
@@ -233,12 +239,35 @@ body.report-document-pdf .report-document-flow {
 }
 
 .report-page-footer-text--read {
+    box-sizing: border-box;
+    width: 100%;
     min-height: 0;
-    white-space: pre-wrap;
-    word-break: break-word;
+    white-space: normal;
+    word-break: normal;
+    overflow-wrap: normal;
+    hyphens: none;
     background: var(--report-document-page-bg);
     font-size: var(--report-document-small-font-size);
-    line-height: var(--report-document-small-line-height);
+    line-height: 1.2;
+}
+
+.report-page-footer-disclaimer {
+    display: block;
+    width: 100%;
+}
+
+.report-page-footer-text--read[data-text-align="left"] {
+    text-align: left;
+}
+
+.report-page-footer-text--read[data-text-align="center"] {
+    text-align: center;
+    text-indent: 0;
+    padding-left: 0;
+}
+
+.report-page-footer-text--read[data-text-align="right"] {
+    text-align: right;
 }
 
 .report-page-footer-text--read[data-indent-level="1"] {
@@ -265,13 +294,29 @@ body.report-document-pdf .report-document-flow {
     text-indent: var(--report-document-first-line-indent);
 }
 
-.report-document-page-number {
-    display: inline-block;
-    white-space: nowrap;
+.report-page-footer-text--read[data-text-align="center"][data-first-line-indent="true"],
+.report-page-footer-text--read[data-text-align="center"][data-indent-level="1"],
+.report-page-footer-text--read[data-text-align="center"][data-indent-level="2"],
+.report-page-footer-text--read[data-text-align="center"][data-indent-level="3"],
+.report-page-footer-text--read[data-text-align="center"][data-indent-level="4"],
+.report-page-footer-text--read[data-text-align="center"][data-indent-level="5"] {
+    text-indent: 0;
+    padding-left: 0;
 }
 
-.report-document-page-number::before {
-    content: " ";
+.report-page-footer-text--read em {
+    font-style: italic;
+}
+
+.report-document-page-number {
+    display: block;
+    margin-top: 0.35rem;
+    font-size: var(--report-inline-font-size-md);
+    font-style: normal;
+    font-weight: 400;
+    line-height: 1.2;
+    text-align: center;
+    white-space: nowrap;
 }
 
 .report-page-header--read {
@@ -607,7 +652,9 @@ body.report-document-pdf .report-document-flow {
 .report-document-paragraph {
     margin: 0 0 0.75rem;
     white-space: pre-wrap;
-    word-break: break-word;
+    word-break: normal;
+    overflow-wrap: normal;
+    hyphens: none;
     line-height: var(--report-document-line-height);
     orphans: 2;
     widows: 2;
@@ -694,7 +741,15 @@ body.report-document-pdf .report-document-flow {
     position: relative;
     margin: 0 0 0.25rem;
     white-space: pre-wrap;
-    word-break: break-word;
+    word-break: normal;
+    overflow-wrap: normal;
+    hyphens: none;
+    orphans: 2;
+    widows: 2;
+}
+
+.report-document-block--continued .report-document-list {
+    margin-top: 0;
 }
 
 .report-document-list--unordered .report-document-list-item::before {

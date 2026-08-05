@@ -172,14 +172,14 @@
         if (!element) {
             return;
         }
-        element.innerHTML = sanitize(html || "");
+        element.innerHTML = sanitize(html || "", { allowBreaks: true });
     }
 
     function getHtml(element) {
         if (!element) {
             return "";
         }
-        return sanitize(element.innerHTML);
+        return sanitize(element.innerHTML, { allowBreaks: true });
     }
 
     function getPlainText(element) {
@@ -238,8 +238,8 @@
         afterContainer.appendChild(afterRange.cloneContents());
 
         return {
-            beforeHtml: sanitize(beforeContainer.innerHTML),
-            afterHtml: sanitize(afterContainer.innerHTML),
+            beforeHtml: sanitize(beforeContainer.innerHTML, { allowBreaks: true }),
+            afterHtml: sanitize(afterContainer.innerHTML, { allowBreaks: true }),
         };
     }
 
@@ -280,8 +280,8 @@
         afterContainer.appendChild(afterRange.cloneContents());
 
         return {
-            beforeHtml: sanitize(beforeContainer.innerHTML),
-            afterHtml: sanitize(afterContainer.innerHTML),
+            beforeHtml: sanitize(beforeContainer.innerHTML, { allowBreaks: true }),
+            afterHtml: sanitize(afterContainer.innerHTML, { allowBreaks: true }),
         };
     }
 
@@ -328,7 +328,7 @@
     function fragmentToHtml(fragment) {
         const container = document.createElement("div");
         container.appendChild(fragment.cloneNode(true));
-        return sanitize(container.innerHTML);
+        return sanitize(container.innerHTML, { allowBreaks: true });
     }
 
     function splitHtmlIntoLineFragments(html) {

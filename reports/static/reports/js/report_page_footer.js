@@ -863,5 +863,6 @@
         toggleTextFirstLineIndent,
         getActiveFooterTextField,
         clearLogoCell,
+        replaceLayoutHtml: replaceFooterHtml,
     };
 })();

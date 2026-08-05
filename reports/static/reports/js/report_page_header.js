@@ -2207,6 +2207,8 @@
 
         },
 
+        replaceLayoutHtml: replaceHeaderHtml,
+
     };
 
 })();

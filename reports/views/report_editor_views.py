@@ -16,6 +16,7 @@ from reports.services.report_editor_context import (
     render_outline_refresh_payload,
 )
 from reports.services.report_image_processing import MAX_IMAGE_SIDE_PX
+from reports.services.report_kind import ensure_institutional_page_layout_snapshot, is_forensic_report
 from reports.services.report_page_layout import HEADER_LOGO_INITIAL_HEIGHT_PX
 from reports.views.report_node_api_views import ReportAuthorMixin
 
@@ -39,6 +40,7 @@ class ReportEditorView(LoginRequiredMixin, DetailView):
     def get_object(self, queryset=None):
         """Aplica bootstrap de editor antes de renderizar relatório vazio."""
         report = super().get_object(queryset)
+        ensure_institutional_page_layout_snapshot(report)
         self._bootstrapped_node = ensure_editor_bootstrap(report)
         return report
 
@@ -46,6 +48,7 @@ class ReportEditorView(LoginRequiredMixin, DetailView):
         """Enriquece o contexto com estruturas de sumário e corpo do editor."""
         context = super().get_context_data(**kwargs)
         context.update(build_report_editor_context(self.object))
+        context["is_forensic_report"] = is_forensic_report(self.object)
         context["autofocus_node_id"] = (
             self._bootstrapped_node.pk if self._bootstrapped_node else None
         )

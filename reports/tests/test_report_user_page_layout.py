@@ -10,6 +10,7 @@ from PIL import Image
 from reports.models import Report, ReportImage, ReportUserConfig
 from reports.services.report_creation import create_report
 from reports.services.report_image_upload import store_report_image
+from reports.services.report_kind import forensic_report_meta
 from reports.services.report_page_layout import (
     FOOTER_TEMPLATE_TEXT_ONLY,
     HEADER_TEMPLATE_LOGO_LEFT_TEXT_RIGHT,
@@ -63,6 +64,25 @@ class ReportUserPageLayoutTests(TestCase):
         self.assertEqual(
             user_config.page_layout["footer"]["cells"][0]["text"],
             "Página",
+        )
+
+    def test_sync_user_page_layout_skips_forensic_reports(self):
+        """Garante que laudos periciais não alterem preferências de faixas do usuário."""
+        user_config = get_or_create_user_config(self.author)
+        user_config.page_layout = apply_footer_template({}, FOOTER_TEMPLATE_TEXT_ONLY)
+        user_config.page_layout["footer"]["cells"][0]["text"] = "Preferência anterior"
+        user_config.save()
+
+        layout = apply_footer_template({}, FOOTER_TEMPLATE_TEXT_ONLY)
+        layout.update(forensic_report_meta(workflow="generic"))
+        layout["footer"]["cells"][0]["text"] = "Rodapé pericial"
+
+        sync_user_page_layout_preferences(self.author, layout)
+
+        user_config.refresh_from_db()
+        self.assertEqual(
+            user_config.page_layout["footer"]["cells"][0]["text"],
+            "Preferência anterior",
         )
 
     def test_create_report_applies_saved_page_layout(self):

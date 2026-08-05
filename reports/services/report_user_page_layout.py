@@ -20,6 +20,7 @@ from reports.services.report_page_layout import (
     default_page_layout,
     normalize_page_layout,
 )
+from reports.services.report_kind import is_forensic_report_layout
 from reports.services.report_user_config import get_or_create_user_config
 
 
@@ -103,6 +104,9 @@ def sync_user_page_layout_preferences(
     page_layout: dict[str, Any] | None,
 ) -> None:
     """Atualiza cabeçalho e rodapé padrão do usuário a partir do laudo editado."""
+    if is_forensic_report_layout(page_layout):
+        return
+
     config = get_or_create_user_config(user)
     normalized = normalize_page_layout(page_layout)
     config.page_layout = {

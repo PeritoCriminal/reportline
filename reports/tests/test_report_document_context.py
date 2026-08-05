@@ -288,7 +288,36 @@ class ReportDocumentContextTests(TestCase):
 
         self.assertIn("orphans: 2", styles)
         self.assertIn("widows: 2", styles)
+        self.assertIn("hyphens: none", styles)
+        self.assertIn("word-break: normal", styles)
         self.assertIn("report-document-block--continued", styles)
+
+    def test_document_script_splits_paragraphs_on_visual_line_boundaries(self):
+        """Garante paginação por linhas visuais com mínimo de linhas por fragmento."""
+        script = load_report_document_script()
+
+        self.assertIn("getVisualLineStartOffsets", script)
+        self.assertIn("MIN_FRAGMENT_LINES", script)
+        self.assertNotIn("findSplitOffsetForOrphansWidows", script)
+
+    def test_document_script_splits_lists_with_minimum_items_per_fragment(self):
+        """Garante paginação de listas por itens e linhas com mínimo por fragmento."""
+        script = load_report_document_script()
+
+        self.assertIn("splitListBlock", script)
+        self.assertIn("splitListBlockByItems", script)
+        self.assertIn("splitLastListItemByLines", script)
+        self.assertIn("MIN_FRAGMENT_ITEMS", script)
+        self.assertIn('setAttribute("start"', script)
+
+    def test_document_styles_include_list_orphan_widow_control(self):
+        """Garante controle tipográfico de linhas órfãs e viúvas em itens de lista."""
+        styles = load_report_document_styles()
+
+        self.assertIn(".report-document-list-item {", styles)
+        self.assertIn("orphans: 2", styles)
+        self.assertIn("widows: 2", styles)
+        self.assertIn(".report-document-block--continued .report-document-list", styles)
 
     def test_build_context_includes_document_script(self):
         """Garante script de paginação embutido no HTML do preview."""
@@ -297,6 +326,7 @@ class ReportDocumentContextTests(TestCase):
         self.assertIn("paginateDocument", context["document_script"])
         self.assertIn("report-document-page-sheet", context["document_script"])
         self.assertIn("splitParagraphBlock", context["document_script"])
+        self.assertIn("splitListBlock", context["document_script"])
         self.assertIn("splitElementAtPlainTextOffset", context["document_script"])
 
     def test_load_document_script_includes_inline_text_helpers(self):
@@ -305,6 +335,7 @@ class ReportDocumentContextTests(TestCase):
 
         self.assertIn("splitHtmlIntoLineFragments", script)
         self.assertIn("splitParagraphBlock", script)
+        self.assertIn("splitListBlock", script)
         self.assertIn("splitElementAtPlainTextOffset", script)
 
     def test_report_document_template_renders_standalone_html(self):
