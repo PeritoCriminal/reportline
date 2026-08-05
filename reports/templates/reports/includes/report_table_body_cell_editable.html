@@ -13,11 +13,6 @@
                 <img src="{{ cell.url }}"
                      alt="{{ cell.alt|default:'' }}"
                      class="report-editor-table-cell-img"
-                     width="{{ cell.width }}"
-                     height="{{ cell.height }}"
-                     {% if cell.width and cell.height %}
-                     style="width: {{ cell.width }}px; height: {{ cell.height }}px;"
-                     {% endif %}
                      draggable="false">
                 <div class="report-editor-image-resize-handles report-editor-table-cell-image-handles"
                      hidden

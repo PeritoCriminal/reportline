@@ -144,9 +144,27 @@
 
         const template = document.createElement("template");
         template.innerHTML = html;
-        let result = Array.from(template.content.childNodes)
-            .map((child) => sanitizeNode(child, options))
-            .join("");
+        let result = "";
+        let hasContent = false;
+        const allowBreaks = Boolean(options && options.allowBreaks);
+        Array.from(template.content.childNodes).forEach((child) => {
+            if (
+                allowBreaks
+                && hasContent
+                && child.nodeType === Node.ELEMENT_NODE
+                && (child.tagName === "DIV" || child.tagName === "P")
+            ) {
+                if (!result.endsWith("<br>")) {
+                    result += "<br>";
+                }
+            }
+            const chunk = sanitizeNode(child, options);
+            if (!chunk) {
+                return;
+            }
+            result += chunk;
+            hasContent = true;
+        });
 
         if (options && options.allowBreaks) {
             while (result.endsWith("<br>")) {

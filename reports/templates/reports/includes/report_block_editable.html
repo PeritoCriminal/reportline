@@ -153,6 +153,7 @@
                         <col style="width: {{ width }}%;">
                     {% endfor %}
                 </colgroup>
+                {% if entry.content.show_header != False and entry.content.headers %}
                 <thead>
                     <tr>
                         {% for header in entry.content.headers %}
@@ -165,19 +166,24 @@
                                      data-placeholder="Coluna {{ forloop.counter }}"
                                      {% if autofocus and focus_table_part == "header" and focus_table_col == forloop.counter0 %}data-autofocus="true"{% elif autofocus and not focus_table_part and forloop.first %}data-autofocus="true"{% endif %}>{{ header.text|default:""|inline_text }}</div>
                             </th>
-                        {% empty %}
-                            <th scope="col">
-                                <div class="report-editor-block-editable report-editor-table-cell"
-                                     contenteditable="true"
-                                     data-table-part="header"
-                                     data-col-index="0"
-                                     data-text-align="left"
-                                     data-placeholder="Coluna 1"
-                                     {% if autofocus %}data-autofocus="true"{% endif %}></div>
-                            </th>
                         {% endfor %}
                     </tr>
                 </thead>
+                {% elif entry.content.show_header != False %}
+                <thead>
+                    <tr>
+                        <th scope="col">
+                            <div class="report-editor-block-editable report-editor-table-cell"
+                                 contenteditable="true"
+                                 data-table-part="header"
+                                 data-col-index="0"
+                                 data-text-align="left"
+                                 data-placeholder="Coluna 1"
+                                 {% if autofocus %}data-autofocus="true"{% endif %}></div>
+                        </th>
+                    </tr>
+                </thead>
+                {% endif %}
                 <tbody>
                     {% for row in entry.content.rows %}
                         <tr>

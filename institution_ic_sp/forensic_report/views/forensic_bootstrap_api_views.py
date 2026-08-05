@@ -27,6 +27,7 @@ from institution_ic_sp.forensic_report.common.services.exam_category import (
     is_deferred_module_category,
     normalize_exam_category,
 )
+from institution_ic_sp.forensic_report.common.services.scene_location import normalize_scene_location
 from institution_ic_sp.forensic_report.mixins import ForensicExaminerSPRequiredMixin
 from institution_ic_sp.forensic_report.services.forensic_bootstrap_field_coverage import (
     ALL_PROMPT_FIELD_NAMES,
@@ -256,8 +257,12 @@ class ForensicBootstrapBuildStepView(ForensicReportAuthorMixin, View):
         progress = bootstrap.get("build_progress") if isinstance(bootstrap.get("build_progress"), dict) else {}
         step_index = progress.get("step_index", len(BUILD_STEP_IDS) if done else 0)
 
-        interactive_total = count_interactive_build_steps(metadata)
-        interactive_index = count_completed_interactive_steps(metadata, step_index)
+        interactive_total = count_interactive_build_steps(metadata, page_layout=report.page_layout)
+        interactive_index = count_completed_interactive_steps(
+            metadata,
+            step_index,
+            page_layout=report.page_layout,
+        )
 
         response = {
             "state": final_state,
@@ -414,9 +419,13 @@ class ForensicBootstrapSceneContinuationView(ForensicReportAuthorMixin, View):
             return JsonResponse({"errors": ["Informe image_ids como lista."]}, status=400)
         image_ids = [str(item) for item in raw_image_ids if str(item).strip()]
 
-        if exam_category == EXAM_CATEGORY_PROPERTY_SCENE and not prompt and not image_ids:
+        raw_location = payload.get("location", {})
+        location = normalize_scene_location(raw_location if isinstance(raw_location, dict) else {})
+
+        has_scene_input = bool(prompt or image_ids or location.is_present)
+        if exam_category == EXAM_CATEGORY_PROPERTY_SCENE and not has_scene_input:
             return JsonResponse(
-                {"errors": ["Informe imagens ou orientações sobre o local."]},
+                {"errors": ["Informe localização, imagens ou orientações sobre o local."]},
                 status=400,
             )
 
@@ -425,6 +434,7 @@ class ForensicBootstrapSceneContinuationView(ForensicReportAuthorMixin, View):
             exam_category=exam_category,
             prompt=prompt,
             image_ids=image_ids,
+            location=location,
         )
 
         report.refresh_from_db()

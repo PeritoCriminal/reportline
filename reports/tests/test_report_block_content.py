@@ -110,6 +110,30 @@ class ReportBlockContentTests(TestCase):
                 },
             )
 
+    def test_normalize_table_without_headers_uses_row_column_count(self):
+        """Garante tabela sem cabeçalho preserve colunas do corpo (ex.: localização com QR)."""
+        normalized = normalize_block_content(
+            ReportBlockType.TABLE,
+            {
+                "headers": [],
+                "rows": [
+                    [
+                        {"type": "text", "text": "QR", "align": "center"},
+                        {"type": "text", "text": "Endereço", "align": "left"},
+                    ]
+                ],
+                "show_borders": False,
+                "show_header": False,
+                "column_widths": [35, 65],
+                "display_width": 100,
+            },
+        )
+
+        self.assertEqual(len(normalized["rows"]), 1)
+        self.assertEqual(len(normalized["rows"][0]), 2)
+        self.assertEqual(normalized["column_widths"], [35, 65])
+        self.assertFalse(normalized["show_header"])
+
     def test_normalize_table_show_borders_defaults_to_true(self):
         """Garante bordas visíveis por padrão quando o campo não é enviado."""
         normalized = normalize_block_content(

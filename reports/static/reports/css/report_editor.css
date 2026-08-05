@@ -1429,12 +1429,23 @@ body.report-editor-active main {
     position: relative;
 }
 
-.report-editor-block-table-wrap.is-column-resizing {
+.report-editor-block-table-wrap.is-column-resizing,
+.report-editor-block-table-wrap.is-table-width-resizing {
     user-select: none;
 }
 
-.report-editor-block-table-wrap.is-table-width-resizing {
-    user-select: none;
+.report-editor-block-table-wrap:has(.report-editor-table-cell-image.is-image-selected)
+    .report-editor-table-column-resizers,
+.report-editor-block-table-wrap:has(.report-editor-table-cell-image.is-resizing)
+    .report-editor-table-column-resizers {
+    pointer-events: none;
+}
+
+.report-editor-block-table-wrap:has(.report-editor-table-cell-image.is-image-selected)
+    .report-editor-table-width-resizers,
+.report-editor-block-table-wrap:has(.report-editor-table-cell-image.is-resizing)
+    .report-editor-table-width-resizers {
+    pointer-events: none;
 }
 
 body.report-editor-column-resize-active {
@@ -1560,7 +1571,7 @@ body.report-editor-table-width-resize-active {
 }
 
 .report-editor-block-table td.report-editor-table-cell-has-image {
-    padding: 0;
+    padding: 0.25rem 0.75rem 0.25rem 0.25rem;
     line-height: 0;
 }
 
@@ -1652,7 +1663,7 @@ body.report-editor-table-width-resize-active {
 .report-editor-table-cell-img {
     display: block;
     max-width: 100%;
-    width: auto;
+    width: 100%;
     height: auto;
     margin: 0;
     user-select: none;
@@ -1668,6 +1679,11 @@ body.report-editor-table-width-resize-active {
 
 .report-editor-table-cell-image.is-image-selected .report-editor-table-cell-image-handles {
     pointer-events: auto;
+    z-index: 6;
+}
+
+.report-editor-table-cell-image.is-image-selected .report-editor-image-handle {
+    z-index: 7;
 }
 
 .report-editor-table-cell-image[data-text-align="left"] .report-editor-table-cell-image-frame {

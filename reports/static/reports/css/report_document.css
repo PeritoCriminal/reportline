@@ -840,7 +840,7 @@ body.report-document-pdf .report-document-flow {
 }
 
 .report-document-table-cell--image {
-    padding: 0;
+    padding: 0.25rem 0.75rem 0.25rem 0.25rem;
     line-height: 0;
 }
 
@@ -855,7 +855,8 @@ body.report-document-pdf .report-document-flow {
 
 .report-document-table-cell-image-frame {
     position: relative;
-    display: inline-block;
+    display: block;
+    width: 100%;
     max-width: 100%;
     margin: 0;
     line-height: 0;
@@ -879,9 +880,14 @@ body.report-document-pdf .report-document-flow {
 .report-document-table-cell-image-img {
     display: block;
     max-width: 100%;
-    width: auto;
+    width: 100%;
     height: auto;
     margin: 0;
+}
+
+.report-document-table-cell-image-img--sized {
+    width: auto;
+    height: auto;
 }
 
 .report-document-table-cell--empty {

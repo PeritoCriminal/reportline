@@ -68,13 +68,20 @@ def _enrich_block_content(block_type: str, content: dict[str, Any]) -> dict[str,
 
         headers = enriched.get("headers", [])
         enriched["headers"] = [enrich_table_header_cell(header) for header in headers]
+        rows = enriched.get("rows", [])
         enriched["rows"] = [
             [enrich_table_body_cell(cell) for cell in row]
-            for row in enriched.get("rows", [])
+            for row in rows
         ]
+        column_count = len(headers)
+        if column_count == 0 and rows:
+            column_count = max(
+                (len(row) for row in rows if isinstance(row, list)),
+                default=0,
+            )
         enriched["column_widths"] = normalize_column_widths(
             enriched.get("column_widths"),
-            len(headers),
+            column_count,
         )
     return enriched
 

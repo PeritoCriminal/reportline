@@ -14,6 +14,14 @@ from institution_ic_sp.forensic_report.common.services.exam_category import (
     EXAM_CATEGORY_PROPERTY_SCENE,
     normalize_exam_category,
 )
+from institution_ic_sp.forensic_report.common.services.scene_location import (
+    SceneLocationData,
+    normalize_scene_location,
+)
+from institution_ic_sp.forensic_report.common.services.scene_location import (
+    SceneLocationData,
+    normalize_scene_location,
+)
 from institution_ic_sp.forensic_report.services.forensic_bootstrap import (
     STATE_ANALYZED,
     STATE_COLLECTING_PROMPTS,
@@ -48,9 +56,19 @@ def scene_characteristics_from_bootstrap(page_layout: dict | None) -> dict[str, 
     if not isinstance(image_ids, list):
         image_ids = []
     prompt = raw.get("prompt", "")
+    location_raw = raw.get("location", {})
+    location = normalize_scene_location(location_raw if isinstance(location_raw, dict) else {})
     return {
         "prompt": str(prompt).strip(),
         "image_ids": [str(item) for item in image_ids],
+        "location": {
+            "kind": location.kind,
+            "address": location.address,
+            "latitude": location.latitude,
+            "longitude": location.longitude,
+        }
+        if location.is_present
+        else {},
     }
 
 
@@ -68,6 +86,7 @@ def save_scene_examination_continuation(
     exam_category: str,
     prompt: str = "",
     image_ids: list[str] | None = None,
+    location: SceneLocationData | None = None,
 ) -> Report:
     """
     Persiste categoria de exame e características do local no bootstrap.
@@ -85,12 +104,21 @@ def save_scene_examination_continuation(
     bootstrap["scene_continuation_completed"] = True
 
     if normalized_category == EXAM_CATEGORY_PROPERTY_SCENE:
-        bootstrap["scene_characteristics"] = {
+        scene_payload: dict[str, object] = {
             "prompt": prompt.strip(),
             "image_ids": list(image_ids or []),
         }
+        if location and location.is_present:
+            scene_payload["location"] = {
+                "kind": location.kind,
+                "address": location.address,
+                "latitude": location.latitude,
+                "longitude": location.longitude,
+            }
+        bootstrap["scene_characteristics"] = scene_payload
     else:
         bootstrap.pop("scene_characteristics", None)
+        bootstrap.pop("scene_examination_content", None)
 
     skipped = skipped_prompts_from_bootstrap(report.page_layout)
     coverage = field_coverage_from_bootstrap(report.page_layout)
@@ -101,5 +129,15 @@ def save_scene_examination_continuation(
     )
     bootstrap["state"] = resolve_state_after_scene_continuation(report, metadata)
     report.page_layout = attach_bootstrap_meta(report.page_layout, bootstrap)
+
+    if normalized_category == EXAM_CATEGORY_PROPERTY_SCENE:
+        from institution_ic_sp.forensic_report.services.scene_examination_content import (
+            attach_scene_examination_content,
+            generate_scene_examination_content,
+        )
+
+        content = generate_scene_examination_content(report)
+        attach_scene_examination_content(report, content)
+
     report.save(update_fields=["page_layout", "updated_at"])
     return report

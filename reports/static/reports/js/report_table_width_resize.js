@@ -83,18 +83,33 @@
         root.querySelectorAll(".report-editor-block[data-block-type=\"table\"]").forEach(prepareTableBlock);
     }
 
-    function clearDragState() {
+    function resetTableWidthUi() {
         document.body.classList.remove("report-editor-table-width-resize-active");
-        if (activeDrag && activeDrag.wrap) {
-            activeDrag.wrap.classList.remove("is-table-width-resizing");
-        }
-        if (activeDrag && activeDrag.handle) {
-            activeDrag.handle.classList.remove("is-dragging");
-        }
+        document.querySelectorAll(".report-editor-block-table-wrap.is-table-width-resizing").forEach((wrap) => {
+            wrap.classList.remove("is-table-width-resizing");
+        });
+        document.querySelectorAll(".report-editor-table-width-resizer.is-dragging").forEach((handle) => {
+            handle.classList.remove("is-dragging");
+        });
+    }
+
+    function clearDragState() {
+        resetTableWidthUi();
         document.removeEventListener("pointermove", moveDrag);
         document.removeEventListener("pointerup", endDrag);
         document.removeEventListener("pointercancel", endDrag);
         activeDrag = null;
+    }
+
+    function abortDrag() {
+        resetTableWidthUi();
+        if (!activeDrag) {
+            document.removeEventListener("pointermove", moveDrag);
+            document.removeEventListener("pointerup", endDrag);
+            document.removeEventListener("pointercancel", endDrag);
+            return;
+        }
+        clearDragState();
     }
 
     function startDrag(event, block, handle, edge) {
@@ -108,7 +123,15 @@
 
         handle.classList.add("is-dragging");
         wrap.classList.add("is-table-width-resizing");
+        document.body.classList.remove("report-editor-column-resize-active");
         document.body.classList.add("report-editor-table-width-resize-active");
+
+        if (window.ReportLineTableColumnResize && window.ReportLineTableColumnResize.abortDrag) {
+            window.ReportLineTableColumnResize.abortDrag();
+        }
+        if (window.ReportLineImageResize && window.ReportLineImageResize.abortDrag) {
+            window.ReportLineImageResize.abortDrag();
+        }
 
         activeDrag = {
             block,
@@ -125,17 +148,16 @@
             window.ReportLineEditor.beginBlockContentRecording(block);
         }
 
-        if (handle.setPointerCapture) {
-            handle.setPointerCapture(event.pointerId);
-        }
-
         document.addEventListener("pointermove", moveDrag);
         document.addEventListener("pointerup", endDrag);
         document.addEventListener("pointercancel", endDrag);
     }
 
     function moveDrag(event) {
-        if (!activeDrag || event.pointerId !== activeDrag.pointerId) {
+        if (!activeDrag) {
+            return;
+        }
+        if (event.pointerId !== undefined && event.pointerId !== activeDrag.pointerId) {
             return;
         }
 
@@ -153,7 +175,7 @@
     }
 
     async function endDrag(event) {
-        if (!activeDrag || event.pointerId !== activeDrag.pointerId) {
+        if (!activeDrag) {
             return;
         }
 
@@ -168,6 +190,20 @@
                 console.error(error);
             }
         }
+    }
+
+    function bindGlobalDragSafetyHandlers() {
+        window.addEventListener("pointerup", (event) => {
+            if (activeDrag) {
+                endDrag(event);
+            }
+        }, true);
+        window.addEventListener("blur", abortDrag);
+        window.addEventListener("keydown", (event) => {
+            if (event.key === "Escape") {
+                abortDrag();
+            }
+        });
     }
 
     function bindPage(page) {
@@ -214,6 +250,8 @@
         if (!pageElement) {
             return;
         }
+        document.body.classList.remove("report-editor-table-width-resize-active");
+        bindGlobalDragSafetyHandlers();
         bindPage(pageElement);
     }
 
@@ -226,6 +264,7 @@
 
     window.ReportLineTableWidthResize = {
         init,
+        abortDrag,
         applyDisplayWidth,
         refreshTableDisplayLayout,
     };

@@ -193,6 +193,107 @@ class ReportDocumentContextTests(TestCase):
         self.assertEqual(section.content["rows"][0][0]["text"], "<em>Valor</em>")
         self.assertEqual(section.content["column_widths"], [100.0])
 
+    def test_table_without_headers_preserves_column_widths_in_document(self):
+        """Garante larguras de coluna no preview quando a tabela não tem cabeçalho."""
+        self._create_node(
+            ReportBlockType.TABLE,
+            {
+                "headers": [],
+                "rows": [
+                    [
+                        {"type": "text", "text": "QR", "align": "center"},
+                        {
+                            "type": "text",
+                            "text": '<a href="https://maps.google.com">Maps</a>',
+                            "align": "left",
+                        },
+                    ]
+                ],
+                "show_borders": True,
+                "show_header": False,
+                "column_widths": [28, 72],
+                "display_width": 100,
+            },
+            position=Decimal("1"),
+        )
+
+        context = build_report_document_context(self.report, self._request())
+        section = context["sections"][0]
+
+        self.assertEqual(section.content["column_widths"], [28, 72])
+        link_html = section.content["rows"][0][1]["text"]
+        self.assertIn('target="_blank"', link_html)
+        self.assertIn('rel="noopener noreferrer"', link_html)
+
+    def test_table_image_cell_dimensions_preserved_in_document(self):
+        """Garante dimensões editadas da imagem na célula refletidas no preview."""
+        self._create_node(
+            ReportBlockType.TABLE,
+            {
+                "headers": [],
+                "rows": [
+                    [
+                        {
+                            "type": "image",
+                            "alt": "QR",
+                            "file": "reports/images/qr.png",
+                            "image_id": "",
+                            "width": 80,
+                            "height": 80,
+                            "align": "center",
+                        },
+                        {"type": "text", "text": "Endereço editado", "align": "left"},
+                    ]
+                ],
+                "show_borders": False,
+                "show_header": False,
+                "column_widths": [22, 78],
+                "display_width": 100,
+            },
+            position=Decimal("1"),
+        )
+
+        context = build_report_document_context(self.report, self._request())
+        section = context["sections"][0]
+        image_cell = section.content["rows"][0][0]
+
+        self.assertEqual(image_cell["width"], 80)
+        self.assertEqual(image_cell["height"], 80)
+        self.assertEqual(section.content["rows"][0][1]["text"], "Endereço editado")
+        self.assertFalse(section.content["show_borders"])
+
+    def test_table_text_cell_soft_breaks_preserved_in_document(self):
+        """Garante quebras Shift+Enter na célula apareçam no preview."""
+        self._create_node(
+            ReportBlockType.TABLE,
+            {
+                "headers": [],
+                "rows": [
+                    [
+                        {"type": "text", "text": "", "align": "center"},
+                        {
+                            "type": "text",
+                            "text": "<strong>Endereço:</strong><br>Rua A<br>Rua B",
+                            "align": "left",
+                        },
+                    ]
+                ],
+                "show_borders": False,
+                "show_header": False,
+                "column_widths": [22, 78],
+            },
+            position=Decimal("2"),
+        )
+
+        context = build_report_document_context(self.report, self._request())
+        section = next(
+            item for item in context["sections"] if item.block_type == ReportBlockType.TABLE
+        )
+        text_html = section.content["rows"][0][1]["text"]
+        self.assertIn("<br>", text_html)
+        self.assertIn("Rua A", text_html)
+        self.assertIn("Rua B", text_html)
+
     def test_image_figures_use_absolute_url(self):
         """Garante URL absoluta de imagem para consumo externo (preview/PDF)."""
         self._create_node(

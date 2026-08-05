@@ -90,13 +90,13 @@ class ReportInlineTextTests(TestCase):
         self.assertEqual(plain, "Título do laudo")
 
     def test_inline_link_preserved_with_safe_href(self):
-        """Garante preservação de link inline com URL segura."""
+        """Garante preservação de link inline com URL segura e abertura em nova aba."""
         sanitized = sanitize_inline_text_html(
             '<a href="https://exemplo.gov.br">Portal</a>'
         )
         self.assertEqual(
             sanitized,
-            '<a href="https://exemplo.gov.br">Portal</a>',
+            '<a href="https://exemplo.gov.br" target="_blank" rel="noopener noreferrer">Portal</a>',
         )
 
     def test_inline_link_without_scheme_gets_https(self):
@@ -118,6 +118,16 @@ class ReportInlineTextTests(TestCase):
         """Garante que quebras suaves ``<br>`` sejam preservadas em parágrafos."""
         result = sanitize_inline_text_html("Dr. Builder<br>Perito Criminal")
         self.assertEqual(result, "Dr. Builder<br>Perito Criminal")
+
+    def test_inline_sanitizer_converts_div_blocks_to_line_breaks(self):
+        """Garante normalização de blocos HTML em quebras suaves para células de tabela."""
+        result = sanitize_inline_text_html("Linha 1<div>Linha 2</div>")
+        self.assertEqual(result, "Linha 1<br>Linha 2")
+
+    def test_inline_sanitizer_converts_paragraph_blocks_to_line_breaks(self):
+        """Garante normalização de parágrafos adjacentes em quebras suaves."""
+        result = sanitize_inline_text_html("<p>Primeira</p><p>Segunda</p>")
+        self.assertEqual(result, "Primeira<br>Segunda")
 
 
 class SanitizeHeaderTextHtmlTests(TestCase):

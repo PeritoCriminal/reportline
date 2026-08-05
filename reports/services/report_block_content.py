@@ -102,6 +102,11 @@ def normalize_block_content(block_type: str, content: Any) -> dict[str, Any]:
 
         normalized_headers = [normalize_table_header_cell(header) for header in headers]
         column_count = len(normalized_headers)
+        if column_count == 0 and rows:
+            column_count = max(
+                (len(row) for row in rows if isinstance(row, list)),
+                default=0,
+            )
         normalized_rows = []
         for row in rows:
             if not isinstance(row, list):

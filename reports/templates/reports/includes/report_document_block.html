@@ -97,7 +97,7 @@
                                             <div class="report-document-table-cell-image-frame">
                                                 <img src="{{ cell.url }}"
                                                      alt="{{ cell.alt|default:'' }}"
-                                                     class="report-document-table-cell-image-img"
+                                                     class="report-document-table-cell-image-img{% if cell.width and cell.height %} report-document-table-cell-image-img--sized{% endif %}"
                                                      width="{{ cell.width|default:0 }}"
                                                      height="{{ cell.height|default:0 }}"
                                                      {% if cell.width and cell.height %}style="width: {{ cell.width }}px; height: {{ cell.height }}px;"{% endif %}>

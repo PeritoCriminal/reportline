@@ -547,6 +547,7 @@
         if (!window.ReportLineSceneExaminationContinuation?.run) {
             throw new Error("Continuação de exame de local indisponível nesta tela.");
         }
+        setStatusMessage("Preparando descrição do local com IA…");
         await closeAnalyzeOverlay();
         const response = await window.ReportLineSceneExaminationContinuation.run({
             sceneContinuationUrl: config.sceneContinuationUrl,

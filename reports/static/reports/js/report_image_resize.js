@@ -446,12 +446,24 @@
         const resizeWrap = target.root.querySelector(target.resizeWrapSelector) || target.root;
         resizeWrap.classList.add("is-resizing");
 
+        document.body.classList.remove(
+            "report-editor-column-resize-active",
+            "report-editor-table-width-resize-active"
+        );
+        if (window.ReportLineTableColumnResize && window.ReportLineTableColumnResize.abortDrag) {
+            window.ReportLineTableColumnResize.abortDrag();
+        }
+        if (window.ReportLineTableWidthResize && window.ReportLineTableWidthResize.abortDrag) {
+            window.ReportLineTableWidthResize.abortDrag();
+        }
+
         activeDrag = {
             target,
             handleName,
             aspectRatio,
             resizeWrap,
             pointerId: event.pointerId,
+            handle: event.target,
         };
 
         if (target.type === "block") {
@@ -487,8 +499,26 @@
         document.removeEventListener("pointercancel", endDrag);
     }
 
+    function resetImageResizeUi() {
+        document.querySelectorAll(
+            ".report-editor-table-cell-image.is-resizing, .report-editor-block-image.is-resizing, "
+            + ".report-page-header-logo-frame.is-resizing, .report-page-footer-logo-frame.is-resizing"
+        ).forEach((element) => {
+            element.classList.remove("is-resizing");
+        });
+    }
+
+    function abortImageDrag() {
+        clearDragListeners();
+        resetImageResizeUi();
+        activeDrag = null;
+    }
+
     function moveDrag(event) {
-        if (!activeDrag || event.pointerId !== activeDrag.pointerId) {
+        if (!activeDrag) {
+            return;
+        }
+        if (event.pointerId !== undefined && event.pointerId !== activeDrag.pointerId) {
             return;
         }
 
@@ -503,12 +533,15 @@
     }
 
     async function endDrag(event) {
-        if (!activeDrag || event.pointerId !== activeDrag.pointerId) {
+        if (!activeDrag) {
             return;
         }
 
         const { target, resizeWrap } = activeDrag;
-        resizeWrap.classList.remove("is-resizing");
+
+        if (resizeWrap) {
+            resizeWrap.classList.remove("is-resizing");
+        }
 
         clearDragListeners();
         activeDrag = null;
@@ -617,6 +650,20 @@
         }
     }
 
+    function bindGlobalDragSafetyHandlers() {
+        window.addEventListener("pointerup", (event) => {
+            if (activeDrag) {
+                endDrag(event);
+            }
+        }, true);
+        window.addEventListener("blur", abortImageDrag);
+        window.addEventListener("keydown", (event) => {
+            if (event.key === "Escape") {
+                abortImageDrag();
+            }
+        });
+    }
+
     function bindPage(page) {
         page.addEventListener("click", (event) => {
             if (event.target.closest(".report-editor-image-handle")) {
@@ -651,6 +698,8 @@
                 return;
             }
 
+            event.preventDefault();
+            event.stopPropagation();
             startDrag(event, target, handle.dataset.handle || "se");
         });
 
@@ -680,6 +729,7 @@
         if (!pageElement) {
             return;
         }
+        bindGlobalDragSafetyHandlers();
         bindPage(pageElement);
     }
 
@@ -690,5 +740,6 @@
         getSelectedTarget: () => selectedTarget,
         deselectTarget,
         selectTargetElement,
+        abortDrag: abortImageDrag,
     };
 })();

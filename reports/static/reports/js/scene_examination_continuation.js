@@ -24,9 +24,17 @@
     let errorBox = null;
     let submitButton = null;
     let toastContainer = null;
+    let locationKindAddress = null;
+    let locationKindCoordinates = null;
+    let addressFields = null;
+    let coordinatesFields = null;
+    let addressInput = null;
+    let latitudeInput = null;
+    let longitudeInput = null;
     let pendingFiles = [];
     let uploadedImageIds = [];
     let isSubmitting = false;
+    let domInitialized = false;
 
     function getCsrfToken() {
         const match = document.cookie.match(/(?:^|;\s*)csrftoken=([^;]+)/);
@@ -135,14 +143,74 @@
         return payload.image_id;
     }
 
+    function revokePendingPreviewUrls() {
+        pendingFiles.forEach((file) => {
+            if (file.previewUrl) {
+                URL.revokeObjectURL(file.previewUrl);
+                delete file.previewUrl;
+            }
+        });
+    }
+
     function resetCharacteristicsForm() {
+        revokePendingPreviewUrls();
         pendingFiles = [];
         uploadedImageIds = [];
         if (promptInput) {
             promptInput.value = "";
         }
+        if (addressInput) {
+            addressInput.value = "";
+        }
+        if (latitudeInput) {
+            latitudeInput.value = "";
+        }
+        if (longitudeInput) {
+            longitudeInput.value = "";
+        }
+        if (locationKindAddress) {
+            locationKindAddress.checked = true;
+        }
+        toggleLocationFields();
         setError("");
         renderPreviewGrid();
+    }
+
+    function toggleLocationFields() {
+        const useCoordinates = locationKindCoordinates?.checked;
+        if (addressFields) {
+            addressFields.hidden = Boolean(useCoordinates);
+        }
+        if (coordinatesFields) {
+            coordinatesFields.hidden = !useCoordinates;
+        }
+    }
+
+    function readLocationPayload() {
+        if (locationKindCoordinates?.checked) {
+            return {
+                kind: "coordinates",
+                address: "",
+                latitude: (latitudeInput?.value || "").trim(),
+                longitude: (longitudeInput?.value || "").trim(),
+            };
+        }
+        return {
+            kind: "address",
+            address: (addressInput?.value || "").trim(),
+            latitude: "",
+            longitude: "",
+        };
+    }
+
+    function hasLocationInput(location) {
+        if (!location) {
+            return false;
+        }
+        if (location.kind === "coordinates") {
+            return Boolean(location.latitude && location.longitude);
+        }
+        return Boolean(location.address);
     }
 
     function renderPreviewGrid() {
@@ -160,15 +228,21 @@
             item.className = "scene-location-preview-item";
             const image = document.createElement("img");
             image.alt = file.name;
-            image.src = URL.createObjectURL(file);
-            image.onload = () => URL.revokeObjectURL(image.src);
+            if (!file.previewUrl) {
+                file.previewUrl = URL.createObjectURL(file);
+            }
+            image.src = file.previewUrl;
             const removeButton = document.createElement("button");
             removeButton.type = "button";
             removeButton.className = "btn btn-sm btn-outline-danger scene-location-preview-remove";
             removeButton.setAttribute("aria-label", `Remover ${file.name}`);
             removeButton.innerHTML = '<i class="bi bi-x-lg" aria-hidden="true"></i>';
             removeButton.addEventListener("click", () => {
-                pendingFiles.splice(index, 1);
+                const removed = pendingFiles.splice(index, 1)[0];
+                if (removed?.previewUrl) {
+                    URL.revokeObjectURL(removed.previewUrl);
+                    delete removed.previewUrl;
+                }
                 renderPreviewGrid();
             });
             item.appendChild(image);
@@ -189,9 +263,10 @@
     }
 
     function bindDropzoneEvents() {
-        if (!dropzone || !fileInput) {
+        if (!dropzone || !fileInput || dropzone.dataset.eventsBound === "true") {
             return;
         }
+        dropzone.dataset.eventsBound = "true";
         dropzone.addEventListener("click", () => fileInput.click());
         dropzone.addEventListener("keydown", (event) => {
             if (event.key === "Enter" || event.key === " ") {
@@ -212,6 +287,7 @@
         });
         dropzone.addEventListener("drop", (event) => {
             event.preventDefault();
+            event.stopPropagation();
             dropzone.classList.remove("is-dragover");
             addFiles(event.dataTransfer?.files);
         });
@@ -258,9 +334,16 @@
                     return;
                 }
                 const prompt = (promptInput?.value || "").trim();
-                if (!prompt && !pendingFiles.length) {
-                    setError("Informe imagens ou orientações sobre o local.");
+                const location = readLocationPayload();
+                if (!prompt && !pendingFiles.length && !hasLocationInput(location)) {
+                    setError("Informe localização, imagens ou orientações sobre o local.");
                     return;
+                }
+                if (location.kind === "coordinates" && (location.latitude || location.longitude)) {
+                    if (!location.latitude || !location.longitude) {
+                        setError("Informe latitude e longitude.");
+                        return;
+                    }
                 }
                 isSubmitting = true;
                 if (submitButton) {
@@ -270,6 +353,7 @@
                 try {
                     resolve({
                         prompt,
+                        location,
                         imageIds: [],
                         pendingUploads: pendingFiles.slice(),
                     });
@@ -309,6 +393,7 @@
         }
         return {
             prompt: draft.prompt,
+            location: draft.location,
             imageIds,
         };
     }
@@ -319,6 +404,9 @@
             prompt: sceneData?.prompt || "",
             image_ids: sceneData?.imageIds || [],
         };
+        if (sceneData?.location && hasLocationInput(sceneData.location)) {
+            payload.location = sceneData.location;
+        }
         return postJson(config.sceneContinuationUrl, payload);
     }
 
@@ -360,6 +448,10 @@
     }
 
     function initDomReferences() {
+        if (domInitialized) {
+            return true;
+        }
+
         typeModalElement = document.getElementById("sceneExamTypeModal");
         characteristicsModalElement = document.getElementById("sceneLocationCharacteristicsModal");
         dropzone = document.getElementById("scene-location-dropzone");
@@ -368,6 +460,17 @@
         promptInput = document.getElementById("scene-location-prompt-input");
         errorBox = document.getElementById("scene-location-error");
         submitButton = document.getElementById("scene-location-submit");
+        locationKindAddress = document.getElementById("scene-location-kind-address");
+        locationKindCoordinates = document.getElementById("scene-location-kind-coordinates");
+        addressFields = document.getElementById("scene-location-address-fields");
+        coordinatesFields = document.getElementById("scene-location-coordinates-fields");
+        addressInput = document.getElementById("scene-location-address-input");
+        latitudeInput = document.getElementById("scene-location-latitude-input");
+        longitudeInput = document.getElementById("scene-location-longitude-input");
+
+        locationKindAddress?.addEventListener("change", toggleLocationFields);
+        locationKindCoordinates?.addEventListener("change", toggleLocationFields);
+        toggleLocationFields();
 
         if (!typeModalElement || !characteristicsModalElement || !window.bootstrap?.Modal) {
             return false;
@@ -385,6 +488,7 @@
             }
         );
         bindDropzoneEvents();
+        domInitialized = true;
         return true;
     }
 

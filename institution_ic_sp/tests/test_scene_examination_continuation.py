@@ -16,6 +16,7 @@ from institution_ic_sp.forensic_report.common.services.exam_category import (
     EXAM_CATEGORY_TRAFFIC_ACCIDENT,
     EXAM_CATEGORY_UNKNOWN,
 )
+from institution_ic_sp.forensic_report.common.services.scene_location import SceneLocationData
 from institution_ic_sp.forensic_report.services.forensic_bootstrap import (
     STATE_ANALYZED,
     STATE_COLLECTING_PROMPTS,
@@ -113,8 +114,17 @@ class SceneExaminationContinuationTests(TestCase):
             sketch="N/I",
         )
 
-    def test_scene_continuation_property_scene_persists_characteristics(self):
+    @patch(
+        "institution_ic_sp.forensic_report.services.scene_examination_content"
+        ".generate_scene_examination_content"
+    )
+    def test_scene_continuation_property_scene_persists_characteristics(self, mock_generate):
         """Garante persistência de prompt e imagens para exame de local patrimonial."""
+        mock_generate.return_value = {
+            "characteristics_heading": "Características do Local",
+            "attendance_context_paragraph": "A equipe compareceu ao local.",
+            "characteristics_paragraph": "Imóvel residencial térreo.",
+        }
         report = create_forensic_report_shell(
             author=self.user,
             examiner=self.examiner,
@@ -127,6 +137,10 @@ class SceneExaminationContinuationTests(TestCase):
             exam_category=EXAM_CATEGORY_PROPERTY_SCENE,
             prompt="Portão basculante e sala de estar.",
             image_ids=["img-1", "img-2"],
+            location=SceneLocationData(
+                kind="address",
+                address="Rua das Flores, 100",
+            ),
         )
         report.refresh_from_db()
 
@@ -138,6 +152,11 @@ class SceneExaminationContinuationTests(TestCase):
             "Portão basculante e sala de estar.",
         )
         self.assertEqual(bootstrap["scene_characteristics"]["image_ids"], ["img-1", "img-2"])
+        self.assertEqual(
+            bootstrap["scene_characteristics"]["location"]["address"],
+            "Rua das Flores, 100",
+        )
+        self.assertIn("scene_examination_content", bootstrap)
         self.assertEqual(bootstrap_state(report), STATE_ANALYZED)
 
     def test_scene_continuation_deferred_module_advances_without_characteristics(self):
@@ -188,11 +207,20 @@ class SceneExaminationContinuationTests(TestCase):
         self.assertIn("Categoria de exame inválida", response.json()["errors"][0])
 
     @patch(
+        "institution_ic_sp.forensic_report.services.scene_examination_content"
+        ".generate_scene_examination_content"
+    )
+    @patch(
         "institution_ic_sp.forensic_report.views.forensic_bootstrap_api_views"
         ".analyze_case_metadata_with_coverage"
     )
-    def test_scene_continuation_endpoint_advances_bootstrap(self, mock_analyze):
+    def test_scene_continuation_endpoint_advances_bootstrap(self, mock_analyze, mock_generate):
         """Garante que endpoint conclui continuação e retorna estado analisado."""
+        mock_generate.return_value = {
+            "characteristics_heading": "Características do Local",
+            "attendance_context_paragraph": "Compareceu a equipe.",
+            "characteristics_paragraph": "Casa térrea.",
+        }
         mock_analyze.return_value = (self._complete_metadata(), {})
         self.client.login(username="perito_scene", password="senha-segura")
         report = create_forensic_report_shell(
@@ -211,6 +239,10 @@ class SceneExaminationContinuationTests(TestCase):
                     "exam_category": EXAM_CATEGORY_PROPERTY_SCENE,
                     "prompt": "Fachada com portão metálico.",
                     "image_ids": [],
+                    "location": {
+                        "kind": "address",
+                        "address": "Rua Teste, 10",
+                    },
                 }
             ),
             content_type="application/json",

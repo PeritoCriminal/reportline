@@ -78,12 +78,43 @@
         return element ? element.closest(".report-editor-block[data-block-type=\"table\"]") : null;
     }
 
+    function getTableColumnCount(block) {
+        const raw = block.dataset.tableColumnWidths || "";
+        if (raw) {
+            const parts = raw.split(",").map((part) => part.trim()).filter(Boolean);
+            if (parts.length) {
+                return parts.length;
+            }
+        }
+
+        const cols = block.querySelectorAll("colgroup col");
+        if (cols.length) {
+            return cols.length;
+        }
+
+        const headerCount = block.querySelectorAll('[data-table-part="header"]').length;
+        if (headerCount) {
+            return headerCount;
+        }
+
+        const firstRow = block.querySelector("tbody tr");
+        if (firstRow) {
+            const bodyCount = firstRow.querySelectorAll("td").length;
+            if (bodyCount) {
+                return bodyCount;
+            }
+        }
+
+        return 1;
+    }
+
     function parseColumnWidths(block) {
+        const columnCount = getTableColumnCount(block);
         const raw = block.dataset.tableColumnWidths || "";
         if (raw) {
             return normalizeColumnWidths(
                 raw.split(",").map((part) => Number.parseInt(part.trim(), 10)),
-                raw.split(",").length
+                columnCount,
             );
         }
 
@@ -94,25 +125,86 @@
                     const match = (col.style.width || "").match(/(\d+)/);
                     return match ? Number.parseInt(match[1], 10) : 1;
                 }),
-                cols.length
+                columnCount,
             );
         }
 
-        const headerCount = block.querySelectorAll('[data-table-part="header"]').length;
-        return equalColumnWidths(headerCount || 1);
+        return equalColumnWidths(columnCount);
+    }
+
+    function getTableElement(block) {
+        return block.querySelector("table.report-editor-block-table");
+    }
+
+    function ensureColgroup(block, columnCount) {
+        const table = getTableElement(block);
+        if (!table || columnCount <= 0) {
+            return [];
+        }
+
+        let colgroup = table.querySelector("colgroup");
+        if (!colgroup) {
+            colgroup = document.createElement("colgroup");
+            table.insertBefore(colgroup, table.firstChild);
+        }
+
+        while (colgroup.children.length < columnCount) {
+            colgroup.appendChild(document.createElement("col"));
+        }
+        while (colgroup.children.length > columnCount) {
+            colgroup.removeChild(colgroup.lastElementChild);
+        }
+
+        return Array.from(colgroup.querySelectorAll("col"));
+    }
+
+    function syncTableCellImages(block) {
+        block.querySelectorAll(".report-editor-table-cell-image").forEach((wrapper) => {
+            const img = wrapper.querySelector(".report-editor-table-cell-img");
+            if (!img) {
+                return;
+            }
+
+            const storedWidth = Number.parseInt(wrapper.dataset.imageWidth || "0", 10);
+            const storedHeight = Number.parseInt(wrapper.dataset.imageHeight || "0", 10);
+            const cellWidth = wrapper.closest("td")?.clientWidth || 0;
+
+            if (storedWidth > 0 && storedHeight > 0) {
+                if (
+                    wrapper.classList.contains("is-image-selected")
+                    || wrapper.closest(".is-resizing")
+                ) {
+                    return;
+                }
+                const aspectRatio = storedWidth / storedHeight;
+                const displayWidth = cellWidth > 0
+                    ? Math.min(storedWidth, cellWidth)
+                    : storedWidth;
+                const displayHeight = Math.max(1, Math.round(displayWidth / aspectRatio));
+                img.style.width = `${displayWidth}px`;
+                img.style.height = `${displayHeight}px`;
+                img.style.maxWidth = "100%";
+                return;
+            }
+
+            img.style.width = "100%";
+            img.style.maxWidth = "100%";
+            img.style.height = "auto";
+        });
     }
 
     function applyColumnWidths(block, widths) {
         const normalized = normalizeColumnWidths(widths, widths.length);
         block.dataset.tableColumnWidths = normalized.join(",");
 
-        const cols = block.querySelectorAll("colgroup col");
+        const cols = ensureColgroup(block, normalized.length);
         normalized.forEach((width, index) => {
             if (cols[index]) {
                 cols[index].style.width = `${width}%`;
             }
         });
 
+        syncTableCellImages(block);
         repositionResizers(block, normalized);
         return normalized;
     }
@@ -132,6 +224,11 @@
     }
 
     function buildResizers(block) {
+        if (activeDrag && activeDrag.block === block) {
+            repositionResizers(block, parseColumnWidths(block));
+            return;
+        }
+
         const wrap = block.querySelector(".report-editor-block-table-wrap");
         if (!wrap) {
             return;
@@ -163,13 +260,37 @@
     }
 
     function prepareTableBlock(block) {
-        if (!block || block.dataset.columnResizeBound === "true") {
+        if (!block) {
+            return;
+        }
+
+        const columnCount = getTableColumnCount(block);
+        ensureColgroup(block, columnCount);
+        syncTableCellImages(block);
+
+        if (block.dataset.columnResizeBound === "true") {
+            const columnCount = getTableColumnCount(block);
+            ensureColgroup(block, columnCount);
+            syncTableCellImages(block);
+
+            const wrap = block.querySelector(".report-editor-block-table-wrap");
+            const container = wrap ? wrap.querySelector(".report-editor-table-column-resizers") : null;
+            const expectedHandles = Math.max(0, columnCount - 1);
+            const currentHandles = container
+                ? container.querySelectorAll(".report-editor-table-column-resizer").length
+                : 0;
+
+            if (currentHandles !== expectedHandles) {
+                buildResizers(block);
+            } else {
+                repositionResizers(block, parseColumnWidths(block));
+            }
             return;
         }
         block.dataset.columnResizeBound = "true";
         buildResizers(block);
 
-        const table = block.querySelector("table");
+        const table = getTableElement(block);
         if (table && window.ResizeObserver) {
             const observer = new ResizeObserver(() => {
                 repositionResizers(block, parseColumnWidths(block));
@@ -182,25 +303,57 @@
         root.querySelectorAll(".report-editor-block[data-block-type=\"table\"]").forEach(prepareTableBlock);
     }
 
-    function clearDragState() {
+    function resetColumnResizeUi() {
         document.body.classList.remove("report-editor-column-resize-active");
-        if (activeDrag && activeDrag.wrap) {
-            activeDrag.wrap.classList.remove("is-column-resizing");
+        document.querySelectorAll(".report-editor-block-table-wrap.is-column-resizing").forEach((wrap) => {
+            wrap.classList.remove("is-column-resizing");
+        });
+        document.querySelectorAll(".report-editor-table-column-resizer.is-dragging").forEach((handle) => {
+            handle.classList.remove("is-dragging");
+        });
+    }
+
+    function releaseDragPointerCapture() {
+        if (!activeDrag || !activeDrag.handle) {
+            return;
         }
-        if (activeDrag && activeDrag.handle) {
-            activeDrag.handle.classList.remove("is-dragging");
+        try {
+            if (
+                activeDrag.handle.hasPointerCapture
+                && activeDrag.handle.hasPointerCapture(activeDrag.pointerId)
+            ) {
+                activeDrag.handle.releasePointerCapture(activeDrag.pointerId);
+            }
+        } catch (error) {
+            // O handle pode ter sido removido do DOM durante o arraste.
         }
+    }
+
+    function clearDragState() {
+        releaseDragPointerCapture();
+        resetColumnResizeUi();
         document.removeEventListener("pointermove", moveDrag);
         document.removeEventListener("pointerup", endDrag);
         document.removeEventListener("pointercancel", endDrag);
         activeDrag = null;
     }
 
+    function abortDrag() {
+        resetColumnResizeUi();
+        if (!activeDrag) {
+            document.removeEventListener("pointermove", moveDrag);
+            document.removeEventListener("pointerup", endDrag);
+            document.removeEventListener("pointercancel", endDrag);
+            return;
+        }
+        clearDragState();
+    }
+
     function startDrag(event, block, handle, leftColIndex) {
         event.preventDefault();
         event.stopPropagation();
 
-        const table = block.querySelector("table");
+        const table = getTableElement(block);
         const wrap = block.querySelector(".report-editor-block-table-wrap");
         if (!table || !wrap) {
             return;
@@ -208,7 +361,15 @@
 
         handle.classList.add("is-dragging");
         wrap.classList.add("is-column-resizing");
+        document.body.classList.remove("report-editor-table-width-resize-active");
         document.body.classList.add("report-editor-column-resize-active");
+
+        if (window.ReportLineTableWidthResize && window.ReportLineTableWidthResize.abortDrag) {
+            window.ReportLineTableWidthResize.abortDrag();
+        }
+        if (window.ReportLineImageResize && window.ReportLineImageResize.abortDrag) {
+            window.ReportLineImageResize.abortDrag();
+        }
 
         activeDrag = {
             block,
@@ -217,16 +378,12 @@
             leftColIndex,
             startX: event.clientX,
             startWidths: parseColumnWidths(block),
-            tableWidth: table.getBoundingClientRect().width,
+            tableWidth: wrap.getBoundingClientRect().width || table.getBoundingClientRect().width,
             pointerId: event.pointerId,
         };
 
         if (window.ReportLineEditor && window.ReportLineEditor.beginBlockContentRecording) {
             window.ReportLineEditor.beginBlockContentRecording(block);
-        }
-
-        if (handle.setPointerCapture) {
-            handle.setPointerCapture(event.pointerId);
         }
 
         document.addEventListener("pointermove", moveDrag);
@@ -235,11 +392,19 @@
     }
 
     function moveDrag(event) {
-        if (!activeDrag || event.pointerId !== activeDrag.pointerId) {
+        if (!activeDrag) {
+            return;
+        }
+        if (event.pointerId !== undefined && event.pointerId !== activeDrag.pointerId) {
             return;
         }
 
+        event.preventDefault();
+
         const deltaPx = event.clientX - activeDrag.startX;
+        if (!activeDrag.tableWidth) {
+            return;
+        }
         const deltaPercent = Math.round((deltaPx / activeDrag.tableWidth) * 100);
         const nextWidths = resizeAdjacentColumns(
             activeDrag.startWidths,
@@ -250,7 +415,7 @@
     }
 
     async function endDrag(event) {
-        if (!activeDrag || event.pointerId !== activeDrag.pointerId) {
+        if (!activeDrag) {
             return;
         }
 
@@ -264,6 +429,20 @@
                 console.error(error);
             }
         }
+    }
+
+    function bindGlobalDragSafetyHandlers() {
+        window.addEventListener("pointerup", (event) => {
+            if (activeDrag) {
+                endDrag(event);
+            }
+        }, true);
+        window.addEventListener("blur", abortDrag);
+        window.addEventListener("keydown", (event) => {
+            if (event.key === "Escape") {
+                abortDrag();
+            }
+        });
     }
 
     function bindPage(page) {
@@ -310,8 +489,10 @@
         if (!pageElement) {
             return;
         }
+        document.body.classList.remove("report-editor-column-resize-active");
+        bindGlobalDragSafetyHandlers();
         bindPage(pageElement);
     }
 
-    window.ReportLineTableColumnResize = { init };
+    window.ReportLineTableColumnResize = { init, abortDrag };
 })();

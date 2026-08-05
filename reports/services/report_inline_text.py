@@ -28,6 +28,7 @@ INLINE_FONT_SIZE_CLASS_PRIORITY = (
 )
 ALLOWED_LINK_PREFIXES = ("http://", "https://", "mailto:")
 BLOCKED_LINK_PREFIXES = ("javascript:", "data:", "vbscript:")
+BLOCK_TAGS = frozenset({"p", "div"})
 TAG_ALIASES = {
     "b": "strong",
     "i": "em",
@@ -92,10 +93,18 @@ class _InlineTextSanitizer(HTMLParser):
         self._parts: list[str] = []
         self._tag_stack: list[str] = []
 
+    def _append_block_break_if_needed(self) -> None:
+        """Insere ``<br>`` antes de blocos ``div``/``p`` quando já há conteúdo."""
+        if self._parts and not self._parts[-1].endswith("<br>"):
+            self._parts.append("<br>")
+
     def handle_starttag(self, tag: str, attrs) -> None:
         normalized = TAG_ALIASES.get(tag.lower(), tag.lower())
         if normalized == "br":
             self._parts.append("<br>")
+            return
+        if normalized in BLOCK_TAGS:
+            self._append_block_break_if_needed()
             return
         if normalized == "span":
             class_names = dict(attrs).get("class", "")
@@ -107,11 +116,15 @@ class _InlineTextSanitizer(HTMLParser):
             return
 
         if normalized == "a":
-            href = normalize_inline_link_href(dict(attrs).get("href", ""))
+            attrs_dict = dict(attrs)
+            href = normalize_inline_link_href(attrs_dict.get("href", ""))
             if not href:
                 return
             self._tag_stack.append(normalized)
-            self._parts.append(f'<a href="{escape(href, quote=True)}">')
+            link_attrs = f'href="{escape(href, quote=True)}"'
+            if href.lower().startswith(("http://", "https://")):
+                link_attrs += ' target="_blank" rel="noopener noreferrer"'
+            self._parts.append(f"<a {link_attrs}>")
             return
 
         if normalized not in ALLOWED_INLINE_TAGS:
@@ -153,32 +166,7 @@ class _InlineTextSanitizer(HTMLParser):
 
 
 class _HeaderTextSanitizer(_InlineTextSanitizer):
-    """Sanitiza texto de cabeçalho permitindo quebras de linha ``<br>``."""
-
-    _BLOCK_TAGS = frozenset({"p", "div"})
-
-    def handle_starttag(self, tag: str, attrs) -> None:
-        normalized = tag.lower()
-        if normalized == "br":
-            self._parts.append("<br>")
-            return
-        if normalized in self._BLOCK_TAGS:
-            return
-        super().handle_starttag(tag, attrs)
-
-    def handle_endtag(self, tag: str) -> None:
-        normalized = tag.lower()
-        if normalized in self._BLOCK_TAGS:
-            if self._parts and not self._parts[-1].endswith("<br>"):
-                self._parts.append("<br>")
-            return
-        super().handle_endtag(tag)
-
-    def get_html(self) -> str:
-        html = super().get_html()
-        while html.endswith("<br>"):
-            html = html[:-4]
-        return html
+    """Alias do sanitizador inline; cabeçalho usa a mesma normalização de quebras."""
 
 
 def sanitize_header_text_html(value: str) -> str:
@@ -205,7 +193,8 @@ def sanitize_inline_text_html(value: str) -> str:
     """
     Remove markup perigoso e normaliza tags de formatação inline.
 
-    Texto sem tags permanece inalterado; entidades HTML são preservadas.
+    Texto sem tags permanece inalterado; ``<br>`` e blocos ``div``/``p`` viram
+    quebras de linha suaves equivalentes a Shift+Enter no editor.
     """
     if not isinstance(value, str):
         return ""

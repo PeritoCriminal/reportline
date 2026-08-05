@@ -1314,12 +1314,13 @@
                     };
                 })
             );
+            const columnCount = getTableColumnCount(block);
             return {
                 headers,
                 rows,
                 show_borders: block.dataset.tableShowBorders !== "false",
                 show_header: block.dataset.tableShowHeader !== "false",
-                column_widths: parseTableColumnWidths(block, headers.length),
+                column_widths: parseTableColumnWidths(block, columnCount),
                 display_width: parseTableDisplayWidth(block),
             };
         }
@@ -1537,14 +1538,45 @@
         ));
     }
 
+    function getTableColumnCount(block) {
+        const raw = block.dataset.tableColumnWidths || "";
+        if (raw) {
+            const parts = raw.split(",").map((part) => part.trim()).filter(Boolean);
+            if (parts.length) {
+                return parts.length;
+            }
+        }
+
+        const cols = block.querySelectorAll("colgroup col");
+        if (cols.length) {
+            return cols.length;
+        }
+
+        const headerCount = block.querySelectorAll('[data-table-part="header"]').length;
+        if (headerCount) {
+            return headerCount;
+        }
+
+        const firstRow = block.querySelector("tbody tr");
+        if (firstRow) {
+            const bodyCount = firstRow.querySelectorAll("td").length;
+            if (bodyCount) {
+                return bodyCount;
+            }
+        }
+
+        return 1;
+    }
+
     function parseTableColumnWidths(block, columnCount) {
+        const resolvedCount = columnCount > 0 ? columnCount : getTableColumnCount(block);
         const raw = block.dataset.tableColumnWidths || "";
         if (!raw) {
-            return equalTableColumnWidths(columnCount);
+            return equalTableColumnWidths(resolvedCount);
         }
         const widths = raw.split(",").map((part) => Number.parseInt(part.trim(), 10));
-        if (widths.length !== columnCount) {
-            return equalTableColumnWidths(columnCount);
+        if (widths.length !== resolvedCount) {
+            return equalTableColumnWidths(resolvedCount);
         }
         return widths;
     }
@@ -2312,9 +2344,6 @@
                     <img src="${safeUrl}"
                          alt="${imagePayload.alt || ""}"
                          class="report-editor-table-cell-img"
-                         width="${displayWidth}"
-                         height="${displayHeight}"
-                         style="width: ${displayWidth}px; height: ${displayHeight}px;"
                          draggable="false">
                     <div class="report-editor-image-resize-handles report-editor-table-cell-image-handles"
                          hidden
@@ -2330,10 +2359,15 @@
     }
 
     function computeImageSizeForCell(imagePayload, usableWidth) {
-        const sourceWidth = imagePayload.width || 1;
-        const sourceHeight = imagePayload.height || 1;
-        const aspectRatio = sourceWidth / sourceHeight;
-        const displayWidth = Math.max(32, usableWidth);
+        const sourceWidth = Number.parseInt(String(imagePayload.width || 0), 10);
+        const sourceHeight = Number.parseInt(String(imagePayload.height || 0), 10);
+        const aspectRatio = sourceWidth > 0 && sourceHeight > 0
+            ? sourceWidth / sourceHeight
+            : 1;
+        const maxWidth = Math.max(32, usableWidth);
+        const displayWidth = sourceWidth > 0
+            ? Math.max(32, Math.min(maxWidth, sourceWidth))
+            : maxWidth;
         const displayHeight = Math.max(1, Math.round(displayWidth / aspectRatio));
         return { width: displayWidth, height: displayHeight };
     }
@@ -3619,6 +3653,16 @@
                 return;
             }
 
+            if (event.key === "Enter" && event.shiftKey) {
+                if (editable.classList.contains("report-editor-table-cell")) {
+                    event.preventDefault();
+                    document.execCommand("insertLineBreak");
+                    scheduleDebouncedHistoryFinalize(block);
+                    scheduleDebouncedSave(block);
+                    return;
+                }
+            }
+
             if (event.key === "Enter" && !event.shiftKey) {
                 event.preventDefault();
                 handleBlockEnter(block, editable).catch(console.error);
@@ -3719,6 +3763,51 @@
                 block.classList.remove("is-active");
                 flushPendingTextEdit(block).catch(console.error);
             }
+        });
+
+        bindPreviewNavigationFlush();
+        bindVisibilityFlush();
+    }
+
+    function bindPreviewNavigationFlush() {
+        document.querySelectorAll(
+            'a[href*="/preview/"], a[href*="/document/"]'
+        ).forEach((link) => {
+            link.addEventListener("click", (event) => {
+                if (
+                    event.defaultPrevented
+                    || event.button !== 0
+                    || event.metaKey
+                    || event.ctrlKey
+                    || event.shiftKey
+                    || event.altKey
+                ) {
+                    return;
+                }
+
+                event.preventDefault();
+                const destination = link.href;
+                const target = link.getAttribute("target") || "_self";
+
+                flushUndoState()
+                    .catch(console.error)
+                    .finally(() => {
+                        if (target === "_blank") {
+                            window.open(destination, "_blank", "noopener,noreferrer");
+                            return;
+                        }
+                        window.location.href = destination;
+                    });
+            });
+        });
+    }
+
+    function bindVisibilityFlush() {
+        document.addEventListener("visibilitychange", () => {
+            if (document.visibilityState !== "hidden") {
+                return;
+            }
+            flushUndoState().catch(console.error);
         });
     }
 
@@ -4454,6 +4543,10 @@
             return;
         }
 
+        document.body.classList.remove(
+            "report-editor-column-resize-active",
+            "report-editor-table-width-resize-active"
+        );
         bindEditorEvents(page);
         if (toolbar) {
             bindToolbar(toolbar);

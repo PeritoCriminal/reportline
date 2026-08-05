@@ -14,6 +14,14 @@ from institution_ic_sp.forensic_report.common.services.case_metadata import Case
 from institution_ic_sp.forensic_report.common.services.case_metadata_serialization import (
     case_metadata_to_form_dict,
 )
+from institution_ic_sp.forensic_report.common.services.scene_location import scene_location_from_bootstrap
+from institution_ic_sp.forensic_report.services.scene_examination_content import (
+    scene_examination_content_from_bootstrap,
+    should_build_scene_examination_section,
+)
+from institution_ic_sp.forensic_report.services.scene_location_table import (
+    build_scene_location_table_content,
+)
 from institution_ic_sp.forensic_report.registry import GENERIC_WORKFLOW
 from institution_ic_sp.forensic_report.services.forensic_bootstrap import (
     STATE_BUILDING,
@@ -51,6 +59,13 @@ BUILD_STEP_IDS: tuple[str, ...] = (
     "requisition_list",
     "attendance_heading",
     "attendance_list",
+    "scene_section_heading",
+    "scene_location_heading",
+    "scene_location_table",
+    "scene_context_heading",
+    "scene_context_body",
+    "scene_characteristics_heading",
+    "scene_characteristics_body",
     "body_spacer",
     "closing_phrase",
     "closing_notice",
@@ -68,6 +83,13 @@ INTERACTIVE_BUILD_STEP_IDS: frozenset[str] = frozenset(
         "requisition_list",
         "attendance_heading",
         "attendance_list",
+        "scene_section_heading",
+        "scene_location_heading",
+        "scene_location_table",
+        "scene_context_heading",
+        "scene_context_body",
+        "scene_characteristics_heading",
+        "scene_characteristics_body",
     }
 )
 
@@ -90,6 +112,13 @@ BUILD_STEP_LABELS: dict[str, str] = {
     "requisition_list": "Listando dados da requisição…",
     "attendance_heading": "Abrindo dados do atendimento…",
     "attendance_list": "Listando dados do atendimento…",
+    "scene_section_heading": "Abrindo descrição do local…",
+    "scene_location_heading": "Registrando localização…",
+    "scene_location_table": "Inserindo mapa e QR code…",
+    "scene_context_heading": "Abrindo contexto de atendimento…",
+    "scene_context_body": "Descrevendo contexto de atendimento…",
+    "scene_characteristics_heading": "Abrindo características do local…",
+    "scene_characteristics_body": "Descrevendo características do local…",
     "body_spacer": "Organizando fechamento…",
     "closing_phrase": "Inserindo encerramento…",
     "closing_notice": "Registrando arquivamento digital…",
@@ -98,7 +127,12 @@ BUILD_STEP_LABELS: dict[str, str] = {
 }
 
 
-def step_should_run(step_id: str, metadata: CaseMetadata) -> bool:
+def step_should_run(
+    step_id: str,
+    metadata: CaseMetadata,
+    *,
+    page_layout: dict | None = None,
+) -> bool:
     """Indica se o passo produz conteúdo a partir dos metadados inferidos pela IA."""
     if step_id in SILENT_BUILD_STEP_IDS:
         return True
@@ -110,25 +144,53 @@ def step_should_run(step_id: str, metadata: CaseMetadata) -> bool:
         return bool(metadata.requisition_list_items())
     if step_id in {"attendance_heading", "attendance_list"}:
         return bool(metadata.attendance_list_items())
+    if step_id.startswith("scene_"):
+        if not should_build_scene_examination_section(metadata, page_layout):
+            return False
+        content = scene_examination_content_from_bootstrap(page_layout)
+        location = scene_location_from_bootstrap(page_layout)
+        if step_id == "scene_section_heading":
+            return True
+        if step_id in {"scene_location_heading", "scene_location_table"}:
+            return location.is_present
+        if step_id == "scene_context_heading":
+            return bool(content.get("attendance_context_paragraph"))
+        if step_id == "scene_context_body":
+            return bool(content.get("attendance_context_paragraph"))
+        if step_id == "scene_characteristics_heading":
+            return bool(content.get("characteristics_paragraph"))
+        if step_id == "scene_characteristics_body":
+            return bool(content.get("characteristics_paragraph"))
+        return False
     return True
 
 
-def count_interactive_build_steps(metadata: CaseMetadata) -> int:
+def count_interactive_build_steps(metadata: CaseMetadata, *, page_layout: dict | None = None) -> int:
     """Conta passos animados que serão exibidos na montagem incremental."""
     return sum(
         1
         for step_id in BUILD_STEP_IDS
-        if step_id in INTERACTIVE_BUILD_STEP_IDS and step_should_run(step_id, metadata)
+        if step_id in INTERACTIVE_BUILD_STEP_IDS
+        and step_should_run(step_id, metadata, page_layout=page_layout)
     )
 
 
-def count_completed_interactive_steps(metadata: CaseMetadata, step_index: int) -> int:
+def count_completed_interactive_steps(
+    metadata: CaseMetadata,
+    step_index: int,
+    *,
+    page_layout: dict | None = None,
+) -> int:
     """Conta passos interativos já concluídos até ``step_index``."""
     completed = 0
     for index, step_id in enumerate(BUILD_STEP_IDS):
         if index >= step_index:
             break
-        if step_id in INTERACTIVE_BUILD_STEP_IDS and step_should_run(step_id, metadata):
+        if step_id in INTERACTIVE_BUILD_STEP_IDS and step_should_run(
+            step_id,
+            metadata,
+            page_layout=page_layout,
+        ):
             completed += 1
     return completed
 
@@ -305,6 +367,100 @@ def _run_build_step(step_id: str, ctx: ForensicBodyBuildContext) -> list[ReportN
         ctx.position += 1
         return [node]
 
+    scene_content = scene_examination_content_from_bootstrap(ctx.report.page_layout)
+    scene_location = scene_location_from_bootstrap(ctx.report.page_layout)
+
+    if step_id == "scene_section_heading":
+        node = _create_report_node(
+            ctx.report,
+            position=ctx.position,
+            block_type=ReportBlockType.HEADING,
+            content={"text": "Descrição e Exame do Local"},
+            title_level=0,
+        )
+        ctx.node_registry["scene_section_heading"] = str(node.pk)
+        ctx.position += 1
+        return [node]
+
+    if step_id == "scene_location_heading":
+        node = _create_report_node(
+            ctx.report,
+            position=ctx.position,
+            block_type=ReportBlockType.HEADING,
+            content={"text": "Localização:"},
+            title_level=1,
+        )
+        ctx.node_registry["scene_location_heading"] = str(node.pk)
+        ctx.position += 1
+        return [node]
+
+    if step_id == "scene_location_table":
+        table_content = build_scene_location_table_content(ctx.report, scene_location)
+        if not table_content:
+            return []
+        node = _create_report_node(
+            ctx.report,
+            position=ctx.position,
+            block_type=ReportBlockType.TABLE,
+            content=table_content,
+        )
+        ctx.node_registry["scene_location_table"] = str(node.pk)
+        ctx.position += 1
+        return [node]
+
+    if step_id == "scene_context_heading":
+        node = _create_report_node(
+            ctx.report,
+            position=ctx.position,
+            block_type=ReportBlockType.HEADING,
+            content={"text": "Contexto de atendimento"},
+            title_level=1,
+        )
+        ctx.node_registry["scene_context_heading"] = str(node.pk)
+        ctx.position += 1
+        return [node]
+
+    if step_id == "scene_context_body":
+        paragraph = scene_content.get("attendance_context_paragraph", "")
+        if not paragraph:
+            return []
+        node = _create_report_node(
+            ctx.report,
+            position=ctx.position,
+            block_type=ReportBlockType.PARAGRAPH,
+            content={"text": paragraph},
+        )
+        ctx.node_registry["scene_context_body"] = str(node.pk)
+        ctx.position += 1
+        return [node]
+
+    if step_id == "scene_characteristics_heading":
+        heading = scene_content.get("characteristics_heading") or "Características do Local"
+        node = _create_report_node(
+            ctx.report,
+            position=ctx.position,
+            block_type=ReportBlockType.HEADING,
+            content={"text": heading},
+            title_level=1,
+        )
+        ctx.node_registry["scene_characteristics_heading"] = str(node.pk)
+        ctx.position += 1
+        return [node]
+
+    if step_id == "scene_characteristics_body":
+        paragraph = scene_content.get("characteristics_paragraph", "")
+        if not paragraph:
+            return []
+        node = _create_report_node(
+            ctx.report,
+            position=ctx.position,
+            block_type=ReportBlockType.PARAGRAPH,
+            content={"text": paragraph},
+        )
+        ctx.node_registry["scene_characteristics_body"] = str(node.pk)
+        ctx.position += 1
+        return [node]
+
     if step_id == "body_spacer":
         node = _create_report_node(
             ctx.report,
@@ -451,7 +607,7 @@ def advance_forensic_body_build_step(
     while step_index < len(BUILD_STEP_IDS):
         candidate = BUILD_STEP_IDS[step_index]
         step_index += 1
-        if not step_should_run(candidate, metadata):
+        if not step_should_run(candidate, metadata, page_layout=report.page_layout):
             continue
         step_id = candidate
         created_nodes = _run_build_step(step_id, ctx)

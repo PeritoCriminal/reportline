@@ -41,6 +41,63 @@
                      id="scene-location-preview-grid"
                      hidden
                      aria-live="polite"></div>
+                <fieldset class="mb-3">
+                    <legend class="form-label fs-6 mb-2">Localização</legend>
+                    <div class="d-flex flex-wrap gap-3 mb-2">
+                        <div class="form-check">
+                            <input class="form-check-input"
+                                   type="radio"
+                                   name="scene-location-kind"
+                                   id="scene-location-kind-address"
+                                   value="address"
+                                   checked>
+                            <label class="form-check-label" for="scene-location-kind-address">
+                                Endereço
+                            </label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input"
+                                   type="radio"
+                                   name="scene-location-kind"
+                                   id="scene-location-kind-coordinates"
+                                   value="coordinates">
+                            <label class="form-check-label" for="scene-location-kind-coordinates">
+                                Coordenadas
+                            </label>
+                        </div>
+                    </div>
+                    <div id="scene-location-address-fields">
+                        <label class="form-label" for="scene-location-address-input">
+                            Endereço do local
+                        </label>
+                        <input class="form-control"
+                               id="scene-location-address-input"
+                               autocomplete="street-address"
+                               placeholder="Rua, número, bairro, cidade…">
+                    </div>
+                    <div id="scene-location-coordinates-fields" hidden>
+                        <div class="row g-2">
+                            <div class="col-md-6">
+                                <label class="form-label" for="scene-location-latitude-input">
+                                    Latitude
+                                </label>
+                                <input class="form-control"
+                                       id="scene-location-latitude-input"
+                                       inputmode="decimal"
+                                       placeholder="-23.5505">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label" for="scene-location-longitude-input">
+                                    Longitude
+                                </label>
+                                <input class="form-control"
+                                       id="scene-location-longitude-input"
+                                       inputmode="decimal"
+                                       placeholder="-46.6333">
+                            </div>
+                        </div>
+                    </div>
+                </fieldset>
                 <div class="mb-0">
                     <label class="form-label" for="scene-location-prompt-input">
                         Orientações complementares
