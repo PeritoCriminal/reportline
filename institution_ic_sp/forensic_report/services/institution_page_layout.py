@@ -7,14 +7,18 @@ Copia logos da ``Institution`` para ``ReportImage`` do laudo e monta
 
 from __future__ import annotations
 
-import io
 from typing import Any
 
+from django.core.exceptions import ValidationError
 from django.core.files.base import ContentFile
 
 from institution_ic_sp.models import Institution
 from profiles.models import ForensicExaminerSP
 from reports.models import Report, ReportImage
+from reports.services.report_image_processing import (
+    content_type_from_filename,
+    process_image_bytes,
+)
 from reports.services.report_inline_text import sanitize_header_text_html
 from reports.services.report_kind import attach_institutional_page_layout_snapshot, merge_reportline_meta
 from reports.services.report_page_layout import (
@@ -197,27 +201,26 @@ def _copy_institution_logo_to_report(
     if not content:
         return None
 
-    try:
-        from PIL import Image
-
-        with Image.open(io.BytesIO(content)) as image:
-            width, height = image.size
-    except Exception:
-        width, height = 1, 1
-
     original_name = image_field.name.rsplit("/", 1)[-1]
-    extension = original_name.rsplit(".", 1)[-1].lower() if "." in original_name else "png"
+    try:
+        image_bytes, extension, width, height = process_image_bytes(
+            content,
+            filename=original_name,
+            content_type=content_type_from_filename(original_name),
+        )
+    except ValidationError:
+        return None
 
     report_image = ReportImage(
         report=report,
-        width=max(1, width),
-        height=max(1, height),
+        width=width,
+        height=height,
         original_filename=original_name,
     )
     report_image.save()
     report_image.image.save(
         f"{report_image.pk}.{extension}",
-        ContentFile(content),
+        ContentFile(image_bytes),
         save=True,
     )
     return report_image

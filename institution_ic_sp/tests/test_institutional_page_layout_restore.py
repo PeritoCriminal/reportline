@@ -19,6 +19,7 @@ from institution_ic_sp.forensic_report.services.institutional_page_layout_restor
 from institution_ic_sp.models import Institution
 from profiles.models import ForensicExaminerSP, ForensicJobTitle, GenderCalling
 from reports.models import ReportImage
+from reports.services.report_image_processing import MAX_IMAGE_SIDE_PX
 from reports.services.report_creation import create_report
 from reports.services.report_kind import (
     INSTITUTIONAL_PAGE_LAYOUT_SNAPSHOT_KEY,
@@ -99,6 +100,22 @@ class InstitutionalPageLayoutRestoreTests(TestCase):
             image = ReportImage.objects.get(pk=image_id)
             self.assertEqual(image.report_id, report.pk)
             self.assertTrue(image.image.name)
+
+    def test_build_institution_page_layout_resizes_large_logos(self):
+        """Garante redimensionamento de logos institucionais copiados para o laudo."""
+        buffer = BytesIO()
+        Image.new("RGB", (2400, 1200), color="blue").save(buffer, format="JPEG")
+        buffer.seek(0)
+        large_logo = SimpleUploadedFile("large.jpg", buffer.read(), content_type="image/jpeg")
+        self.institution.sp_logo.save("large.jpg", large_logo, save=True)
+        self.institution.refresh_from_db()
+
+        report = create_report(author=self.author, title="Laudo pericial 1/2026")
+        self._build_layout(report)
+
+        image = ReportImage.objects.filter(report=report).first()
+        self.assertIsNotNone(image)
+        self.assertLessEqual(max(image.width, image.height), MAX_IMAGE_SIDE_PX)
 
     def test_restore_institutional_page_layout_recovers_original_header(self):
         """Garante restauração do cabeçalho após edição manual."""

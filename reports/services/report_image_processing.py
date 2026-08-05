@@ -25,6 +25,20 @@ ALLOWED_CONTENT_TYPES = {
     "image/webp",
 }
 
+_CONTENT_TYPE_BY_EXTENSION = {
+    "jpg": "image/jpeg",
+    "jpeg": "image/jpeg",
+    "png": "image/png",
+    "gif": "image/gif",
+    "webp": "image/webp",
+}
+
+
+def content_type_from_filename(filename: str) -> str:
+    """Infere ``Content-Type`` a partir da extensão do arquivo."""
+    extension = filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
+    return _CONTENT_TYPE_BY_EXTENSION.get(extension, "application/octet-stream")
+
 
 def resize_image_to_max_side(image: Image.Image, max_side_px: int) -> Image.Image:
     """
@@ -92,3 +106,25 @@ def process_uploaded_image(file_obj) -> tuple[bytes, str, int, int]:
             return buffer.getvalue(), extension, resized.width, resized.height
     except UnidentifiedImageError as exc:
         raise ValidationError("Arquivo de imagem inválido ou corrompido.") from exc
+
+
+def process_image_bytes(
+    content: bytes,
+    *,
+    filename: str = "imagem.jpg",
+    content_type: str = "",
+) -> tuple[bytes, str, int, int]:
+    """
+    Valida e processa bytes de imagem como em upload multipart.
+
+    Útil para cópia de arquivos já persistidos (ex.: logos institucionais).
+    """
+    from django.core.files.uploadedfile import SimpleUploadedFile
+
+    resolved_content_type = content_type or content_type_from_filename(filename)
+    upload = SimpleUploadedFile(
+        filename,
+        content,
+        content_type=resolved_content_type,
+    )
+    return process_uploaded_image(upload)

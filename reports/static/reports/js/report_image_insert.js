@@ -5,12 +5,7 @@
     "use strict";
 
     let fileInput = null;
-    let uploadUrl = "";
-
-    function getCsrfToken() {
-        const match = document.cookie.match(/(?:^|;\s*)csrftoken=([^;]+)/);
-        return match ? decodeURIComponent(match[1]) : "";
-    }
+    let uploadOptions = {};
 
     function ensureFileInput() {
         if (fileInput) {
@@ -26,24 +21,10 @@
     }
 
     async function uploadImage(file) {
-        const formData = new FormData();
-        formData.append("image", file);
-
-        const response = await fetch(uploadUrl, {
-            method: "POST",
-            headers: {
-                "X-CSRFToken": getCsrfToken(),
-            },
-            credentials: "same-origin",
-            body: formData,
-        });
-
-        const data = await response.json().catch(() => ({}));
-        if (!response.ok) {
-            const message = (data.errors && data.errors.join(" ")) || "Falha ao enviar imagem.";
-            throw new Error(message);
+        if (!window.ReportLineImageClient) {
+            throw new Error("Módulo de upload de imagem indisponível.");
         }
-        return data;
+        return window.ReportLineImageClient.uploadReportImage(file, uploadOptions);
     }
 
     async function handleFileSelected(event) {
@@ -80,7 +61,7 @@
     }
 
     function init(options) {
-        uploadUrl = options.uploadUrl || "";
+        uploadOptions = options || {};
         bindToolbar();
     }
 

@@ -11,6 +11,7 @@ from PIL import Image
 
 from reports.services.report_image_processing import (
     MAX_IMAGE_SIDE_PX,
+    process_image_bytes,
     process_uploaded_image,
     resize_image_to_max_side,
 )
@@ -78,3 +79,20 @@ class ReportImageProcessingTests(TestCase):
 
         with self.assertRaises(ValidationError):
             process_uploaded_image(upload)
+
+    def test_process_image_bytes_resizes_large_content(self):
+        """Garante redimensionamento de bytes brutos como em cópia de logo."""
+        buffer = BytesIO()
+        Image.new("RGB", (1800, 900), color="navy").save(buffer, format="JPEG")
+        content = buffer.getvalue()
+
+        image_bytes, extension, width, height = process_image_bytes(
+            content,
+            filename="logo.jpg",
+            content_type="image/jpeg",
+        )
+
+        self.assertGreater(len(image_bytes), 0)
+        self.assertEqual(extension, "jpg")
+        self.assertLessEqual(max(width, height), MAX_IMAGE_SIDE_PX)
+        self.assertGreater(max(width, height), MAX_IMAGE_SIDE_PX - 2)

@@ -487,24 +487,10 @@
     }
 
     async function uploadLogo(file) {
-        const formData = new FormData();
-        formData.append("image", file);
-
-        const response = await fetch(uploadUrl, {
-            method: "POST",
-            headers: {
-                "X-CSRFToken": getCsrfToken(),
-            },
-            credentials: "same-origin",
-            body: formData,
-        });
-
-        const data = await response.json().catch(() => ({}));
-        if (!response.ok) {
-            const message = (data.errors && data.errors.join(" ")) || "Falha ao enviar imagem.";
-            throw new Error(message);
+        if (!window.ReportLineImageClient) {
+            throw new Error("Módulo de upload de imagem indisponível.");
         }
-        return data;
+        return window.ReportLineImageClient.uploadReportImage(file, { uploadUrl });
     }
 
     async function clearLogoCell(logoSlotElement) {
