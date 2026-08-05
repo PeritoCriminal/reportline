@@ -137,6 +137,6 @@ class AnalyzeDocumentsViewTests(TestCase):
         """Garante botão e script de análise documental no template do intake."""
         self.client.login(username="perito_analyze", password="senha-segura")
         response = self.client.get(reverse("institution_ic_sp:forensic_report:intake"))
-        self.assertContains(response, "Ler documentos e orientações com IA")
+        self.assertContains(response, "Pré-visualizar metadados nos campos avançados")
         self.assertContains(response, "case_intake_analyze.js")
         self.assertContains(response, "case_intake_analyze.css")

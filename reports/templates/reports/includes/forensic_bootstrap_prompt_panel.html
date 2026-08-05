@@ -1,0 +1,52 @@
+{# Painel de prompts inline do bootstrap pericial no editor. #}
+<div class="forensic-bootstrap-prompt-shell"
+     id="forensic-bootstrap-prompt-shell"
+     hidden
+     aria-live="polite">
+    <div class="forensic-bootstrap-prompt-panel card border-primary-subtle shadow-sm">
+        <div class="card-body p-4">
+            <div class="d-flex align-items-start gap-2 mb-3">
+                <span class="ai-analyze-icon text-primary" aria-hidden="true">
+                    <i class="bi bi-stars"></i>
+                </span>
+                <div>
+                    <h2 class="h6 mb-1" id="forensic-bootstrap-prompt-title">
+                        Complementar dados do laudo
+                    </h2>
+                    <p class="text-muted small mb-0">
+                        <span id="forensic-bootstrap-prompt-progress" hidden></span>
+                        <span id="forensic-bootstrap-prompt-help"></span>
+                    </p>
+                </div>
+            </div>
+            <form id="forensic-bootstrap-prompt-form" novalidate>
+                <div class="mb-3">
+                    <label class="form-label"
+                           id="forensic-bootstrap-prompt-label"
+                           for="forensic-bootstrap-prompt-input">
+                        Campo
+                    </label>
+                    <input class="form-control"
+                           id="forensic-bootstrap-prompt-input"
+                           name="value"
+                           autocomplete="off">
+                    <div class="invalid-feedback d-block"
+                         id="forensic-bootstrap-prompt-error"
+                         hidden></div>
+                </div>
+                <div class="d-flex flex-wrap gap-2 justify-content-end">
+                    <button type="button"
+                            class="btn btn-outline-secondary"
+                            id="forensic-bootstrap-prompt-skip">
+                        Pular
+                    </button>
+                    <button type="submit"
+                            class="btn btn-primary"
+                            id="forensic-bootstrap-prompt-submit">
+                        Confirmar
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>

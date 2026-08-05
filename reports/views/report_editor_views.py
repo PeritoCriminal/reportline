@@ -4,8 +4,11 @@ Views de edição de relatórios modulares.
 Concentra CBVs da interface de composição por blocos tipados.
 """
 
+import json
+
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.http import JsonResponse
+from django.urls import reverse
 from django.views import View
 from django.views.generic import DetailView
 
@@ -14,6 +17,15 @@ from reports.services.report_editor_bootstrap import ensure_editor_bootstrap
 from reports.services.report_editor_context import (
     build_report_editor_context,
     render_outline_refresh_payload,
+)
+from institution_ic_sp.forensic_report.services.forensic_bootstrap import (
+    bootstrap_state,
+    is_forensic_bootstrap_pending,
+    metadata_from_bootstrap,
+    pending_prompt_catalog,
+)
+from institution_ic_sp.forensic_report.common.services.case_metadata_serialization import (
+    case_metadata_to_form_dict,
 )
 from reports.services.report_image_processing import MAX_IMAGE_SIDE_PX
 from reports.services.report_kind import ensure_institutional_page_layout_snapshot, is_forensic_report
@@ -54,6 +66,21 @@ class ReportEditorView(LoginRequiredMixin, DetailView):
         )
         context["max_image_side_px"] = MAX_IMAGE_SIDE_PX
         context["header_logo_initial_height_px"] = HEADER_LOGO_INITIAL_HEIGHT_PX
+        context["forensic_bootstrap_pending"] = is_forensic_bootstrap_pending(self.object)
+        context["forensic_bootstrap_state"] = bootstrap_state(self.object)
+        if is_forensic_bootstrap_pending(self.object):
+            metadata = metadata_from_bootstrap(self.object.page_layout)
+            context["forensic_bootstrap_config"] = json.dumps(
+                {
+                    "state": bootstrap_state(self.object),
+                    "finalizeUrl": reverse(
+                        "reports:forensic_bootstrap_finalize",
+                        kwargs={"pk": self.object.pk},
+                    ),
+                    "metadata": case_metadata_to_form_dict(metadata),
+                    "pendingPrompts": pending_prompt_catalog(self.object.page_layout),
+                }
+            )
         return context
 
 

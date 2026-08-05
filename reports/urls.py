@@ -22,6 +22,13 @@ from reports.views.report_node_api_views import (
     ReportNodeReorderView,
 )
 from reports.views.report_page_layout_api_views import ReportPageLayoutView
+from institution_ic_sp.forensic_report.views.forensic_bootstrap_api_views import (
+    ForensicBootstrapAnalyzeView,
+    ForensicBootstrapBuildView,
+    ForensicBootstrapFinalizeView,
+    ForensicBootstrapPromptView,
+    ForensicBootstrapStatusView,
+)
 
 app_name = "reports"
 
@@ -75,6 +82,31 @@ urlpatterns = [
         "<uuid:pk>/page-layout/",
         ReportPageLayoutView.as_view(),
         name="page_layout",
+    ),
+    path(
+        "<uuid:pk>/forensic-bootstrap/analyze/",
+        ForensicBootstrapAnalyzeView.as_view(),
+        name="forensic_bootstrap_analyze",
+    ),
+    path(
+        "<uuid:pk>/forensic-bootstrap/build/",
+        ForensicBootstrapBuildView.as_view(),
+        name="forensic_bootstrap_build",
+    ),
+    path(
+        "<uuid:pk>/forensic-bootstrap/status/",
+        ForensicBootstrapStatusView.as_view(),
+        name="forensic_bootstrap_status",
+    ),
+    path(
+        "<uuid:pk>/forensic-bootstrap/prompt/",
+        ForensicBootstrapPromptView.as_view(),
+        name="forensic_bootstrap_prompt",
+    ),
+    path(
+        "<uuid:pk>/forensic-bootstrap/finalize/",
+        ForensicBootstrapFinalizeView.as_view(),
+        name="forensic_bootstrap_finalize",
     ),
     path(
         "<uuid:pk>/nodes/",

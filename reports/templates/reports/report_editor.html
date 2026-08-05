@@ -40,6 +40,7 @@
 {% include "reports/includes/report_page_header_modal.html" %}
 {% include "reports/includes/report_page_footer_modal.html" %}
 {% include "reports/includes/report_config_modal.html" %}
+{% include "reports/includes/forensic_bootstrap_prompt_panel.html" %}
 {{ report_config|json_script:"report-editor-initial-config" }}
 {% endblock %}
 
@@ -64,6 +65,9 @@
     window.REPORT_EDITOR_CONFIG = {
         configUrl: "{% url 'reports:config' pk=report.pk %}",
     };
+    {% if forensic_bootstrap_config %}
+    window.REPORT_EDITOR_FORENSIC_BOOTSTRAP = {{ forensic_bootstrap_config|safe }};
+    {% endif %}
 </script>
 <script src="{% versioned_static 'reports/js/report_config.js' %}" defer></script>
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.6/Sortable.min.js" defer></script>
@@ -90,6 +94,7 @@
 <script src="{% versioned_static 'reports/js/report_text_link.js' %}" defer></script>
 <script src="{% versioned_static 'reports/js/report_page_band_text.js' %}" defer></script>
 <script src="{% versioned_static 'reports/js/report_institutional_layout.js' %}" defer></script>
+<script src="{% versioned_static 'reports/js/forensic_bootstrap_prompts.js' %}" defer></script>
 <script src="{% versioned_static 'reports/js/report_page_header.js' %}" defer></script>
 <script src="{% versioned_static 'reports/js/report_page_footer.js' %}" defer></script>
 {# TODO(produção): remover bloco abaixo (atalho ipsumN) antes do deploy em produção. #}
@@ -161,6 +166,9 @@
         }
         if (window.ReportLineInstitutionalLayout && window.REPORT_EDITOR_PAGE_LAYOUT) {
             window.ReportLineInstitutionalLayout.init(window.REPORT_EDITOR_PAGE_LAYOUT);
+        }
+        if (window.ReportLineForensicBootstrap && window.REPORT_EDITOR_FORENSIC_BOOTSTRAP) {
+            window.ReportLineForensicBootstrap.init(window.REPORT_EDITOR_FORENSIC_BOOTSTRAP);
         }
         if (window.ReportLineReportConfig && window.REPORT_EDITOR_CONFIG) {
             const configScript = document.getElementById("report-editor-initial-config");

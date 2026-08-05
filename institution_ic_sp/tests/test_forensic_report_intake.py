@@ -64,6 +64,7 @@ class ForensicReportIntakeViewTests(TestCase):
         response = self.client.post(
             reverse("institution_ic_sp:forensic_report:intake"),
             {
+                "manual_submit": "1",
                 "report_number": "7",
                 "report_year": "2026",
                 "designation_date": "2026-03-01",
@@ -89,6 +90,7 @@ class ForensicReportIntakeViewTests(TestCase):
         response = self.client.post(
             reverse("institution_ic_sp:forensic_report:intake"),
             {
+                "manual_submit": "1",
                 "report_number": "",
                 "report_year": "2026",
             },
@@ -109,6 +111,7 @@ class ForensicReportIntakeViewTests(TestCase):
         response = self.client.post(
             reverse("institution_ic_sp:forensic_report:intake"),
             {
+                "manual_submit": "1",
                 "report_number": "8",
                 "report_year": "2026",
                 "documents": upload,

@@ -9,9 +9,11 @@ from django.test import TestCase
 from django.utils import timezone
 
 from institution_ic_sp.forensic_report.common.services.case_metadata import CaseMetadata
-from institution_ic_sp.forensic_report.workflows.generic.services.report_draft_builder import (
+from institution_ic_sp.forensic_report.services.forensic_report_body_builder import (
     CLOSING_DIGITAL_ARCHIVE_NOTICE,
     CLOSING_PHRASE,
+)
+from institution_ic_sp.forensic_report.workflows.generic.services.report_draft_builder import (
     build_generic_forensic_report_draft,
 )
 from institution_ic_sp.models import ForensicTeam
