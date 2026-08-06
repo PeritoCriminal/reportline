@@ -94,6 +94,14 @@ class ForensicExaminerSP(BaseModel):
             "sem equipe pericial específica."
         ),
     )
+    can_send_images_to_external_ai = models.BooleanField(
+        default=False,
+        verbose_name="Pode enviar imagens à IA externa",
+        help_text=(
+            "Autoriza o envio de fotografias do local a provedores externos "
+            "de IA (OpenAI). Desabilitado por padrão."
+        ),
+    )
 
     class Meta:
         verbose_name = "Perito criminal (SP)"

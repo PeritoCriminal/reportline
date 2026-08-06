@@ -152,6 +152,14 @@ GOOGLE_CLIENT_SECRET = os.getenv('GOOGLE_CLIENT_SECRET', '')
 
 OPENAI_API_KEY = os.getenv('OPENAI_API_KEY', '')
 FORENSIC_AI_MODEL = os.getenv('FORENSIC_AI_MODEL', 'gpt-4o-mini')
+FORENSIC_AI_SANITIZATION_ENABLED = (
+    os.getenv('FORENSIC_AI_SANITIZATION_ENABLED', 'true').lower() == 'true'
+)
+FORENSIC_AI_BLOCK_ON_RESIDUAL_PII = (
+    os.getenv('FORENSIC_AI_BLOCK_ON_RESIDUAL_PII', 'true').lower() == 'true'
+)
+PRESIDIO_SPACY_MODEL = os.getenv('PRESIDIO_SPACY_MODEL', 'pt_core_news_lg')
+FORENSIC_AI_SANITIZATION_ALLOWLIST = os.getenv('FORENSIC_AI_SANITIZATION_ALLOWLIST', '')
 
 # Google Safe Browsing (moderação de links). Vazio = não usar.
 GOOGLE_SAFE_BROWSING_API_KEY = os.getenv('GOOGLE_SAFE_BROWSING_API_KEY', '')

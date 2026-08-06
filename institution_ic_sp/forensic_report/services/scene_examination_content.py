@@ -52,7 +52,12 @@ def should_build_scene_examination_section(
     return is_scene_continuation_completed(page_layout)
 
 
-def generate_scene_examination_content(report: Report) -> dict[str, str]:
+def generate_scene_examination_content(
+    report: Report,
+    *,
+    allow_external_images: bool = False,
+    audit_context: dict | None = None,
+) -> dict[str, str]:
     """
     Infere parágrafos de exame de local a partir do bootstrap atual.
 
@@ -74,6 +79,8 @@ def generate_scene_examination_content(report: Report) -> dict[str, str]:
         scene_prompt=str(characteristics.get("prompt", "")),
         scene_image_ids=list(characteristics.get("image_ids", [])),
         location=location,
+        allow_external_images=allow_external_images,
+        audit_context=audit_context,
     )
 
 

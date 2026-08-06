@@ -6,7 +6,7 @@ from __future__ import annotations
 
 from django.core.files.uploadedfile import UploadedFile
 
-from institution_ic_sp.forensic_report.common.ai.client import complete_json_chat
+from institution_ic_sp.forensic_report.common.ai.gateway import complete_json_chat_safe
 from institution_ic_sp.forensic_report.common.ai.document_text import extract_text_from_uploads
 from institution_ic_sp.forensic_report.common.ai.prompt_loader import (
     load_case_metadata_schema_summary,
@@ -22,6 +22,7 @@ def infer_case_metadata(
     *,
     uploaded_files: list[UploadedFile] | None = None,
     supplementary_prompt: str = "",
+    audit_context: dict | None = None,
 ) -> CaseMetadata:
     """
     Infere metadados administrativos a partir de uploads em memória.
@@ -49,7 +50,11 @@ def infer_case_metadata(
         output_schema_summary=load_case_metadata_schema_summary(),
     )
 
-    payload = complete_json_chat(system=system_prompt, user=user_prompt)
+    payload = complete_json_chat_safe(
+        system=system_prompt,
+        user=user_prompt,
+        audit_context=audit_context,
+    )
     if payload is None:
         return CaseMetadata()
 
@@ -60,6 +65,7 @@ def infer_case_metadata_ai_payload(
     *,
     uploaded_files: list[UploadedFile] | None = None,
     supplementary_prompt: str = "",
+    audit_context: dict | None = None,
 ) -> dict | None:
     """
     Retorna JSON bruto inferido pela IA ou ``None`` quando indisponível.
@@ -87,4 +93,8 @@ def infer_case_metadata_ai_payload(
         output_schema_summary=load_case_metadata_schema_summary(),
     )
 
-    return complete_json_chat(system=system_prompt, user=user_prompt)
+    return complete_json_chat_safe(
+        system=system_prompt,
+        user=user_prompt,
+        audit_context=audit_context,
+    )

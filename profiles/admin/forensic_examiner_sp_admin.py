@@ -20,11 +20,13 @@ class ForensicExaminerSPAdmin(admin.ModelAdmin):
         "display_name",
         "user",
         "job_title",
+        "can_send_images_to_external_ai",
         "assignment_display",
         "created_at",
     )
     list_filter = (
         "job_title",
+        "can_send_images_to_external_ai",
         "forensic_nucleus",
         "forensic_team__nucleus",
         "forensic_team",
@@ -60,6 +62,12 @@ class ForensicExaminerSPAdmin(admin.ModelAdmin):
                     "deixe em branco para lotação direta no núcleo."
                 ),
                 "fields": ("lotacao_nucleus", "forensic_team"),
+            },
+        ),
+        (
+            "Integração com IA",
+            {
+                "fields": ("can_send_images_to_external_ai",),
             },
         ),
         (

@@ -69,6 +69,8 @@ def save_scene_examination_continuation(
     prompt: str = "",
     image_ids: list[str] | None = None,
     location: SceneLocationData | None = None,
+    allow_external_images: bool = False,
+    audit_context: dict | None = None,
 ) -> Report:
     """
     Persiste categoria de exame e características do local no bootstrap.
@@ -114,7 +116,11 @@ def save_scene_examination_continuation(
             generate_scene_examination_content,
         )
 
-        content = generate_scene_examination_content(report)
+        content = generate_scene_examination_content(
+            report,
+            allow_external_images=allow_external_images,
+            audit_context=audit_context,
+        )
         attach_scene_examination_content(report, content)
         from institution_ic_sp.forensic_report.services.forensic_report_body_incremental import (
             start_scene_build_phase,

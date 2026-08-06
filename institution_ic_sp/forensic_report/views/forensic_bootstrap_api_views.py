@@ -11,6 +11,7 @@ from django.core.exceptions import ValidationError
 from django.http import Http404, HttpResponseBadRequest, HttpResponseNotAllowed, JsonResponse
 from django.views import View
 
+from common.privacy.exceptions import ExternalAiBlockedError
 from institution_ic_sp.forensic_report.common.ai.client import is_ai_configured
 from institution_ic_sp.forensic_report.common.ai.document_text import extract_text_from_uploads
 from institution_ic_sp.forensic_report.common.services.case_metadata import normalize_case_metadata
@@ -135,10 +136,19 @@ class ForensicBootstrapAnalyzeView(ForensicReportAuthorMixin, View):
         if not manual.examiner.strip() and examiner_name:
             manual = normalize_case_metadata(replace(manual, examiner=examiner_name))
 
-        merged, field_coverage, extensions = analyze_case_metadata_with_coverage(
-            manual=manual,
-            uploaded_files=uploaded_files,
-        )
+        try:
+            merged, field_coverage, extensions = analyze_case_metadata_with_coverage(
+                manual=manual,
+                uploaded_files=uploaded_files,
+                audit_context={
+                    "operation": "metadata_extraction",
+                    "user_id": str(request.user.pk),
+                    "report_id": str(report.pk),
+                },
+            )
+        except ExternalAiBlockedError as exc:
+            return JsonResponse({"errors": [str(exc)]}, status=422)
+
         save_bootstrap_after_analyze(
             report,
             merged,
@@ -456,13 +466,34 @@ class ForensicBootstrapSceneContinuationView(ForensicReportAuthorMixin, View):
                 status=400,
             )
 
-        save_scene_examination_continuation(
-            report,
-            exam_category=exam_category,
-            prompt=prompt,
-            image_ids=image_ids,
-            location=resolved_location,
-        )
+        if image_ids and not self.examiner_profile.can_send_images_to_external_ai:
+            return JsonResponse(
+                {
+                    "errors": [
+                        "Seu perfil não está autorizado a enviar imagens a serviços "
+                        "externos de IA. Use orientações em texto ou solicite habilitação "
+                        "ao administrador."
+                    ]
+                },
+                status=403,
+            )
+
+        try:
+            save_scene_examination_continuation(
+                report,
+                exam_category=exam_category,
+                prompt=prompt,
+                image_ids=image_ids,
+                location=resolved_location,
+                allow_external_images=self.examiner_profile.can_send_images_to_external_ai,
+                audit_context={
+                    "operation": "scene_examination",
+                    "user_id": str(request.user.pk),
+                    "report_id": str(report.pk),
+                },
+            )
+        except ExternalAiBlockedError as exc:
+            return JsonResponse({"errors": [str(exc)]}, status=422)
 
         report.refresh_from_db()
         current_state = bootstrap_state(report)

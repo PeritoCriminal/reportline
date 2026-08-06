@@ -78,6 +78,7 @@ def analyze_case_metadata_from_documents(
     manual: CaseMetadata,
     uploaded_files: list[UploadedFile] | None = None,
     workflow_slug: str = GENERIC_WORKFLOW.slug,
+    audit_context: dict | None = None,
 ) -> tuple[CaseMetadata, dict[str, object]]:
     """
     Combina formulário parcial com inferência documental para pré-preenchimento.
@@ -88,6 +89,7 @@ def analyze_case_metadata_from_documents(
     payload = infer_case_metadata_ai_payload(
         uploaded_files=uploaded_files,
         supplementary_prompt=manual.supplementary_prompt,
+        audit_context=audit_context,
     )
     inferred = case_metadata_from_ai_payload(payload) if payload else CaseMetadata()
     merged = merge_case_metadata(manual, inferred)
@@ -100,6 +102,7 @@ def analyze_case_metadata_with_coverage(
     manual: CaseMetadata,
     uploaded_files: list[UploadedFile] | None = None,
     workflow_slug: str = GENERIC_WORKFLOW.slug,
+    audit_context: dict | None = None,
 ) -> tuple[CaseMetadata, dict[str, str], dict[str, object]]:
     """
     Combina intake parcial com inferência documental e mapa de cobertura da IA.
@@ -109,6 +112,7 @@ def analyze_case_metadata_with_coverage(
     payload = infer_case_metadata_ai_payload(
         uploaded_files=uploaded_files,
         supplementary_prompt=manual.supplementary_prompt,
+        audit_context=audit_context,
     )
     inferred = case_metadata_from_ai_payload(payload) if payload else CaseMetadata()
     merged = merge_case_metadata(manual, inferred)

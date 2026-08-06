@@ -9,6 +9,7 @@ import json
 from django.http import HttpResponseBadRequest, JsonResponse
 from django.views import View
 
+from common.privacy.exceptions import ExternalAiBlockedError
 from institution_ic_sp.forensic_report.common.ai.client import is_ai_configured
 from institution_ic_sp.forensic_report.common.ai.document_text import extract_text_from_uploads
 from institution_ic_sp.forensic_report.common.services.case_metadata_extraction import (
@@ -42,11 +43,25 @@ class AnalyzeDocumentsView(ForensicExaminerSPRequiredMixin, View):
 
         manual = case_metadata_from_post(request.POST)
         document_excerpts = extract_text_from_uploads(uploaded_files)
-        merged, extensions = analyze_case_metadata_from_documents(
-            manual=manual,
-            uploaded_files=uploaded_files,
-            workflow_slug=GENERIC_WORKFLOW.slug,
-        )
+        try:
+            merged, extensions = analyze_case_metadata_from_documents(
+                manual=manual,
+                uploaded_files=uploaded_files,
+                workflow_slug=GENERIC_WORKFLOW.slug,
+                audit_context={
+                    "operation": "metadata_extraction",
+                    "user_id": str(request.user.pk),
+                },
+            )
+        except ExternalAiBlockedError as exc:
+            return JsonResponse(
+                {
+                    "metadata": case_metadata_to_form_dict(manual),
+                    "extensions": {},
+                    "warnings": [str(exc)],
+                },
+                status=422,
+            )
 
         warnings: list[str] = []
         if not document_excerpts:

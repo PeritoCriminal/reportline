@@ -319,6 +319,40 @@ class SceneExaminationContinuationTests(TestCase):
         self.assertIn("Categoria de exame inválida", response.json()["errors"][0])
 
     @patch(
+        "institution_ic_sp.forensic_report.views.forensic_bootstrap_api_views"
+        ".analyze_case_metadata_with_coverage"
+    )
+    def test_scene_continuation_endpoint_rejects_images_without_permission(self, mock_analyze):
+        """Garante 403 quando perito envia imagens sem permissão institucional."""
+        mock_analyze.return_value = (self._complete_metadata(), {}, {})
+        self.client.login(username="perito_scene", password="senha-segura")
+        report = create_forensic_report_shell(
+            author=self.user,
+            examiner=self.examiner,
+        )
+        self.client.post(
+            reverse("reports:forensic_bootstrap_analyze", kwargs={"pk": report.pk}),
+            {"documents": self._pdf_upload()},
+        )
+        report.refresh_from_db()
+        self._mark_initial_build_completed(report)
+
+        response = self.client.post(
+            reverse("reports:forensic_bootstrap_scene_continuation", kwargs={"pk": report.pk}),
+            data=json.dumps(
+                {
+                    "exam_category": EXAM_CATEGORY_PROPERTY_SCENE,
+                    "prompt": "Portão metálico.",
+                    "image_ids": ["img-1"],
+                }
+            ),
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 403)
+        self.assertIn("não está autorizado a enviar imagens", response.json()["errors"][0])
+
+    @patch(
         "institution_ic_sp.forensic_report.services.scene_examination_content"
         ".generate_scene_examination_content"
     )
