@@ -653,7 +653,11 @@
             }
             isRunning = false;
         } catch (error) {
-            showError(error.message || "Falha ao preparar o laudo.");
+            if (error?.code === window.ReportLineSceneExaminationContinuation?.SCENE_CONTINUATION_CANCELLED) {
+                hideBuildUi();
+            } else {
+                showError(error.message || "Falha ao preparar o laudo.");
+            }
             isRunning = false;
         }
     }

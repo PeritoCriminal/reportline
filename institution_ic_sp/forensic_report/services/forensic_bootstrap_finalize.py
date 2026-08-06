@@ -96,6 +96,18 @@ def finalize_bootstrap_prompts(
 
     skipped_set.update(str(field) for field in skipped if str(field) in _ALLOWED_FIELDS)
 
+    bootstrap = get_bootstrap_meta(report.page_layout) or {}
+    manual_fields = {
+        str(item)
+        for item in bootstrap.get("manual_prompt_fields", [])
+        if str(item) in _ALLOWED_FIELDS
+    }
+    for field_name in pending:
+        if field_name in skipped_set:
+            continue
+        if field_name in answers_clean:
+            manual_fields.add(field_name)
+
     if changed_fields and not pre_build:
         sync_forensic_metadata_fields(
             report,
@@ -108,6 +120,7 @@ def finalize_bootstrap_prompts(
     bootstrap = get_bootstrap_meta(report.page_layout) or {}
     coverage = field_coverage_from_bootstrap(report.page_layout)
     bootstrap["skipped_prompts"] = sorted(skipped_set)
+    bootstrap["manual_prompt_fields"] = sorted(manual_fields)
     bootstrap["metadata"] = case_metadata_to_form_dict(metadata)
     bootstrap["pending_prompts"] = compute_pending_prompts(
         metadata,

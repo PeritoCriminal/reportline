@@ -42,7 +42,7 @@ class AnalyzeDocumentsView(ForensicExaminerSPRequiredMixin, View):
 
         manual = case_metadata_from_post(request.POST)
         document_excerpts = extract_text_from_uploads(uploaded_files)
-        merged = analyze_case_metadata_from_documents(
+        merged, extensions = analyze_case_metadata_from_documents(
             manual=manual,
             uploaded_files=uploaded_files,
             workflow_slug=GENERIC_WORKFLOW.slug,
@@ -63,6 +63,7 @@ class AnalyzeDocumentsView(ForensicExaminerSPRequiredMixin, View):
         return JsonResponse(
             {
                 "metadata": case_metadata_to_form_dict(merged),
+                "extensions": extensions,
                 "warnings": warnings,
             }
         )

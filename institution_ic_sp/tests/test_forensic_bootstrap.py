@@ -63,9 +63,13 @@ class ForensicBootstrapPhaseOneTests(TestCase):
         ]
 
     @staticmethod
-    def _analyze_return(metadata: CaseMetadata) -> tuple[CaseMetadata, dict[str, str]]:
+    def _analyze_return(
+        metadata: CaseMetadata,
+        *,
+        extensions: dict[str, object] | None = None,
+    ) -> tuple[CaseMetadata, dict[str, str], dict[str, object]]:
         """Empacota metadados simulados como retorno da análise com cobertura."""
-        return metadata, {}
+        return metadata, {}, dict(extensions or {})
 
     @classmethod
     def setUpTestData(cls):

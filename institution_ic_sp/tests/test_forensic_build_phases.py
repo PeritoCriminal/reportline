@@ -88,7 +88,7 @@ class ForensicIncrementalBuildPhaseTests(TestCase):
     )
     def test_initial_build_opens_scene_continuation_before_category(self, mock_analyze):
         """Garante que montagem administrativa precede a pergunta de categoria de exame."""
-        mock_analyze.return_value = (self._complete_metadata(), {})
+        mock_analyze.return_value = (self._complete_metadata(), {}, {})
         report = create_forensic_report_shell(author=self.user, examiner=self.examiner)
         from django.core.files.uploadedfile import SimpleUploadedFile
         from django.urls import reverse

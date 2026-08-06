@@ -112,13 +112,20 @@
                      hidden></div>
             </div>
             <div class="modal-footer border-secondary-subtle flex-column align-items-stretch gap-2">
-                <button type="button"
-                        class="btn btn-primary btn-ai-analyze align-self-end"
-                        id="scene-location-submit"
-                        aria-describedby="scene-location-analyze-status">
-                    <span class="ai-analyze-icon me-1" aria-hidden="true"><i class="bi bi-stars"></i></span>
-                    Analisar imagens e orientações
-                </button>
+                <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 w-100">
+                    <button type="button"
+                            class="btn btn-link text-muted px-0"
+                            id="scene-location-cancel">
+                        Continuar depois
+                    </button>
+                    <button type="button"
+                            class="btn btn-primary btn-ai-analyze"
+                            id="scene-location-submit"
+                            aria-describedby="scene-location-analyze-status">
+                        <span class="ai-analyze-icon me-1" aria-hidden="true"><i class="bi bi-stars"></i></span>
+                        Analisar imagens e orientações
+                    </button>
+                </div>
                 <div class="analyze-status-panel"
                      id="scene-location-analyze-status"
                      role="status"

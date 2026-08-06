@@ -14,7 +14,11 @@ from institution_ic_sp.forensic_report.common.services.case_metadata import Case
 from institution_ic_sp.forensic_report.common.services.case_metadata_serialization import (
     case_metadata_to_form_dict,
 )
-from institution_ic_sp.forensic_report.common.services.scene_location import scene_location_from_bootstrap
+from institution_ic_sp.forensic_report.common.services.scene_location import (
+    SceneLocationData,
+    scene_location_for_report,
+    scene_location_from_bootstrap,
+)
 from institution_ic_sp.forensic_report.services.scene_examination_content import (
     scene_examination_content_from_bootstrap,
     should_build_scene_examination_section,
@@ -336,7 +340,7 @@ def _insert_scene_report_node(
 def _run_scene_build_step(step_id: str, ctx: SceneBuildContext) -> list[ReportNode]:
     """Executa passo de montagem inserindo blocos antes do fechamento."""
     scene_content = scene_examination_content_from_bootstrap(ctx.report.page_layout)
-    scene_location = scene_location_from_bootstrap(ctx.report.page_layout)
+    scene_location = scene_location_for_report(ctx.report)
 
     if step_id == "scene_section_heading":
         node = _insert_scene_report_node(
@@ -723,6 +727,10 @@ def _complete_initial_build_phase(
     nodes: dict[str, str],
 ) -> str:
     """Finaliza fase administrativa e abre continuação de categoria de exame."""
+    from institution_ic_sp.forensic_report.services.forensic_report_dossier import (
+        persist_initial_data_phase,
+    )
+
     bootstrap = get_bootstrap_meta(report.page_layout) or {}
     skipped = skipped_prompts_from_bootstrap(report.page_layout)
 
@@ -738,6 +746,7 @@ def _complete_initial_build_phase(
     final_state = resolve_state_after_initial_build(report, metadata, skipped=skipped)
     bootstrap["state"] = final_state
     report.page_layout = attach_bootstrap_meta(report.page_layout, bootstrap)
+    persist_initial_data_phase(report, metadata)
     return final_state
 
 
@@ -748,6 +757,10 @@ def _complete_scene_build_phase(
     nodes: dict[str, str],
 ) -> str:
     """Finaliza bootstrap após inserção da seção de exame de local."""
+    from institution_ic_sp.forensic_report.services.forensic_report_dossier import (
+        persist_property_crime_phase,
+    )
+
     bootstrap = get_bootstrap_meta(report.page_layout) or {}
     skipped = skipped_prompts_from_bootstrap(report.page_layout)
 
@@ -761,6 +774,7 @@ def _complete_scene_build_phase(
     final_state = resolve_bootstrap_state(metadata, skipped=skipped)
     bootstrap["state"] = final_state
     report.page_layout = attach_bootstrap_meta(report.page_layout, bootstrap)
+    persist_property_crime_phase(report, metadata)
     return final_state
 
 

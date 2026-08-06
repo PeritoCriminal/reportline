@@ -81,3 +81,55 @@ def scene_location_from_bootstrap(page_layout: dict | None) -> SceneLocationData
     if not isinstance(raw_location, dict):
         return SceneLocationData()
     return normalize_scene_location(raw_location)
+
+
+def exam_location_from_dossier(report) -> SceneLocationData:
+    """
+    Monta localização a partir de ``extensions`` da fase ``initial_data``.
+
+    Usa ``exam_location_address`` ou par ``exam_location_latitude`` /
+    ``exam_location_longitude`` quando documentados na extração administrativa.
+    """
+    from institution_ic_sp.forensic_report.services.forensic_report_dossier import (
+        initial_data_extensions_for_report,
+    )
+
+    extensions = initial_data_extensions_for_report(report)
+    address = str(extensions.get("exam_location_address", "")).strip()
+    if address:
+        return SceneLocationData(kind=LOCATION_KIND_ADDRESS, address=address)
+
+    latitude = str(extensions.get("exam_location_latitude", "")).strip()
+    longitude = str(extensions.get("exam_location_longitude", "")).strip()
+    if latitude and longitude:
+        return SceneLocationData(
+            kind=LOCATION_KIND_COORDINATES,
+            latitude=latitude,
+            longitude=longitude,
+        )
+    return SceneLocationData()
+
+
+def resolve_scene_location(*, manual: SceneLocationData, report) -> SceneLocationData:
+    """Prioriza local informado pelo perito; complementa com endereço do dossiê."""
+    if manual.is_present:
+        return manual
+    return exam_location_from_dossier(report)
+
+
+def scene_location_for_report(report) -> SceneLocationData:
+    """Retorna localização do bootstrap ou, se ausente, inferida do dossiê."""
+    location = scene_location_from_bootstrap(report.page_layout)
+    if location.is_present:
+        return location
+    return exam_location_from_dossier(report)
+
+
+def scene_location_to_payload(location: SceneLocationData) -> dict[str, str]:
+    """Serializa localização para JSON de API ou bootstrap."""
+    return {
+        "kind": location.kind,
+        "address": location.address,
+        "latitude": location.latitude,
+        "longitude": location.longitude,
+    }

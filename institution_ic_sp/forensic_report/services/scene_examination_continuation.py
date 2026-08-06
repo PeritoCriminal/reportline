@@ -16,6 +16,7 @@ from institution_ic_sp.forensic_report.common.services.exam_category import (
 from institution_ic_sp.forensic_report.common.services.scene_location import (
     SceneLocationData,
     normalize_scene_location,
+    resolve_scene_location,
 )
 from institution_ic_sp.forensic_report.services.forensic_bootstrap import (
     attach_bootstrap_meta,
@@ -82,6 +83,7 @@ def save_scene_examination_continuation(
     bootstrap = get_bootstrap_meta(report.page_layout) or empty_bootstrap_payload()
     metadata = metadata_from_bootstrap(report.page_layout)
     metadata = replace(metadata, exam_category=normalized_category)
+    resolved_location = resolve_scene_location(manual=location or SceneLocationData(), report=report)
 
     bootstrap["metadata"] = case_metadata_to_form_dict(metadata)
     bootstrap["exam_category"] = normalized_category
@@ -92,12 +94,12 @@ def save_scene_examination_continuation(
             "prompt": prompt.strip(),
             "image_ids": list(image_ids or []),
         }
-        if location and location.is_present:
+        if resolved_location.is_present:
             scene_payload["location"] = {
-                "kind": location.kind,
-                "address": location.address,
-                "latitude": location.latitude,
-                "longitude": location.longitude,
+                "kind": resolved_location.kind,
+                "address": resolved_location.address,
+                "latitude": resolved_location.latitude,
+                "longitude": resolved_location.longitude,
             }
         bootstrap["scene_characteristics"] = scene_payload
     else:

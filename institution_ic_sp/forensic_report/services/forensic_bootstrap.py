@@ -19,6 +19,10 @@ from institution_ic_sp.forensic_report.common.services.case_metadata_serializati
     case_metadata_to_form_dict,
 )
 from institution_ic_sp.forensic_report.common.services.exam_category import normalize_exam_category
+from institution_ic_sp.forensic_report.common.services.scene_location import (
+    exam_location_from_dossier,
+    scene_location_to_payload,
+)
 from institution_ic_sp.forensic_report.registry import GENERIC_WORKFLOW
 from institution_ic_sp.forensic_report.services.forensic_bootstrap_field_coverage import (
     ALL_PROMPT_FIELD_NAMES,
@@ -155,9 +159,11 @@ def empty_bootstrap_payload(*, supplementary_prompt: str = "") -> dict[str, Any]
         "state": STATE_SHELL_CREATED,
         "workflow": GENERIC_WORKFLOW.slug,
         "metadata": case_metadata_to_form_dict(metadata),
+        "supplementary_prompt": supplementary_prompt.strip(),
         "nodes": {},
         "pending_prompts": compute_pending_prompts(metadata),
         "skipped_prompts": [],
+        "extensions": {},
     }
 
 
@@ -223,6 +229,15 @@ def field_coverage_from_bootstrap(page_layout: dict[str, Any] | None) -> dict[st
     return {str(key): str(value) for key, value in raw.items()}
 
 
+def extensions_from_bootstrap(page_layout: dict[str, Any] | None) -> dict[str, Any]:
+    """Retorna dados complementares inferidos pela IA persistidos no bootstrap."""
+    bootstrap = get_bootstrap_meta(page_layout) or {}
+    raw = bootstrap.get("extensions", {})
+    if not isinstance(raw, dict):
+        return {}
+    return deepcopy(raw)
+
+
 def is_scene_continuation_completed(page_layout: dict[str, Any] | None) -> bool:
     """Indica se a etapa de continuação de exame de local já foi concluída."""
     bootstrap = get_bootstrap_meta(page_layout) or {}
@@ -273,11 +288,24 @@ def resolve_state_after_initial_build(
     return resolve_bootstrap_state(metadata, skipped=skipped)
 
 
+def _supplementary_prompt_from_bootstrap_payload(bootstrap: dict[str, Any]) -> str:
+    """Recupera orientações complementares já persistidas no bootstrap."""
+    root_prompt = str(bootstrap.get("supplementary_prompt", "")).strip()
+    if root_prompt:
+        return root_prompt
+    raw_metadata = bootstrap.get("metadata", {})
+    if isinstance(raw_metadata, dict):
+        return str(raw_metadata.get("supplementary_prompt", "")).strip()
+    return ""
+
+
 def save_bootstrap_after_analyze(
     report: Report,
     metadata: CaseMetadata,
     *,
     field_coverage: dict[str, str] | None = None,
+    document_count: int = 0,
+    extensions: dict[str, object] | None = None,
 ) -> Report:
     """Persiste metadados inferidos e abre coleta de prompts quando necessário."""
     skipped = skipped_prompts_from_bootstrap(report.page_layout)
@@ -290,12 +318,21 @@ def save_bootstrap_after_analyze(
         field_coverage=coverage,
     )
     bootstrap = get_bootstrap_meta(report.page_layout) or empty_bootstrap_payload()
-    bootstrap["metadata"] = case_metadata_to_form_dict(metadata)
+    preserved_prompt = metadata.supplementary_prompt.strip() or _supplementary_prompt_from_bootstrap_payload(
+        bootstrap
+    )
+    metadata_dict = case_metadata_to_form_dict(metadata)
+    if preserved_prompt:
+        metadata_dict["supplementary_prompt"] = preserved_prompt
+    bootstrap["metadata"] = metadata_dict
     bootstrap["state"] = state
     bootstrap["pending_prompts"] = pending
     bootstrap["skipped_prompts"] = sorted(skipped)
     bootstrap["field_coverage"] = coverage
     bootstrap["inferred_exam_category"] = normalize_exam_category(metadata.exam_category)
+    bootstrap["document_count"] = max(document_count, 0)
+    bootstrap["supplementary_prompt"] = preserved_prompt
+    bootstrap["extensions"] = dict(extensions or {})
     report.page_layout = attach_bootstrap_meta(report.page_layout, bootstrap)
     report.save(update_fields=["page_layout", "updated_at"])
     return report
@@ -498,6 +535,9 @@ def forensic_bootstrap_editor_config(report: Report) -> dict[str, Any] | None:
             config["examCategory"] = inferred_exam_category_from_bootstrap(report.page_layout)
             config["inferredExamCategory"] = inferred_exam_category_from_bootstrap(report.page_layout)
             config["initialBuildCompleted"] = is_initial_build_completed(report.page_layout)
+            suggested_location = exam_location_from_dossier(report)
+            if suggested_location.is_present:
+                config["suggestedLocation"] = scene_location_to_payload(suggested_location)
         if state in (STATE_COLLECTING_PROMPTS, STATE_PROMPTING):
             config.update(forensic_bootstrap_prompt_config(report))
 

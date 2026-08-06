@@ -71,6 +71,50 @@ def _parse_ai_year(value: Any) -> int:
     return int(raw) if raw.isdigit() else 0
 
 
+def _normalize_extension_value(value: Any) -> Any:
+    """Converte valor de ``extensions`` para tipo JSON persistível."""
+    if value is None:
+        return None
+    if isinstance(value, (str, int, float, bool)):
+        return value
+    if isinstance(value, list):
+        normalized_items = [_normalize_extension_value(item) for item in value]
+        return [item for item in normalized_items if item is not None and item != ""]
+    if isinstance(value, dict):
+        return extensions_from_ai_payload({"extensions": value})
+    cleaned = str(value).strip()
+    return cleaned if cleaned else None
+
+
+def extensions_from_ai_payload(payload: dict[str, Any] | None) -> dict[str, Any]:
+    """
+    Extrai e normaliza o objeto ``extensions`` retornado pela IA.
+
+    Ignora chaves vazias e valores não serializáveis; converte escalares
+    desconhecidos em string.
+    """
+    if not isinstance(payload, dict):
+        return {}
+    raw = payload.get("extensions")
+    if not isinstance(raw, dict):
+        return {}
+
+    normalized: dict[str, Any] = {}
+    for key, value in raw.items():
+        cleaned_key = str(key).strip()
+        if not cleaned_key:
+            continue
+        normalized_value = _normalize_extension_value(value)
+        if normalized_value is None:
+            continue
+        if normalized_value == "":
+            continue
+        if isinstance(normalized_value, (list, dict)) and not normalized_value:
+            continue
+        normalized[cleaned_key] = normalized_value
+    return normalized
+
+
 def case_metadata_from_ai_payload(payload: dict[str, Any]) -> CaseMetadata:
     """Mapeia objeto JSON da IA para dataclass de metadados do intake."""
     return normalize_case_metadata(

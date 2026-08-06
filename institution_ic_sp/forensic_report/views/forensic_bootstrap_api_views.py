@@ -27,7 +27,12 @@ from institution_ic_sp.forensic_report.common.services.exam_category import (
     is_deferred_module_category,
     normalize_exam_category,
 )
-from institution_ic_sp.forensic_report.common.services.scene_location import normalize_scene_location
+from institution_ic_sp.forensic_report.common.services.scene_location import (
+    exam_location_from_dossier,
+    normalize_scene_location,
+    resolve_scene_location,
+    scene_location_to_payload,
+)
 from institution_ic_sp.forensic_report.mixins import ForensicExaminerSPRequiredMixin
 from institution_ic_sp.forensic_report.services.forensic_bootstrap_field_coverage import (
     ALL_PROMPT_FIELD_NAMES,
@@ -130,11 +135,17 @@ class ForensicBootstrapAnalyzeView(ForensicReportAuthorMixin, View):
         if not manual.examiner.strip() and examiner_name:
             manual = normalize_case_metadata(replace(manual, examiner=examiner_name))
 
-        merged, field_coverage = analyze_case_metadata_with_coverage(
+        merged, field_coverage, extensions = analyze_case_metadata_with_coverage(
             manual=manual,
             uploaded_files=uploaded_files,
         )
-        save_bootstrap_after_analyze(report, merged, field_coverage=field_coverage)
+        save_bootstrap_after_analyze(
+            report,
+            merged,
+            field_coverage=field_coverage,
+            document_count=len(uploaded_files),
+            extensions=extensions,
+        )
 
         warnings: list[str] = []
         try:
@@ -436,8 +447,9 @@ class ForensicBootstrapSceneContinuationView(ForensicReportAuthorMixin, View):
 
         raw_location = payload.get("location", {})
         location = normalize_scene_location(raw_location if isinstance(raw_location, dict) else {})
+        resolved_location = resolve_scene_location(manual=location, report=report)
 
-        has_scene_input = bool(prompt or image_ids or location.is_present)
+        has_scene_input = bool(prompt or image_ids or resolved_location.is_present)
         if exam_category == EXAM_CATEGORY_PROPERTY_SCENE and not has_scene_input:
             return JsonResponse(
                 {"errors": ["Informe localização, imagens ou orientações sobre o local."]},
@@ -449,7 +461,7 @@ class ForensicBootstrapSceneContinuationView(ForensicReportAuthorMixin, View):
             exam_category=exam_category,
             prompt=prompt,
             image_ids=image_ids,
-            location=location,
+            location=resolved_location,
         )
 
         report.refresh_from_db()

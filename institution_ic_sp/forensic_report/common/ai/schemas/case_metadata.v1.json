@@ -68,6 +68,10 @@
     "sketch": {
       "type": "string",
       "description": "Responsável ou referência de croqui, se constar explicitamente nos documentos."
+    },
+    "extensions": {
+      "type": "object",
+      "description": "Dados documentados extras para etapas posteriores (endereços, pessoas, veículos etc.), em snake_case. Use {} quando não houver dados extras. Não duplique campos principais do schema."
     }
   }
 }

@@ -60,6 +60,75 @@ class ExamCategoryNormalizationTests(TestCase):
         self.assertTrue(is_property_scene_category("property_scene"))
 
 
+class SceneExaminationContentGenerationTests(TestCase):
+    """Testes da geração de conteúdo da seção de exame de local."""
+
+    @classmethod
+    def setUpTestData(cls):
+        """Prepara perito e laudo para geração de conteúdo."""
+        cls.team = ForensicTeam.objects.get(code="EPC-SPC")
+        cls.user = User.objects.create_user(
+            username="perito_scene_content",
+            password="senha-segura",
+        )
+        cls.examiner = ForensicExaminerSP.objects.create(
+            user=cls.user,
+            forensic_team=cls.team,
+            display_name="Dr. Scene Content",
+            job_title=ForensicJobTitle.PERITO_CRIMINAL,
+            calling_gender=GenderCalling.MALE,
+        )
+
+    @patch(
+        "institution_ic_sp.forensic_report.services.scene_examination_content"
+        ".infer_scene_examination_content"
+    )
+    def test_generate_scene_examination_content_resolves_location(self, mock_infer):
+        """Garante resolução de localização ao gerar parágrafos do exame de local."""
+        from institution_ic_sp.forensic_report.services.forensic_bootstrap import (
+            attach_bootstrap_meta,
+            empty_bootstrap_payload,
+        )
+        from institution_ic_sp.forensic_report.services.scene_examination_content import (
+            generate_scene_examination_content,
+        )
+
+        mock_infer.return_value = {
+            "characteristics_heading": "Características do Local",
+            "attendance_context_paragraph": "A equipe compareceu ao local.",
+            "characteristics_paragraph": "Imóvel residencial térreo.",
+        }
+        report = create_forensic_report_shell(
+            author=self.user,
+            examiner=self.examiner,
+        )
+        bootstrap = empty_bootstrap_payload()
+        bootstrap["metadata"] = {
+            "exam_objective": "Examinar local de furto.",
+            "exam_category": EXAM_CATEGORY_PROPERTY_SCENE,
+        }
+        bootstrap["scene_characteristics"] = {
+            "prompt": "Portão basculante.",
+            "image_ids": [],
+            "location": {
+                "kind": "address",
+                "address": "Rua das Flores, 100",
+                "latitude": "",
+                "longitude": "",
+            },
+        }
+        report.page_layout = attach_bootstrap_meta(report.page_layout, bootstrap)
+        report.save(update_fields=["page_layout", "updated_at"])
+
+        content = generate_scene_examination_content(report)
+
+        self.assertEqual(content["characteristics_heading"], "Características do Local")
+        mock_infer.assert_called_once()
+        location = mock_infer.call_args.kwargs["location"]
+        self.assertTrue(location.is_present)
+        self.assertEqual(location.address, "Rua das Flores, 100")
+
+
 class SceneExaminationContinuationTests(TestCase):
     """Testes da etapa de continuação de exame de local no bootstrap."""
 
@@ -227,7 +296,7 @@ class SceneExaminationContinuationTests(TestCase):
     )
     def test_scene_continuation_endpoint_rejects_invalid_category(self, mock_analyze):
         """Garante validação de categoria inválida no endpoint de continuação."""
-        mock_analyze.return_value = (CaseMetadata(exam_objective="Examinar local."), {})
+        mock_analyze.return_value = (CaseMetadata(exam_objective="Examinar local."), {}, {})
         self.client.login(username="perito_scene", password="senha-segura")
         report = create_forensic_report_shell(
             author=self.user,
@@ -264,7 +333,7 @@ class SceneExaminationContinuationTests(TestCase):
             "attendance_context_paragraph": "Compareceu a equipe.",
             "characteristics_paragraph": "Casa térrea.",
         }
-        mock_analyze.return_value = (self._complete_metadata(), {})
+        mock_analyze.return_value = (self._complete_metadata(), {}, {})
         self.client.login(username="perito_scene", password="senha-segura")
         report = create_forensic_report_shell(
             author=self.user,
@@ -309,6 +378,7 @@ class SceneExaminationContinuationTests(TestCase):
         """Garante mensagem TODO para acidente de trânsito ainda não implementado."""
         mock_analyze.return_value = (
             replace(self._complete_metadata(), exam_category=EXAM_CATEGORY_TRAFFIC_ACCIDENT),
+            {},
             {},
         )
         self.client.login(username="perito_scene", password="senha-segura")

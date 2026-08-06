@@ -76,6 +76,9 @@ class MetadataExtractionPromptTests(TestCase):
         self.assertIn("assinatura da autoridade requisitante", system.lower())
         self.assertIn("não consta no bo", system.lower())
 
+        self.assertIn("extensions", system)
+        self.assertIn("exam_location_address", system)
+
     def test_system_prompt_lists_document_types_with_priorities(self):
         """Garante tipologia documental com prioridades no system prompt."""
         system = load_prompt_markdown(

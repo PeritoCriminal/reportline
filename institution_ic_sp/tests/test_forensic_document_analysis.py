@@ -96,17 +96,18 @@ class AnalyzeDocumentsViewTests(TestCase):
         return_value="Requisição da Delegacia Central",
     )
     @patch(
-        "institution_ic_sp.forensic_report.common.ai.client.complete_json_chat",
+        "institution_ic_sp.forensic_report.common.services.case_metadata_extraction.infer_case_metadata_ai_payload",
         return_value={
             "report_number": "99",
             "report_year": 2026,
             "occurrence_report": "BO-IA",
             "requesting_authority": "Dr. Delegado IA",
+            "extensions": {"exam_location_address": "Rua Teste, 1"},
         },
     )
     def test_analyze_merges_ai_payload_preserving_manual_fields(
         self,
-        _mock_chat,
+        _mock_payload,
         _mock_extract,
     ):
         """Garante mescla manual > inferido na resposta JSON."""
@@ -132,6 +133,10 @@ class AnalyzeDocumentsViewTests(TestCase):
         self.assertEqual(metadata["report_number"], "7")
         self.assertEqual(metadata["requesting_authority"], "Dr. Manual")
         self.assertEqual(metadata["occurrence_report"], "BO-IA")
+        self.assertEqual(
+            payload["extensions"]["exam_location_address"],
+            "Rua Teste, 1",
+        )
 
     def test_intake_page_hides_manual_preview_and_advanced_form(self):
         """Garante que pré-visualização e formulário avançado permanecem ocultos no intake."""

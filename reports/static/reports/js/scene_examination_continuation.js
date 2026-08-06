@@ -24,6 +24,7 @@
         "Preparando descrição para o laudo…",
     ];
     const SCENE_ANALYZE_STATUS_ROTATE_MS = 2200;
+    const SCENE_CONTINUATION_CANCELLED = "SCENE_CONTINUATION_CANCELLED";
 
     let typeModal = null;
     let confirmModal = null;
@@ -37,6 +38,7 @@
     let promptInput = null;
     let errorBox = null;
     let submitButton = null;
+    let cancelButton = null;
     let analyzeStatusPanel = null;
     let analyzeStatusText = null;
     let toastContainer = null;
@@ -53,6 +55,7 @@
     let domInitialized = false;
     let statusRotateTimer = null;
     let statusMessageIndex = 0;
+    let activeSuggestedLocation = null;
 
     function getCsrfToken() {
         const match = document.cookie.match(/(?:^|;\s*)csrftoken=([^;]+)/);
@@ -248,6 +251,33 @@
                 delete file.previewUrl;
             }
         });
+    }
+
+    function applySuggestedLocation(config) {
+        const suggested = config?.suggestedLocation;
+        if (!suggested || !hasLocationInput(suggested)) {
+            return;
+        }
+        if (suggested.kind === "coordinates") {
+            if (locationKindCoordinates) {
+                locationKindCoordinates.checked = true;
+            }
+            toggleLocationFields();
+            if (latitudeInput) {
+                latitudeInput.value = suggested.latitude || "";
+            }
+            if (longitudeInput) {
+                longitudeInput.value = suggested.longitude || "";
+            }
+            return;
+        }
+        if (locationKindAddress) {
+            locationKindAddress.checked = true;
+        }
+        toggleLocationFields();
+        if (addressInput) {
+            addressInput.value = suggested.address || "";
+        }
     }
 
     function resetCharacteristicsForm() {
@@ -456,15 +486,41 @@
         });
     }
 
+    function hasEffectiveLocationInput(location) {
+        return hasLocationInput(location) || hasLocationInput(activeSuggestedLocation);
+    }
+
+    function createContinuationError(code, message) {
+        const error = new Error(message);
+        error.code = code;
+        return error;
+    }
+
     function waitForNextCharacteristicsSubmit() {
-        return new Promise((resolve) => {
+        return new Promise((resolve, reject) => {
+            const cleanup = () => {
+                submitButton?.removeEventListener("click", handleSubmit);
+                cancelButton?.removeEventListener("click", handleCancel);
+            };
+            const handleCancel = () => {
+                if (isSubmitting) {
+                    return;
+                }
+                cleanup();
+                reject(
+                    createContinuationError(
+                        SCENE_CONTINUATION_CANCELLED,
+                        "Continuação do exame de local adiada."
+                    )
+                );
+            };
             const handleSubmit = () => {
                 if (isSubmitting) {
                     return;
                 }
                 const prompt = (promptInput?.value || "").trim();
                 const location = readLocationPayload();
-                if (!prompt && !pendingFiles.length && !hasLocationInput(location)) {
+                if (!prompt && !pendingFiles.length && !hasEffectiveLocationInput(location)) {
                     setError("Informe localização, imagens ou orientações sobre o local.");
                     return;
                 }
@@ -475,13 +531,15 @@
                     }
                 }
                 setError("");
+                cleanup();
                 resolve({
                     prompt,
                     location,
                     pendingUploads: pendingFiles.slice(),
                 });
             };
-            submitButton?.addEventListener("click", handleSubmit, { once: true });
+            submitButton?.addEventListener("click", handleSubmit);
+            cancelButton?.addEventListener("click", handleCancel);
         });
     }
 
@@ -498,11 +556,19 @@
     }
 
     async function collectPropertySceneData(config) {
+        activeSuggestedLocation = config?.suggestedLocation || null;
         resetCharacteristicsForm();
+        applySuggestedLocation(config);
         showModal(characteristicsModal);
 
         while (true) {
-            const draft = await waitForNextCharacteristicsSubmit();
+            let draft;
+            try {
+                draft = await waitForNextCharacteristicsSubmit();
+            } catch (error) {
+                hideModal(characteristicsModal);
+                throw error;
+            }
             beginSceneAnalysis();
             let succeeded = false;
             try {
@@ -604,6 +670,7 @@
         promptInput = document.getElementById("scene-location-prompt-input");
         errorBox = document.getElementById("scene-location-error");
         submitButton = document.getElementById("scene-location-submit");
+        cancelButton = document.getElementById("scene-location-cancel");
         analyzeStatusPanel = document.getElementById("scene-location-analyze-status");
         analyzeStatusText = document.getElementById("scene-location-analyze-status-text");
         locationKindAddress = document.getElementById("scene-location-kind-address");
@@ -651,5 +718,6 @@
     window.ReportLineSceneExaminationContinuation = {
         run,
         initDomReferences,
+        SCENE_CONTINUATION_CANCELLED,
     };
 })();

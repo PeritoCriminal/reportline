@@ -10,6 +10,7 @@ from institution_ic_sp.forensic_report.common.services.exam_category import (
 )
 from institution_ic_sp.forensic_report.common.services.scene_location import (
     SceneLocationData,
+    scene_location_for_report,
     scene_location_from_bootstrap,
 )
 from institution_ic_sp.forensic_report.services.forensic_bootstrap import (
@@ -66,7 +67,7 @@ def generate_scene_examination_content(report: Report) -> dict[str, str]:
     )
 
     characteristics = scene_characteristics_from_bootstrap(report.page_layout)
-    location = scene_location_from_bootstrap(report.page_layout)
+    location = scene_location_for_report(report)
     return infer_scene_examination_content(
         report=report,
         metadata=metadata,
