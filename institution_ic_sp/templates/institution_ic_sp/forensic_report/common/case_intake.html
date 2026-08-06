@@ -5,6 +5,7 @@
 
 {% block extra_css %}
 <link rel="stylesheet" href="{% versioned_static 'institution_ic_sp/css/case_intake_analyze.css' %}">
+<link rel="stylesheet" href="{% versioned_static 'institution_ic_sp/css/case_intake_documents.css' %}">
 {% endblock %}
 
 {% block content %}
@@ -31,13 +32,33 @@
                         apenas nesta etapa; eles não são armazenados no servidor.
                     </p>
                     <div class="mb-3">
-                        <label for="id_documents" class="form-label">Documentos</label>
-                        <input type="file"
-                               class="form-control"
-                               id="id_documents"
-                               name="documents"
-                               multiple
-                               accept=".pdf,.png,.jpg,.jpeg,.webp,image/*,application/pdf">
+                        <label class="form-label" for="id_documents">Documentos</label>
+                        <div class="intake-documents-dropzone"
+                             id="intake-documents-dropzone"
+                             role="button"
+                             tabindex="0"
+                             aria-describedby="intake-documents-dropzone-help">
+                            <input type="file"
+                                   class="visually-hidden"
+                                   id="id_documents"
+                                   name="documents"
+                                   multiple
+                                   accept=".pdf,.png,.jpg,.jpeg,.webp,image/*,application/pdf">
+                            <div class="intake-documents-dropzone-inner">
+                                <i class="bi bi-cloud-arrow-up intake-documents-dropzone-icon" aria-hidden="true"></i>
+                                <p class="mb-1 fw-medium">Arraste documentos aqui ou clique para selecionar</p>
+                                <p class="text-muted small mb-0" id="intake-documents-dropzone-help">
+                                    Requisição, boletim ou outros arquivos em PDF e imagens (JPG, PNG, WEBP).
+                                </p>
+                            </div>
+                        </div>
+                        <ul class="intake-documents-file-list mt-2 mb-0"
+                            id="intake-documents-file-list"
+                            hidden
+                            aria-live="polite"></ul>
+                        <div class="invalid-feedback d-block"
+                             id="intake-documents-error"
+                             hidden></div>
                     </div>
                     <div class="mb-0">
                         <label for="{{ form.supplementary_prompt.id_for_label }}" class="form-label">
@@ -263,6 +284,7 @@
 {% endblock %}
 
 {% block extra_js %}
+<script src="{% versioned_static 'institution_ic_sp/js/case_intake_documents.js' %}"></script>
 <script src="{% versioned_static 'institution_ic_sp/js/forensic_bootstrap_documents.js' %}"></script>
 <script src="{% versioned_static 'institution_ic_sp/js/case_intake_quick.js' %}"></script>
 {% endblock %}

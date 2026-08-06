@@ -140,6 +140,8 @@ class AnalyzeDocumentsViewTests(TestCase):
         self.assertNotContains(response, "Pré-visualizar metadados nos campos avançados")
         self.assertNotContains(response, "case_intake_analyze.js")
         self.assertNotContains(response, "Preencher ou revisar dados manualmente")
+        self.assertContains(response, "case_intake_documents.js")
+        self.assertContains(response, "intake-documents-dropzone")
         self.assertContains(response, "case_intake_analyze.css")
         self.assertContains(response, "btn-open-report-quick")
         self.assertNotContains(response, " com IA")

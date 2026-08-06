@@ -1,0 +1,83 @@
+/**
+ * Área de arrastar e soltar documentos no intake de laudo pericial.
+ */
+
+.intake-documents-dropzone {
+    border: 2px dashed var(--bs-border-color);
+    border-radius: 0.75rem;
+    background: var(--bs-body-bg);
+    cursor: pointer;
+    transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.intake-documents-dropzone.is-dragover,
+.intake-documents-dropzone:focus-visible {
+    border-color: var(--bs-primary);
+    background: rgba(var(--bs-primary-rgb), 0.04);
+    outline: none;
+}
+
+.intake-documents-dropzone-inner {
+    padding: 2rem 1.25rem;
+    text-align: center;
+}
+
+.intake-documents-dropzone-icon {
+    font-size: 2rem;
+    color: var(--bs-primary);
+    display: block;
+    margin: 0 auto 0.75rem;
+}
+
+.intake-documents-file-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: grid;
+    gap: 0.5rem;
+}
+
+.intake-documents-file-list[hidden] {
+    display: none !important;
+}
+
+.intake-documents-file-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.65rem 0.75rem;
+    border: 1px solid var(--bs-border-color);
+    border-radius: 0.5rem;
+    background: var(--bs-body-bg);
+}
+
+.intake-documents-file-icon {
+    font-size: 1.35rem;
+    color: var(--bs-primary);
+    flex-shrink: 0;
+}
+
+.intake-documents-file-meta {
+    flex: 1;
+    min-width: 0;
+}
+
+.intake-documents-file-name {
+    display: block;
+    font-size: 0.9375rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.intake-documents-file-size {
+    display: block;
+    font-size: 0.8125rem;
+    color: var(--bs-secondary-color);
+}
+
+.intake-documents-file-remove {
+    flex-shrink: 0;
+    padding: 0.15rem 0.35rem;
+    line-height: 1;
+}

@@ -223,6 +223,9 @@ class ForensicBootstrapPhaseOneTests(TestCase):
 
         self.assertContains(response, "btn-open-report-quick")
         self.assertContains(response, "case_intake_quick.js")
+        self.assertContains(response, "case_intake_documents.js")
+        self.assertContains(response, "intake-documents-dropzone")
+        self.assertContains(response, "Arraste documentos aqui ou clique para selecionar")
         self.assertContains(response, "forensic_bootstrap_documents.js")
         self.assertNotContains(response, "Preencher ou revisar dados manualmente")
         self.assertNotContains(response, "Pré-visualizar metadados nos campos avançados")

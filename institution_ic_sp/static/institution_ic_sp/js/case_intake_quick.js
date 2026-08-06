@@ -88,7 +88,8 @@
     }
 
     quickButton.addEventListener("click", async () => {
-        const files = documentsInput.files;
+        const docPicker = window.ReportLineCaseIntakeDocuments;
+        const files = docPicker?.getFiles?.() || documentsInput.files;
         if (!files || files.length === 0) {
             showToast("Selecione ao menos um documento para continuar.", "warning");
             return;
