@@ -8,7 +8,7 @@ from institution_ic_sp.forensic_report.common.ai.prompt_loader import (
     load_case_metadata_schema_summary,
     load_prompt_markdown,
 )
-from institution_ic_sp.forensic_report.registry import GENERIC_WORKFLOW
+from institution_ic_sp.forensic_report.registry import INITIAL_DATA_WORKFLOW
 
 
 class MetadataExtractionPromptTests(TestCase):
@@ -17,7 +17,7 @@ class MetadataExtractionPromptTests(TestCase):
     def test_system_prompt_enforces_extractor_role_and_source_hierarchy(self):
         """Garante regras de extrator documental e hierarquia de fontes no system prompt."""
         system = load_prompt_markdown(
-            workflow_slug=GENERIC_WORKFLOW.slug,
+            workflow_slug=INITIAL_DATA_WORKFLOW.slug,
             task="metadata_extraction",
             name="system",
         )
@@ -36,7 +36,7 @@ class MetadataExtractionPromptTests(TestCase):
     def test_user_prompt_marks_supplementary_as_highest_priority(self):
         """Garante que informações complementares prevaleçam sobre os documentos."""
         user = load_prompt_markdown(
-            workflow_slug=GENERIC_WORKFLOW.slug,
+            workflow_slug=INITIAL_DATA_WORKFLOW.slug,
             task="metadata_extraction",
             name="user",
         )
@@ -66,7 +66,7 @@ class MetadataExtractionPromptTests(TestCase):
     def test_system_prompt_describes_requisition_at_default_time(self):
         """Garante regra de hora padrão para requisition_at no system prompt."""
         system = load_prompt_markdown(
-            workflow_slug=GENERIC_WORKFLOW.slug,
+            workflow_slug=INITIAL_DATA_WORKFLOW.slug,
             task="metadata_extraction",
             name="system",
         )
@@ -79,7 +79,7 @@ class MetadataExtractionPromptTests(TestCase):
     def test_system_prompt_lists_document_types_with_priorities(self):
         """Garante tipologia documental com prioridades no system prompt."""
         system = load_prompt_markdown(
-            workflow_slug=GENERIC_WORKFLOW.slug,
+            workflow_slug=INITIAL_DATA_WORKFLOW.slug,
             task="metadata_extraction",
             name="system",
         )

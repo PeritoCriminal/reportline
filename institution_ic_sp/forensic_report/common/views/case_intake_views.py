@@ -14,7 +14,7 @@ from institution_ic_sp.forensic_report.common.forms.case_intake_form import Case
 from institution_ic_sp.forensic_report.mixins import ForensicExaminerSPRequiredMixin
 from institution_ic_sp.forensic_report.registry import GENERIC_WORKFLOW
 from institution_ic_sp.forensic_report.services.forensic_report_shell import create_forensic_report_shell
-from institution_ic_sp.forensic_report.workflows.generic.services.report_draft_builder import (
+from institution_ic_sp.forensic_report.workflows.initial_data.services.report_draft_builder import (
     build_generic_forensic_report_draft,
 )
 

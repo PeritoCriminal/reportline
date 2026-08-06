@@ -11,7 +11,7 @@ from django.contrib.auth.models import AbstractBaseUser
 from django.db import transaction
 
 from institution_ic_sp.forensic_report.common.services.case_metadata import CaseMetadata
-from institution_ic_sp.forensic_report.registry import GENERIC_WORKFLOW
+from institution_ic_sp.forensic_report.registry import INITIAL_DATA_WORKFLOW
 from institution_ic_sp.forensic_report.common.services.case_metadata_serialization import (
     case_metadata_to_form_dict,
 )
@@ -56,7 +56,7 @@ def build_generic_forensic_report_draft(
         report,
         institution=institution,
         examiner=examiner,
-        workflow=GENERIC_WORKFLOW.slug,
+        workflow=INITIAL_DATA_WORKFLOW.slug,
         main_title_text=metadata.header_report_number_text,
     )
     report.page_layout = page_layout
@@ -73,7 +73,7 @@ def build_generic_forensic_report_draft(
     skipped = skipped_prompts_from_bootstrap(report.page_layout)
     bootstrap = {
         "state": resolve_bootstrap_state(metadata, skipped=skipped),
-        "workflow": GENERIC_WORKFLOW.slug,
+        "workflow": INITIAL_DATA_WORKFLOW.slug,
         "metadata": case_metadata_to_form_dict(metadata),
         "nodes": nodes,
         "pending_prompts": compute_pending_prompts(metadata, skipped=skipped),
@@ -108,7 +108,7 @@ def build_forensic_report_from_bootstrap(
     skipped = skipped_prompts_from_bootstrap(report.page_layout)
     bootstrap = {
         "state": resolve_bootstrap_state(metadata, skipped=skipped),
-        "workflow": GENERIC_WORKFLOW.slug,
+        "workflow": INITIAL_DATA_WORKFLOW.slug,
         "metadata": case_metadata_to_form_dict(metadata),
         "nodes": nodes,
         "pending_prompts": compute_pending_prompts(metadata, skipped=skipped),

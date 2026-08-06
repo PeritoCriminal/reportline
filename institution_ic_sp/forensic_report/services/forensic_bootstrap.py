@@ -18,6 +18,7 @@ from institution_ic_sp.forensic_report.common.services.case_metadata_serializati
     case_metadata_from_post,
     case_metadata_to_form_dict,
 )
+from institution_ic_sp.forensic_report.common.services.exam_category import normalize_exam_category
 from institution_ic_sp.forensic_report.registry import GENERIC_WORKFLOW
 from institution_ic_sp.forensic_report.services.forensic_bootstrap_field_coverage import (
     ALL_PROMPT_FIELD_NAMES,
@@ -228,6 +229,22 @@ def is_scene_continuation_completed(page_layout: dict[str, Any] | None) -> bool:
     return bool(bootstrap.get("scene_continuation_completed"))
 
 
+def is_initial_build_completed(page_layout: dict[str, Any] | None) -> bool:
+    """Indica se a montagem inicial administrativa do laudo já foi concluída."""
+    bootstrap = get_bootstrap_meta(page_layout) or {}
+    return bool(bootstrap.get("initial_build_completed"))
+
+
+def inferred_exam_category_from_bootstrap(page_layout: dict[str, Any] | None) -> str:
+    """Retorna categoria de exame inferida pela IA no analyze, ou ``unknown``."""
+    bootstrap = get_bootstrap_meta(page_layout) or {}
+    raw = bootstrap.get("inferred_exam_category")
+    if raw is None:
+        metadata = metadata_from_bootstrap(page_layout)
+        return normalize_exam_category(metadata.exam_category)
+    return normalize_exam_category(raw)
+
+
 def resolve_state_after_analyze(
     report: Report,
     metadata: CaseMetadata,
@@ -236,14 +253,24 @@ def resolve_state_after_analyze(
     field_coverage: dict[str, str] | None = None,
 ) -> str:
     """Define estado do bootstrap após análise documental."""
-    if not is_scene_continuation_completed(report.page_layout):
-        return STATE_COLLECTING_SCENE_CONTINUATION
     pending = compute_pending_prompts(
         metadata,
         skipped=skipped,
         field_coverage=field_coverage,
     )
     return STATE_COLLECTING_PROMPTS if pending else STATE_ANALYZED
+
+
+def resolve_state_after_initial_build(
+    report: Report,
+    metadata: CaseMetadata,
+    *,
+    skipped: set[str] | None = None,
+) -> str:
+    """Define estado após montagem inicial administrativa, antes da categoria de exame."""
+    if not is_scene_continuation_completed(report.page_layout):
+        return STATE_COLLECTING_SCENE_CONTINUATION
+    return resolve_bootstrap_state(metadata, skipped=skipped)
 
 
 def save_bootstrap_after_analyze(
@@ -268,6 +295,7 @@ def save_bootstrap_after_analyze(
     bootstrap["pending_prompts"] = pending
     bootstrap["skipped_prompts"] = sorted(skipped)
     bootstrap["field_coverage"] = coverage
+    bootstrap["inferred_exam_category"] = normalize_exam_category(metadata.exam_category)
     report.page_layout = attach_bootstrap_meta(report.page_layout, bootstrap)
     report.save(update_fields=["page_layout", "updated_at"])
     return report
@@ -467,10 +495,15 @@ def forensic_bootstrap_editor_config(report: Report) -> dict[str, Any] | None:
         metadata = metadata_from_bootstrap(report.page_layout)
         config["metadata"] = case_metadata_to_form_dict(metadata)
         if state == STATE_COLLECTING_SCENE_CONTINUATION:
-            bootstrap = get_bootstrap_meta(report.page_layout) or {}
-            config["examCategory"] = bootstrap.get("exam_category") or metadata.exam_category
+            config["examCategory"] = inferred_exam_category_from_bootstrap(report.page_layout)
+            config["inferredExamCategory"] = inferred_exam_category_from_bootstrap(report.page_layout)
+            config["initialBuildCompleted"] = is_initial_build_completed(report.page_layout)
         if state in (STATE_COLLECTING_PROMPTS, STATE_PROMPTING):
             config.update(forensic_bootstrap_prompt_config(report))
+
+    build_progress = (get_bootstrap_meta(report.page_layout) or {}).get("build_progress")
+    if isinstance(build_progress, dict):
+        config["buildPhase"] = build_progress.get("phase")
 
     return config
 

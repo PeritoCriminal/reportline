@@ -46,6 +46,7 @@ from institution_ic_sp.forensic_report.services.forensic_bootstrap import (
     compute_pending_prompts,
     forensic_bootstrap_prompt_config,
     get_bootstrap_meta,
+    is_initial_build_completed,
     mark_prompt_skipped,
     metadata_from_bootstrap,
     save_bootstrap_after_analyze,
@@ -57,6 +58,7 @@ from institution_ic_sp.forensic_report.services.forensic_bootstrap_finalize impo
     finalize_bootstrap_prompts,
 )
 from institution_ic_sp.forensic_report.services.forensic_report_body_incremental import (
+    BUILD_PHASE_INITIAL,
     BUILD_STEP_IDS,
     BUILD_STEP_LABELS,
     advance_forensic_body_build_step,
@@ -72,7 +74,7 @@ from institution_ic_sp.forensic_report.services.forensic_report_metadata_sync im
 from institution_ic_sp.forensic_report.services.scene_examination_continuation import (
     save_scene_examination_continuation,
 )
-from institution_ic_sp.forensic_report.workflows.generic.services.report_draft_builder import (
+from institution_ic_sp.forensic_report.workflows.initial_data.services.report_draft_builder import (
     build_forensic_report_from_bootstrap,
 )
 from reports.services.report_editor_context import (
@@ -159,9 +161,8 @@ class ForensicBootstrapAnalyzeView(ForensicReportAuthorMixin, View):
                 field_coverage=field_coverage,
             ),
             "warnings": warnings,
+            "inferred_exam_category": normalize_exam_category(merged.exam_category),
         }
-        if current_state == STATE_COLLECTING_SCENE_CONTINUATION:
-            response["exam_category"] = normalize_exam_category(merged.exam_category)
         if current_state == STATE_COLLECTING_PROMPTS:
             response["prompt_config"] = forensic_bootstrap_prompt_config(report)
         return JsonResponse(response)
@@ -233,15 +234,17 @@ class ForensicBootstrapBuildStepView(ForensicReportAuthorMixin, View):
         report = self.get_report()
         state = bootstrap_state(report)
         if state not in (STATE_ANALYZED, STATE_BUILDING):
-            message = "Complete a continuação do exame antes de montar o laudo."
+            message = "Responda aos dados pendentes antes de montar o laudo."
             if state == STATE_COLLECTING_SCENE_CONTINUATION:
-                message = "Informe o tipo de exame antes de montar o laudo."
+                message = "Informe o tipo de exame antes de montar a seção de local."
             elif state == STATE_COLLECTING_PROMPTS:
                 message = "Responda aos dados pendentes antes de montar o laudo."
+            elif state == STATE_SHELL_CREATED:
+                message = "Analise os documentos antes de montar o laudo."
             return JsonResponse({"errors": [message]}, status=400)
 
         try:
-            created_nodes, done, final_state, step_id = advance_forensic_body_build_step(
+            created_nodes, done, final_state, step_id, build_phase = advance_forensic_body_build_step(
                 report,
                 examiner=self.examiner_profile,
             )
@@ -256,12 +259,18 @@ class ForensicBootstrapBuildStepView(ForensicReportAuthorMixin, View):
         bootstrap = get_bootstrap_meta(report.page_layout) or {}
         progress = bootstrap.get("build_progress") if isinstance(bootstrap.get("build_progress"), dict) else {}
         step_index = progress.get("step_index", len(BUILD_STEP_IDS) if done else 0)
+        build_phase = str(progress.get("phase") or BUILD_PHASE_INITIAL)
 
-        interactive_total = count_interactive_build_steps(metadata, page_layout=report.page_layout)
+        interactive_total = count_interactive_build_steps(
+            metadata,
+            page_layout=report.page_layout,
+            phase=build_phase,
+        )
         interactive_index = count_completed_interactive_steps(
             metadata,
             step_index,
             page_layout=report.page_layout,
+            phase=build_phase,
         )
 
         response = {
@@ -272,6 +281,7 @@ class ForensicBootstrapBuildStepView(ForensicReportAuthorMixin, View):
             "step_index": interactive_index,
             "total_steps": interactive_total,
             "animated": is_interactive_build_step(step_id),
+            "build_phase": build_phase,
             "blocks_html": [
                 render_editable_block_html(node, request) for node in created_nodes
             ],
@@ -402,6 +412,11 @@ class ForensicBootstrapSceneContinuationView(ForensicReportAuthorMixin, View):
                 {"errors": ["A continuação de exame de local não está disponível nesta etapa."]},
                 status=400,
             )
+        if not is_initial_build_completed(report.page_layout):
+            return JsonResponse(
+                {"errors": ["Conclua a montagem inicial do laudo antes de informar o tipo de exame."]},
+                status=400,
+            )
 
         try:
             payload = json.loads(request.body.decode("utf-8") or "{}")
@@ -444,10 +459,12 @@ class ForensicBootstrapSceneContinuationView(ForensicReportAuthorMixin, View):
             "exam_category": exam_category,
             "metadata": case_metadata_to_form_dict(metadata_from_bootstrap(report.page_layout)),
         }
+        bootstrap = get_bootstrap_meta(report.page_layout) or {}
+        build_progress = bootstrap.get("build_progress")
+        if isinstance(build_progress, dict):
+            response["build_phase"] = build_progress.get("phase")
         if is_deferred_module_category(exam_category):
             response["todo_message"] = DEFERRED_MODULE_TODO_MESSAGES[exam_category]
-        if current_state == STATE_COLLECTING_PROMPTS:
-            response["prompt_config"] = forensic_bootstrap_prompt_config(report)
         return JsonResponse(response)
 
     def http_method_not_allowed(self, request, *args, **kwargs):

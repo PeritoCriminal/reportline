@@ -9,6 +9,7 @@
 
 {% block extra_css %}
 <link rel="stylesheet" href="{% versioned_static 'reports/css/report_editor.css' %}">
+<link rel="stylesheet" href="{% versioned_static 'institution_ic_sp/css/case_intake_analyze.css' %}">
 <link rel="stylesheet" href="{% versioned_static 'reports/css/scene_examination_continuation.css' %}">
 {% endblock %}
 
@@ -42,6 +43,7 @@
 {% include "reports/includes/report_page_footer_modal.html" %}
 {% include "reports/includes/report_config_modal.html" %}
 {% include "reports/includes/scene_examination_type_modal.html" %}
+{% include "reports/includes/scene_examination_confirm_modal.html" %}
 {% include "reports/includes/scene_location_characteristics_modal.html" %}
 {% include "reports/includes/forensic_bootstrap_prompt_panel.html" %}
 {% include "reports/includes/forensic_bootstrap_build_panel.html" %}

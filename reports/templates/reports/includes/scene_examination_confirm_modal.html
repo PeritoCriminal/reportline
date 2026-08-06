@@ -1,0 +1,40 @@
+{# Modal de confirmação da categoria inferida pela IA. #}
+<div class="modal fade"
+     id="sceneExamConfirmModal"
+     tabindex="-1"
+     aria-labelledby="sceneExamConfirmModalLabel"
+     aria-hidden="true"
+     data-bs-backdrop="static"
+     data-bs-keyboard="false">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header border-secondary-subtle">
+                <h2 class="modal-title fs-5" id="sceneExamConfirmModalLabel">
+                    <i class="bi bi-stars text-primary me-2" aria-hidden="true"></i>
+                    Tipo de exame identificado
+                </h2>
+            </div>
+            <div class="modal-body">
+                <p class="mb-3">
+                    A IA identificou este laudo como:
+                    <strong id="scene-exam-inferred-label">—</strong>.
+                </p>
+                <p class="text-muted small mb-0">
+                    Deseja seguir nessa linha?
+                </p>
+            </div>
+            <div class="modal-footer border-secondary-subtle">
+                <button type="button"
+                        class="btn btn-outline-secondary"
+                        id="scene-exam-confirm-decline">
+                    Escolher outra opção
+                </button>
+                <button type="button"
+                        class="btn btn-primary"
+                        id="scene-exam-confirm-accept">
+                    Sim, continuar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>

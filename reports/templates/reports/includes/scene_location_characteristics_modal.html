@@ -111,12 +111,26 @@
                      id="scene-location-error"
                      hidden></div>
             </div>
-            <div class="modal-footer border-secondary-subtle">
+            <div class="modal-footer border-secondary-subtle flex-column align-items-stretch gap-2">
                 <button type="button"
-                        class="btn btn-primary"
-                        id="scene-location-submit">
-                    Continuar
+                        class="btn btn-primary btn-ai-analyze align-self-end"
+                        id="scene-location-submit"
+                        aria-describedby="scene-location-analyze-status">
+                    <span class="ai-analyze-icon me-1" aria-hidden="true"><i class="bi bi-stars"></i></span>
+                    Analisar imagens e orientações com IA
                 </button>
+                <div class="analyze-status-panel"
+                     id="scene-location-analyze-status"
+                     role="status"
+                     aria-live="polite"
+                     hidden>
+                    <span class="analyze-status-dot" aria-hidden="true"></span>
+                    <span class="analyze-status-dot" aria-hidden="true"></span>
+                    <span class="analyze-status-dot" aria-hidden="true"></span>
+                    <span class="analyze-status-text" id="scene-location-analyze-status-text">
+                        Lendo imagens do local com IA…
+                    </span>
+                </div>
             </div>
         </div>
     </div>

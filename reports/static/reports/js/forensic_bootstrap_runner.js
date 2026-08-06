@@ -12,6 +12,7 @@
     const STATE_ANALYZED = "analyzed";
     const STATE_COLLECTING_PROMPTS = "collecting_prompts";
     const STATE_BUILDING = "building";
+    const BUILD_PHASE_SCENE = "scene";
     const ANALYZE_STATUS_MESSAGES = [
         "Lendo documentos com IA…",
         "Extraindo dados administrativos…",
@@ -531,6 +532,13 @@
 
             done = Boolean(payload.done);
             config.state = payload.state || config.state;
+            if (payload.build_phase) {
+                config.buildPhase = payload.build_phase;
+            }
+
+            if (config.state === STATE_COLLECTING_SCENE_CONTINUATION) {
+                break;
+            }
             if (animated) {
                 await enforceMinStepDuration(stepStartedAt);
             }
@@ -547,16 +555,21 @@
         if (!window.ReportLineSceneExaminationContinuation?.run) {
             throw new Error("Continuação de exame de local indisponível nesta tela.");
         }
-        setStatusMessage("Preparando descrição do local com IA…");
-        await closeAnalyzeOverlay();
+        if (progressPill) {
+            progressPill.hidden = true;
+        }
         const response = await window.ReportLineSceneExaminationContinuation.run({
             sceneContinuationUrl: config.sceneContinuationUrl,
             imageUploadUrl: config.imageUploadUrl,
-            examCategory: config.examCategory || config.metadata?.exam_category,
+            examCategory: config.examCategory,
+            inferredExamCategory: config.inferredExamCategory,
             metadata: config.metadata,
         });
         config.state = response.state || config.state;
         config.examCategory = response.exam_category || config.examCategory;
+        if (response.build_phase) {
+            config.buildPhase = response.build_phase;
+        }
         if (response.metadata) {
             config.metadata = response.metadata;
         }
@@ -597,18 +610,12 @@
                 if (analyzePayload.metadata) {
                     config.metadata = analyzePayload.metadata;
                 }
-                if (analyzePayload.exam_category) {
-                    config.examCategory = analyzePayload.exam_category;
+                if (analyzePayload.inferred_exam_category) {
+                    config.inferredExamCategory = analyzePayload.inferred_exam_category;
                 }
-                if (config.state === STATE_COLLECTING_SCENE_CONTINUATION) {
-                    await runSceneContinuation();
-                } else if (analyzePayload.prompt_config) {
-                    await runPromptCollection(analyzePayload.prompt_config);
+                if (analyzePayload.prompt_config) {
+                    Object.assign(config, analyzePayload.prompt_config);
                 }
-            }
-
-            if (config.state === STATE_COLLECTING_SCENE_CONTINUATION) {
-                await runSceneContinuation();
             }
 
             if (config.state === STATE_COLLECTING_PROMPTS) {
@@ -619,12 +626,24 @@
                 });
             }
 
-            if (config.state === STATE_ANALYZED || config.state === STATE_BUILDING) {
+            if (
+                config.state === STATE_ANALYZED ||
+                (config.state === STATE_BUILDING && config.buildPhase !== BUILD_PHASE_SCENE)
+            ) {
                 const alreadyLive = config.state === STATE_BUILDING;
                 if (alreadyLive) {
                     showLiveBuildMode("Retomando montagem do laudo…");
                 }
                 await runIncrementalBuild(alreadyLive);
+            }
+
+            if (config.state === STATE_COLLECTING_SCENE_CONTINUATION) {
+                await runSceneContinuation();
+            }
+
+            if (config.state === STATE_BUILDING && config.buildPhase === BUILD_PHASE_SCENE) {
+                showLiveBuildMode("Inserindo seção de exame de local…");
+                await runIncrementalBuild(true);
             }
 
             hideBuildUi();
@@ -637,6 +656,17 @@
             showError(error.message || "Falha ao preparar o laudo.");
             isRunning = false;
         }
+    }
+
+    async function shouldAutoStartPipeline() {
+        if (config.state !== STATE_SHELL_CREATED) {
+            return false;
+        }
+        const docStore = window.ReportLineForensicBootstrapDocuments;
+        if (!docStore?.hasPendingDocuments) {
+            return false;
+        }
+        return docStore.hasPendingDocuments(config.reportId);
     }
 
     function init(options) {
@@ -653,15 +683,13 @@
             return;
         }
 
-        if (
-            config.state === STATE_SHELL_CREATED ||
-            config.state === STATE_COLLECTING_SCENE_CONTINUATION ||
-            config.state === STATE_COLLECTING_PROMPTS ||
-            config.state === STATE_ANALYZED ||
-            config.state === STATE_BUILDING
-        ) {
-            runBootstrapPipeline().catch(console.error);
-        }
+        shouldAutoStartPipeline()
+            .then((autoStart) => {
+                if (autoStart) {
+                    runBootstrapPipeline().catch(console.error);
+                }
+            })
+            .catch(console.error);
     }
 
     window.ReportLineForensicBootstrapRunner = {

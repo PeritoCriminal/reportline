@@ -20,7 +20,7 @@ from institution_ic_sp.forensic_report.services.forensic_bootstrap import (
 from institution_ic_sp.forensic_report.services.scene_examination_continuation import (
     is_scene_continuation_completed,
 )
-from institution_ic_sp.forensic_report.workflows.generic.ai.services.scene_examination_inference import (
+from institution_ic_sp.forensic_report.workflows.property_crime.ai.services.scene_examination_inference import (
     infer_scene_examination_content,
 )
 from reports.models import Report

@@ -12,10 +12,24 @@
     const CATEGORY_WORK = "work_accident";
     const CATEGORY_UNKNOWN = "unknown";
     const DEFERRED_CATEGORIES = new Set([CATEGORY_TRAFFIC, CATEGORY_WORK]);
+    const CATEGORY_LABELS = {
+        property_scene: "Local de furto, roubo ou dano",
+        traffic_accident: "Acidente de trânsito",
+        work_accident: "Acidente de trabalho",
+        unknown: "Não identificado",
+    };
+    const SCENE_ANALYZE_STATUS_MESSAGES = [
+        "Lendo imagens do local com IA…",
+        "Identificando fechamentos e ambientes…",
+        "Preparando descrição para o laudo…",
+    ];
+    const SCENE_ANALYZE_STATUS_ROTATE_MS = 2200;
 
     let typeModal = null;
+    let confirmModal = null;
     let characteristicsModal = null;
     let typeModalElement = null;
+    let confirmModalElement = null;
     let characteristicsModalElement = null;
     let dropzone = null;
     let fileInput = null;
@@ -23,6 +37,8 @@
     let promptInput = null;
     let errorBox = null;
     let submitButton = null;
+    let analyzeStatusPanel = null;
+    let analyzeStatusText = null;
     let toastContainer = null;
     let locationKindAddress = null;
     let locationKindCoordinates = null;
@@ -35,6 +51,8 @@
     let uploadedImageIds = [];
     let isSubmitting = false;
     let domInitialized = false;
+    let statusRotateTimer = null;
+    let statusMessageIndex = 0;
 
     function getCsrfToken() {
         const match = document.cookie.match(/(?:^|;\s*)csrftoken=([^;]+)/);
@@ -80,6 +98,86 @@
         }
         errorBox.textContent = message || "";
         errorBox.hidden = !message;
+    }
+
+    function setSceneAnalyzeMessage(message) {
+        if (!analyzeStatusText) {
+            return;
+        }
+        analyzeStatusText.classList.add("is-changing");
+        window.setTimeout(() => {
+            analyzeStatusText.textContent = message;
+            analyzeStatusText.classList.remove("is-changing");
+        }, 120);
+    }
+
+    function startSceneAnalyzeRotation() {
+        statusMessageIndex = 0;
+        setSceneAnalyzeMessage(SCENE_ANALYZE_STATUS_MESSAGES[0]);
+        statusRotateTimer = window.setInterval(() => {
+            statusMessageIndex = (statusMessageIndex + 1) % SCENE_ANALYZE_STATUS_MESSAGES.length;
+            setSceneAnalyzeMessage(SCENE_ANALYZE_STATUS_MESSAGES[statusMessageIndex]);
+        }, SCENE_ANALYZE_STATUS_ROTATE_MS);
+    }
+
+    function stopSceneAnalyzeRotation() {
+        if (statusRotateTimer !== null) {
+            window.clearInterval(statusRotateTimer);
+            statusRotateTimer = null;
+        }
+    }
+
+    function setModalFormDisabled(disabled) {
+        const controls = [
+            dropzone,
+            fileInput,
+            promptInput,
+            addressInput,
+            latitudeInput,
+            longitudeInput,
+            locationKindAddress,
+            locationKindCoordinates,
+        ];
+        controls.forEach((control) => {
+            if (!control) {
+                return;
+            }
+            if (control === dropzone) {
+                control.classList.toggle("pe-none", disabled);
+                control.setAttribute("aria-disabled", disabled ? "true" : "false");
+                return;
+            }
+            control.disabled = disabled;
+        });
+        previewGrid?.querySelectorAll(".scene-location-preview-remove").forEach((button) => {
+            button.disabled = disabled;
+        });
+    }
+
+    function beginSceneAnalysis() {
+        isSubmitting = true;
+        if (submitButton) {
+            submitButton.disabled = true;
+            submitButton.classList.add("is-analyzing");
+            submitButton.setAttribute("aria-busy", "true");
+        }
+        if (analyzeStatusPanel) {
+            analyzeStatusPanel.hidden = false;
+        }
+        setModalFormDisabled(true);
+    }
+
+    function endSceneAnalysis() {
+        isSubmitting = false;
+        if (submitButton) {
+            submitButton.disabled = false;
+            submitButton.classList.remove("is-analyzing");
+            submitButton.setAttribute("aria-busy", "false");
+        }
+        if (analyzeStatusPanel) {
+            analyzeStatusPanel.hidden = true;
+        }
+        setModalFormDisabled(false);
     }
 
     function normalizeCategory(value) {
@@ -327,9 +425,40 @@
         });
     }
 
-    function waitForCharacteristicsSubmission() {
-        return new Promise((resolve, reject) => {
-            const handleSubmit = async () => {
+    function waitForCategoryConfirmation(category) {
+        const labelElement = document.getElementById("scene-exam-inferred-label");
+        const acceptButton = document.getElementById("scene-exam-confirm-accept");
+        const declineButton = document.getElementById("scene-exam-confirm-decline");
+        if (!confirmModalElement || !confirmModal || !labelElement || !acceptButton || !declineButton) {
+            return Promise.resolve(true);
+        }
+
+        labelElement.textContent = CATEGORY_LABELS[category] || category;
+
+        return new Promise((resolve) => {
+            const cleanup = () => {
+                acceptButton.removeEventListener("click", handleAccept);
+                declineButton.removeEventListener("click", handleDecline);
+            };
+            const handleAccept = () => {
+                cleanup();
+                hideModal(confirmModal);
+                resolve(true);
+            };
+            const handleDecline = () => {
+                cleanup();
+                hideModal(confirmModal);
+                resolve(false);
+            };
+            acceptButton.addEventListener("click", handleAccept);
+            declineButton.addEventListener("click", handleDecline);
+            showModal(confirmModal);
+        });
+    }
+
+    function waitForNextCharacteristicsSubmit() {
+        return new Promise((resolve) => {
+            const handleSubmit = () => {
                 if (isSubmitting) {
                     return;
                 }
@@ -345,37 +474,24 @@
                         return;
                     }
                 }
-                isSubmitting = true;
-                if (submitButton) {
-                    submitButton.disabled = true;
-                }
                 setError("");
-                try {
-                    resolve({
-                        prompt,
-                        location,
-                        imageIds: [],
-                        pendingUploads: pendingFiles.slice(),
-                    });
-                } catch (error) {
-                    isSubmitting = false;
-                    if (submitButton) {
-                        submitButton.disabled = false;
-                    }
-                    reject(error);
-                }
+                resolve({
+                    prompt,
+                    location,
+                    pendingUploads: pendingFiles.slice(),
+                });
             };
             submitButton?.addEventListener("click", handleSubmit, { once: true });
-            showModal(characteristicsModal);
         });
     }
 
     async function resolveExamCategory(initialCategory) {
         const category = normalizeCategory(initialCategory);
-        if (category === CATEGORY_PROPERTY_SCENE) {
-            return category;
+        if (category === CATEGORY_UNKNOWN) {
+            return waitForTypeSelection();
         }
-        if (DEFERRED_CATEGORIES.has(category)) {
+        const confirmed = await waitForCategoryConfirmation(category);
+        if (confirmed) {
             return category;
         }
         return waitForTypeSelection();
@@ -383,19 +499,50 @@
 
     async function collectPropertySceneData(config) {
         resetCharacteristicsForm();
-        const draft = await waitForCharacteristicsSubmission();
-        hideModal(characteristicsModal);
+        showModal(characteristicsModal);
 
-        const imageIds = [];
-        for (const file of draft.pendingUploads) {
-            const imageId = await uploadImage(config.imageUploadUrl, file);
-            imageIds.push(imageId);
+        while (true) {
+            const draft = await waitForNextCharacteristicsSubmit();
+            beginSceneAnalysis();
+            let succeeded = false;
+            try {
+                const imageIds = [];
+                const uploads = draft.pendingUploads;
+                if (uploads.length) {
+                    for (let index = 0; index < uploads.length; index += 1) {
+                        const label =
+                            uploads.length === 1
+                                ? "Enviando imagem do local…"
+                                : `Enviando imagem ${index + 1} de ${uploads.length}…`;
+                        setSceneAnalyzeMessage(label);
+                        const imageId = await uploadImage(config.imageUploadUrl, uploads[index]);
+                        imageIds.push(imageId);
+                    }
+                }
+
+                if (uploads.length) {
+                    startSceneAnalyzeRotation();
+                } else {
+                    setSceneAnalyzeMessage("Analisando orientações complementares com IA…");
+                }
+
+                const response = await persistContinuation(config, CATEGORY_PROPERTY_SCENE, {
+                    prompt: draft.prompt,
+                    location: draft.location,
+                    imageIds,
+                });
+                succeeded = true;
+                return response;
+            } catch (error) {
+                setError(error.message || "Não foi possível analisar o local com IA.");
+            } finally {
+                stopSceneAnalyzeRotation();
+                endSceneAnalysis();
+                if (succeeded) {
+                    hideModal(characteristicsModal);
+                }
+            }
         }
-        return {
-            prompt: draft.prompt,
-            location: draft.location,
-            imageIds,
-        };
     }
 
     async function persistContinuation(config, examCategory, sceneData) {
@@ -421,7 +568,7 @@
             throw new Error("Continuação de exame indisponível nesta tela.");
         }
 
-        const initialCategory = config.examCategory || config.metadata?.exam_category;
+        const initialCategory = config.examCategory || config.inferredExamCategory || config.metadata?.exam_category;
         const examCategory = await resolveExamCategory(initialCategory);
 
         if (DEFERRED_CATEGORIES.has(examCategory)) {
@@ -436,14 +583,10 @@
         let sceneData = null;
         if (examCategory === CATEGORY_PROPERTY_SCENE) {
             hideModal(typeModal);
-            sceneData = await collectPropertySceneData(config);
+            return collectPropertySceneData(config);
         }
 
         const response = await persistContinuation(config, examCategory, sceneData);
-        isSubmitting = false;
-        if (submitButton) {
-            submitButton.disabled = false;
-        }
         return response;
     }
 
@@ -453,6 +596,7 @@
         }
 
         typeModalElement = document.getElementById("sceneExamTypeModal");
+        confirmModalElement = document.getElementById("sceneExamConfirmModal");
         characteristicsModalElement = document.getElementById("sceneLocationCharacteristicsModal");
         dropzone = document.getElementById("scene-location-dropzone");
         fileInput = document.getElementById("scene-location-file-input");
@@ -460,6 +604,8 @@
         promptInput = document.getElementById("scene-location-prompt-input");
         errorBox = document.getElementById("scene-location-error");
         submitButton = document.getElementById("scene-location-submit");
+        analyzeStatusPanel = document.getElementById("scene-location-analyze-status");
+        analyzeStatusText = document.getElementById("scene-location-analyze-status-text");
         locationKindAddress = document.getElementById("scene-location-kind-address");
         locationKindCoordinates = document.getElementById("scene-location-kind-coordinates");
         addressFields = document.getElementById("scene-location-address-fields");
@@ -472,11 +618,15 @@
         locationKindCoordinates?.addEventListener("change", toggleLocationFields);
         toggleLocationFields();
 
-        if (!typeModalElement || !characteristicsModalElement || !window.bootstrap?.Modal) {
+        if (!typeModalElement || !confirmModalElement || !characteristicsModalElement || !window.bootstrap?.Modal) {
             return false;
         }
 
         typeModal = window.bootstrap.Modal.getOrCreateInstance(typeModalElement, {
+            backdrop: "static",
+            keyboard: false,
+        });
+        confirmModal = window.bootstrap.Modal.getOrCreateInstance(confirmModalElement, {
             backdrop: "static",
             keyboard: false,
         });

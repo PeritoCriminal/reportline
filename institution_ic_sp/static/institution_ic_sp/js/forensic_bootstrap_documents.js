@@ -82,8 +82,26 @@
         return filesFromRecords(payload ? payload.records : []);
     }
 
+    async function hasPendingDocuments(reportId) {
+        if (!reportId) {
+            return false;
+        }
+
+        const db = await openDatabase();
+        const payload = await new Promise((resolve, reject) => {
+            const tx = db.transaction(STORE_NAME, "readonly");
+            const request = tx.objectStore(STORE_NAME).get(String(reportId));
+            request.onsuccess = () => resolve(request.result);
+            request.onerror = () => reject(request.error);
+        });
+        db.close();
+
+        return Boolean(payload && Array.isArray(payload.records) && payload.records.length);
+    }
+
     window.ReportLineForensicBootstrapDocuments = {
         storePendingDocuments,
         takePendingDocuments,
+        hasPendingDocuments,
     };
 })();

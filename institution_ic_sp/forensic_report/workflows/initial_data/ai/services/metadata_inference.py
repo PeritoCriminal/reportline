@@ -1,5 +1,5 @@
 """
-Inferência de metadados do intake genérico a partir de documentos.
+Inferência de metadados do intake inicial a partir de documentos.
 """
 
 from __future__ import annotations
@@ -15,7 +15,7 @@ from institution_ic_sp.forensic_report.common.ai.prompt_loader import (
 )
 from institution_ic_sp.forensic_report.common.ai.structured_output import case_metadata_from_ai_payload
 from institution_ic_sp.forensic_report.common.services.case_metadata import CaseMetadata
-from institution_ic_sp.forensic_report.registry import GENERIC_WORKFLOW
+from institution_ic_sp.forensic_report.registry import INITIAL_DATA_WORKFLOW
 
 
 def infer_case_metadata(
@@ -33,12 +33,12 @@ def infer_case_metadata(
         return CaseMetadata()
 
     system_prompt = load_prompt_markdown(
-        workflow_slug=GENERIC_WORKFLOW.slug,
+        workflow_slug=INITIAL_DATA_WORKFLOW.slug,
         task="metadata_extraction",
         name="system",
     )
     user_template = load_prompt_markdown(
-        workflow_slug=GENERIC_WORKFLOW.slug,
+        workflow_slug=INITIAL_DATA_WORKFLOW.slug,
         task="metadata_extraction",
         name="user",
     )
@@ -71,12 +71,12 @@ def infer_case_metadata_ai_payload(
         return None
 
     system_prompt = load_prompt_markdown(
-        workflow_slug=GENERIC_WORKFLOW.slug,
+        workflow_slug=INITIAL_DATA_WORKFLOW.slug,
         task="metadata_extraction",
         name="system",
     )
     user_template = load_prompt_markdown(
-        workflow_slug=GENERIC_WORKFLOW.slug,
+        workflow_slug=INITIAL_DATA_WORKFLOW.slug,
         task="metadata_extraction",
         name="user",
     )

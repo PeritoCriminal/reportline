@@ -13,7 +13,7 @@ from institution_ic_sp.forensic_report.services.forensic_report_body_builder imp
     CLOSING_DIGITAL_ARCHIVE_NOTICE,
     CLOSING_PHRASE,
 )
-from institution_ic_sp.forensic_report.workflows.generic.services.report_draft_builder import (
+from institution_ic_sp.forensic_report.workflows.initial_data.services.report_draft_builder import (
     build_generic_forensic_report_draft,
 )
 from institution_ic_sp.models import ForensicTeam

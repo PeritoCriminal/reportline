@@ -20,7 +20,7 @@ from institution_ic_sp.forensic_report.services.forensic_bootstrap_field_coverag
     build_field_coverage_from_ai_payload,
     merge_field_coverage_with_metadata,
 )
-from institution_ic_sp.forensic_report.workflows.generic.ai.services.metadata_inference import (
+from institution_ic_sp.forensic_report.workflows.initial_data.ai.services.metadata_inference import (
     infer_case_metadata_ai_payload,
 )
 from institution_ic_sp.forensic_report.common.ai.structured_output import case_metadata_from_ai_payload

@@ -19,8 +19,10 @@ from institution_ic_sp.forensic_report.common.services.exam_category import (
 from institution_ic_sp.forensic_report.common.services.scene_location import SceneLocationData
 from institution_ic_sp.forensic_report.services.forensic_bootstrap import (
     STATE_ANALYZED,
+    STATE_BUILDING,
     STATE_COLLECTING_PROMPTS,
     STATE_COLLECTING_SCENE_CONTINUATION,
+    STATE_READY,
     bootstrap_state,
     is_scene_continuation_completed,
     save_bootstrap_after_analyze,
@@ -77,8 +79,45 @@ class SceneExaminationContinuationTests(TestCase):
             calling_gender=GenderCalling.MALE,
         )
 
-    def test_analyze_transitions_to_scene_continuation_state(self):
-        """Garante que análise documental abre continuação de exame de local."""
+    def _mark_initial_build_completed(self, report):
+        """Simula conclusão da montagem inicial para testes de continuação."""
+        from institution_ic_sp.forensic_report.services.forensic_bootstrap import (
+            STATE_COLLECTING_SCENE_CONTINUATION,
+            attach_bootstrap_meta,
+            get_bootstrap_meta,
+        )
+        from institution_ic_sp.forensic_report.services.forensic_report_body_builder import (
+            _create_report_node,
+        )
+        from reports.models import ReportBlockType
+
+        attendance = _create_report_node(
+            report,
+            position=1,
+            block_type=ReportBlockType.PARAGRAPH,
+            content={"text": "Atendimento"},
+        )
+        _create_report_node(
+            report,
+            position=2,
+            block_type=ReportBlockType.PARAGRAPH,
+            content={"text": ""},
+        )
+
+        bootstrap = get_bootstrap_meta(report.page_layout) or {}
+        bootstrap["initial_build_completed"] = True
+        bootstrap["nodes"] = {
+            "attendance_list": str(attendance.pk),
+            "body_spacer": str(attendance.pk),
+        }
+        bootstrap["scene_insert_after_node_id"] = str(attendance.pk)
+        bootstrap["state"] = STATE_COLLECTING_SCENE_CONTINUATION
+        report.page_layout = attach_bootstrap_meta(report.page_layout, bootstrap)
+        report.save(update_fields=["page_layout", "updated_at"])
+        return report
+
+    def test_analyze_transitions_to_collecting_prompts_when_fields_missing(self):
+        """Garante que análise documental abre prompts antes da montagem inicial."""
         report = create_forensic_report_shell(
             author=self.user,
             examiner=self.examiner,
@@ -88,7 +127,7 @@ class SceneExaminationContinuationTests(TestCase):
         save_bootstrap_after_analyze(report, metadata, field_coverage={})
         report.refresh_from_db()
 
-        self.assertEqual(bootstrap_state(report), STATE_COLLECTING_SCENE_CONTINUATION)
+        self.assertEqual(bootstrap_state(report), STATE_COLLECTING_PROMPTS)
         self.assertFalse(is_scene_continuation_completed(report.page_layout))
 
     def _complete_metadata(self) -> CaseMetadata:
@@ -131,6 +170,7 @@ class SceneExaminationContinuationTests(TestCase):
         )
         metadata = self._complete_metadata()
         save_bootstrap_after_analyze(report, metadata, field_coverage={})
+        self._mark_initial_build_completed(report)
 
         save_scene_examination_continuation(
             report,
@@ -157,7 +197,7 @@ class SceneExaminationContinuationTests(TestCase):
             "Rua das Flores, 100",
         )
         self.assertIn("scene_examination_content", bootstrap)
-        self.assertEqual(bootstrap_state(report), STATE_ANALYZED)
+        self.assertEqual(bootstrap_state(report), STATE_BUILDING)
 
     def test_scene_continuation_deferred_module_advances_without_characteristics(self):
         """Garante avanço com TODO implícito para módulos ainda não desenvolvidos."""
@@ -167,6 +207,7 @@ class SceneExaminationContinuationTests(TestCase):
         )
         metadata = replace(self._complete_metadata(), exam_category=EXAM_CATEGORY_TRAFFIC_ACCIDENT)
         save_bootstrap_after_analyze(report, metadata, field_coverage={})
+        self._mark_initial_build_completed(report)
 
         save_scene_examination_continuation(
             report,
@@ -178,7 +219,7 @@ class SceneExaminationContinuationTests(TestCase):
         self.assertTrue(bootstrap["scene_continuation_completed"])
         self.assertEqual(bootstrap["exam_category"], EXAM_CATEGORY_TRAFFIC_ACCIDENT)
         self.assertNotIn("scene_characteristics", bootstrap)
-        self.assertEqual(bootstrap_state(report), STATE_ANALYZED)
+        self.assertEqual(bootstrap_state(report), STATE_READY)
 
     @patch(
         "institution_ic_sp.forensic_report.views.forensic_bootstrap_api_views"
@@ -196,6 +237,8 @@ class SceneExaminationContinuationTests(TestCase):
             reverse("reports:forensic_bootstrap_analyze", kwargs={"pk": report.pk}),
             {"documents": self._pdf_upload()},
         )
+        report.refresh_from_db()
+        self._mark_initial_build_completed(report)
 
         response = self.client.post(
             reverse("reports:forensic_bootstrap_scene_continuation", kwargs={"pk": report.pk}),
@@ -215,7 +258,7 @@ class SceneExaminationContinuationTests(TestCase):
         ".analyze_case_metadata_with_coverage"
     )
     def test_scene_continuation_endpoint_advances_bootstrap(self, mock_analyze, mock_generate):
-        """Garante que endpoint conclui continuação e retorna estado analisado."""
+        """Garante que endpoint conclui continuação e retorna montagem da seção de local."""
         mock_generate.return_value = {
             "characteristics_heading": "Características do Local",
             "attendance_context_paragraph": "Compareceu a equipe.",
@@ -231,6 +274,8 @@ class SceneExaminationContinuationTests(TestCase):
             reverse("reports:forensic_bootstrap_analyze", kwargs={"pk": report.pk}),
             {"documents": self._pdf_upload()},
         )
+        report.refresh_from_db()
+        self._mark_initial_build_completed(report)
 
         response = self.client.post(
             reverse("reports:forensic_bootstrap_scene_continuation", kwargs={"pk": report.pk}),
@@ -250,11 +295,11 @@ class SceneExaminationContinuationTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         payload = response.json()
-        self.assertEqual(payload["state"], STATE_ANALYZED)
+        self.assertEqual(payload["state"], STATE_BUILDING)
         self.assertEqual(payload["exam_category"], EXAM_CATEGORY_PROPERTY_SCENE)
 
         report.refresh_from_db()
-        self.assertEqual(bootstrap_state(report), STATE_ANALYZED)
+        self.assertEqual(bootstrap_state(report), STATE_BUILDING)
 
     @patch(
         "institution_ic_sp.forensic_report.views.forensic_bootstrap_api_views"
@@ -275,6 +320,8 @@ class SceneExaminationContinuationTests(TestCase):
             reverse("reports:forensic_bootstrap_analyze", kwargs={"pk": report.pk}),
             {"documents": self._pdf_upload()},
         )
+        report.refresh_from_db()
+        self._mark_initial_build_completed(report)
 
         response = self.client.post(
             reverse("reports:forensic_bootstrap_scene_continuation", kwargs={"pk": report.pk}),

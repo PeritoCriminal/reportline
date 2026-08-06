@@ -1,5 +1,5 @@
 """
-Inferência de texto para a seção Descrição e Exame do Local.
+Inferência de texto para a seção Descrição e Exame do Local (crime patrimonial).
 """
 
 from __future__ import annotations
@@ -19,7 +19,7 @@ from institution_ic_sp.forensic_report.common.ai.prompt_loader import (
 )
 from institution_ic_sp.forensic_report.common.services.case_metadata import CaseMetadata
 from institution_ic_sp.forensic_report.common.services.scene_location import SceneLocationData
-from institution_ic_sp.forensic_report.registry import GENERIC_WORKFLOW
+from institution_ic_sp.forensic_report.registry import PROPERTY_CRIME_WORKFLOW
 from reports.models import Report, ReportImage
 
 logger = logging.getLogger(__name__)
@@ -139,12 +139,12 @@ def infer_scene_examination_content(
     Usa metadados administrativos, orientações do perito, localização e imagens.
     """
     system_prompt = load_prompt_markdown(
-        workflow_slug=GENERIC_WORKFLOW.slug,
+        workflow_slug=PROPERTY_CRIME_WORKFLOW.slug,
         task="scene_examination",
         name="system",
     )
     user_template = load_prompt_markdown(
-        workflow_slug=GENERIC_WORKFLOW.slug,
+        workflow_slug=PROPERTY_CRIME_WORKFLOW.slug,
         task="scene_examination",
         name="user",
     )

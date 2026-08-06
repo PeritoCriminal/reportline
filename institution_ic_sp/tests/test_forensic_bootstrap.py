@@ -99,6 +99,23 @@ class ForensicBootstrapPhaseOneTests(TestCase):
             content_type="application/json",
         )
 
+    def _run_incremental_build_until(self, report_pk, *, stop_states):
+        """Executa passos incrementais até atingir um dos estados informados."""
+        build_step_url = reverse("reports:forensic_bootstrap_build_step", kwargs={"pk": report_pk})
+        last_response = None
+        for _ in range(40):
+            last_response = self.client.post(
+                build_step_url,
+                content_type="application/json",
+                data="{}",
+            )
+            payload = last_response.json()
+            if payload.get("state") in stop_states:
+                break
+            if payload.get("done"):
+                break
+        return last_response
+
     def test_quick_shell_creates_forensic_report_without_body(self):
         """Garante criação de casca institucional sem blocos de corpo."""
         report = create_forensic_report_shell(
@@ -165,14 +182,11 @@ class ForensicBootstrapPhaseOneTests(TestCase):
         response = self.client.post(analyze_url, {"documents": self._pdf_upload()})
         self.assertEqual(response.status_code, 200)
         mock_analyze.assert_called_once()
-        self._complete_scene_continuation(report.pk)
-
-        response = self.client.post(
-            build_url,
-            content_type="application/json",
-            data="{}",
+        self._run_incremental_build_until(
+            report.pk,
+            stop_states={STATE_COLLECTING_SCENE_CONTINUATION},
         )
-        self.assertEqual(response.status_code, 200)
+        self._complete_scene_continuation(report.pk)
 
         report.refresh_from_db()
         self.assertEqual(bootstrap_state(report), STATE_READY)
@@ -190,9 +204,8 @@ class ForensicBootstrapPhaseOneTests(TestCase):
         response = self.client.post(analyze_url, {"documents": self._pdf_upload()})
         self.assertEqual(response.status_code, 200)
         payload = response.json()
-        self.assertEqual(payload.get("state"), STATE_COLLECTING_SCENE_CONTINUATION)
+        self.assertEqual(payload.get("state"), STATE_COLLECTING_PROMPTS)
 
-        self._complete_scene_continuation(report.pk)
         report.refresh_from_db()
         self.assertEqual(bootstrap_state(report), STATE_COLLECTING_PROMPTS)
 
@@ -222,6 +235,9 @@ class ForensicBootstrapPhaseOneTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "forensic_bootstrap_runner.js")
         self.assertContains(response, "scene_examination_continuation.js")
+        self.assertContains(response, "scene-location-analyze-status")
+        self.assertContains(response, "Analisar imagens e orientações com IA")
+        self.assertContains(response, "case_intake_analyze.css")
         self.assertContains(response, "forensic-bootstrap-build-shell")
         self.assertContains(
             response,
@@ -256,7 +272,6 @@ class ForensicBootstrapPhaseOneTests(TestCase):
         build_step_url = reverse("reports:forensic_bootstrap_build_step", kwargs={"pk": report.pk})
 
         self.client.post(analyze_url, {"documents": self._pdf_upload()})
-        self._complete_scene_continuation(report.pk)
 
         response = self.client.post(build_step_url, content_type="application/json", data="{}")
         self.assertEqual(response.status_code, 200)
@@ -269,6 +284,57 @@ class ForensicBootstrapPhaseOneTests(TestCase):
         report.refresh_from_db()
         self.assertEqual(bootstrap_state(report), STATE_BUILDING)
         self.assertEqual(report.nodes.count(), 1)
+
+    @patch(ANALYZE_PATCH)
+    def test_bootstrap_build_step_finalize_returns_success(self, mock_analyze):
+        """Garante resposta 200 no último passo da montagem inicial (regressão NameError)."""
+        mock_analyze.return_value = self._analyze_return(
+            CaseMetadata(
+                report_number="3",
+                report_year=2026,
+                exam_objective="Examinar.",
+                requesting_authority="Dr. Silva",
+                occurrence_report="BO-3",
+                police_inquiry="IP-3",
+                police_district="1º DP",
+                designation_date=date(2026, 1, 15),
+                occurrence_at=datetime(2026, 1, 10, 14, 30),
+                requisition_at=datetime(2026, 1, 11, 9, 0),
+                attendance_protocol="PROT-3",
+                examination_at=datetime(2026, 1, 16, 9, 0),
+                photography="N/I",
+                scanning_3d="N/I",
+                sketch="N/I",
+            )
+        )
+        self.client.login(username="perito_bootstrap", password="senha-segura")
+        report = create_forensic_report_shell(author=self.user, examiner=self.examiner)
+        analyze_url = reverse("reports:forensic_bootstrap_analyze", kwargs={"pk": report.pk})
+        build_step_url = reverse("reports:forensic_bootstrap_build_step", kwargs={"pk": report.pk})
+
+        self.client.post(analyze_url, {"documents": self._pdf_upload()})
+
+        last_response = None
+        for _ in range(40):
+            last_response = self.client.post(
+                build_step_url,
+                content_type="application/json",
+                data="{}",
+            )
+            self.assertEqual(last_response.status_code, 200)
+            payload = last_response.json()
+            if payload.get("done"):
+                break
+
+        self.assertIsNotNone(last_response)
+        payload = last_response.json()
+        self.assertTrue(payload.get("done"))
+        self.assertEqual(payload.get("state"), STATE_COLLECTING_SCENE_CONTINUATION)
+        self.assertEqual(payload.get("step_id"), "finalize")
+
+        report.refresh_from_db()
+        self.assertEqual(bootstrap_state(report), STATE_COLLECTING_SCENE_CONTINUATION)
+        self.assertGreater(report.nodes.count(), 0)
 
     def test_bootstrap_build_rejects_shell_without_analyze(self):
         """Garante que montagem exige análise prévia dos documentos."""
@@ -291,7 +357,6 @@ class ForensicBootstrapPhaseOneTests(TestCase):
         finalize_url = reverse("reports:forensic_bootstrap_finalize", kwargs={"pk": report.pk})
 
         self.client.post(analyze_url, {"documents": self._pdf_upload()})
-        self._complete_scene_continuation(report.pk)
 
         report.refresh_from_db()
         self.assertEqual(bootstrap_state(report), STATE_COLLECTING_PROMPTS)
@@ -315,7 +380,11 @@ class ForensicBootstrapPhaseOneTests(TestCase):
         self.assertEqual(bootstrap_state(report), STATE_ANALYZED)
         self.assertEqual(report.nodes.count(), 0)
 
-        self.client.post(build_url, content_type="application/json", data="{}")
+        self._run_incremental_build_until(
+            report.pk,
+            stop_states={STATE_COLLECTING_SCENE_CONTINUATION},
+        )
+        self._complete_scene_continuation(report.pk)
         report.refresh_from_db()
         self.assertEqual(bootstrap_state(report), STATE_READY)
         self.assertIn("15/2026", report.title)
@@ -331,7 +400,6 @@ class ForensicBootstrapPhaseOneTests(TestCase):
         finalize_url = reverse("reports:forensic_bootstrap_finalize", kwargs={"pk": report.pk})
 
         self.client.post(analyze_url, {"documents": self._pdf_upload()})
-        self._complete_scene_continuation(report.pk)
 
         response = self.client.post(
             finalize_url,
@@ -351,7 +419,6 @@ class ForensicBootstrapPhaseOneTests(TestCase):
         finalize_url = reverse("reports:forensic_bootstrap_finalize", kwargs={"pk": report.pk})
 
         self.client.post(analyze_url, {"documents": self._pdf_upload()})
-        self._complete_scene_continuation(report.pk)
 
         response = self.client.post(
             finalize_url,
@@ -365,9 +432,11 @@ class ForensicBootstrapPhaseOneTests(TestCase):
         )
         self.assertEqual(response.status_code, 200)
 
-        self.client.post(build_url, content_type="application/json", data="{}")
-
+        self._run_incremental_build_until(
+            report.pk,
+            stop_states={STATE_COLLECTING_SCENE_CONTINUATION},
+        )
+        self._complete_scene_continuation(report.pk)
         report.refresh_from_db()
+        self.assertEqual(bootstrap_state(report), STATE_READY)
         self.assertIn("15/2026", report.title)
-        main_title = report.nodes.filter(block__block_type=ReportBlockType.HEADING).order_by("position").first()
-        self.assertIn("15/2026", main_title.block.content["text"])

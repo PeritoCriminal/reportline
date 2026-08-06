@@ -6,7 +6,6 @@ from __future__ import annotations
 
 from dataclasses import replace
 
-from institution_ic_sp.forensic_report.common.services.case_metadata import CaseMetadata
 from institution_ic_sp.forensic_report.common.services.case_metadata_serialization import (
     case_metadata_to_form_dict,
 )
@@ -18,19 +17,13 @@ from institution_ic_sp.forensic_report.common.services.scene_location import (
     SceneLocationData,
     normalize_scene_location,
 )
-from institution_ic_sp.forensic_report.common.services.scene_location import (
-    SceneLocationData,
-    normalize_scene_location,
-)
 from institution_ic_sp.forensic_report.services.forensic_bootstrap import (
-    STATE_ANALYZED,
-    STATE_COLLECTING_PROMPTS,
     attach_bootstrap_meta,
-    compute_pending_prompts,
     empty_bootstrap_payload,
-    field_coverage_from_bootstrap,
     get_bootstrap_meta,
+    is_initial_build_completed,
     metadata_from_bootstrap,
+    resolve_bootstrap_state,
     skipped_prompts_from_bootstrap,
 )
 from reports.models import Report
@@ -38,10 +31,6 @@ from reports.models import Report
 
 def is_scene_continuation_completed(page_layout: dict | None) -> bool:
     """Indica se a etapa de continuação de exame de local já foi concluída."""
-    from institution_ic_sp.forensic_report.services.forensic_bootstrap import (
-        get_bootstrap_meta,
-    )
-
     bootstrap = get_bootstrap_meta(page_layout) or {}
     return bool(bootstrap.get("scene_continuation_completed"))
 
@@ -72,14 +61,6 @@ def scene_characteristics_from_bootstrap(page_layout: dict | None) -> dict[str, 
     }
 
 
-def resolve_state_after_scene_continuation(report: Report, metadata: CaseMetadata) -> str:
-    """Define próximo estado do bootstrap após concluir a continuação de local."""
-    skipped = skipped_prompts_from_bootstrap(report.page_layout)
-    coverage = field_coverage_from_bootstrap(report.page_layout)
-    pending = compute_pending_prompts(metadata, skipped=skipped, field_coverage=coverage)
-    return STATE_COLLECTING_PROMPTS if pending else STATE_ANALYZED
-
-
 def save_scene_examination_continuation(
     report: Report,
     *,
@@ -91,9 +72,12 @@ def save_scene_examination_continuation(
     """
     Persiste categoria de exame e características do local no bootstrap.
 
-    Marca a continuação como concluída e avança para prompts administrativos
-    ou montagem incremental conforme metadados pendentes.
+    Após a montagem inicial, inicia fase de inserção da seção de local quando
+    aplicável ou conclui o bootstrap para módulos diferidos.
     """
+    if not is_initial_build_completed(report.page_layout):
+        raise ValueError("A montagem inicial do laudo deve ser concluída antes da continuação.")
+
     normalized_category = normalize_exam_category(exam_category)
     bootstrap = get_bootstrap_meta(report.page_layout) or empty_bootstrap_payload()
     metadata = metadata_from_bootstrap(report.page_layout)
@@ -120,14 +104,6 @@ def save_scene_examination_continuation(
         bootstrap.pop("scene_characteristics", None)
         bootstrap.pop("scene_examination_content", None)
 
-    skipped = skipped_prompts_from_bootstrap(report.page_layout)
-    coverage = field_coverage_from_bootstrap(report.page_layout)
-    bootstrap["pending_prompts"] = compute_pending_prompts(
-        metadata,
-        skipped=skipped,
-        field_coverage=coverage,
-    )
-    bootstrap["state"] = resolve_state_after_scene_continuation(report, metadata)
     report.page_layout = attach_bootstrap_meta(report.page_layout, bootstrap)
 
     if normalized_category == EXAM_CATEGORY_PROPERTY_SCENE:
@@ -138,6 +114,16 @@ def save_scene_examination_continuation(
 
         content = generate_scene_examination_content(report)
         attach_scene_examination_content(report, content)
+        from institution_ic_sp.forensic_report.services.forensic_report_body_incremental import (
+            start_scene_build_phase,
+        )
+
+        start_scene_build_phase(report)
+    else:
+        bootstrap = get_bootstrap_meta(report.page_layout) or {}
+        skipped = skipped_prompts_from_bootstrap(report.page_layout)
+        bootstrap["state"] = resolve_bootstrap_state(metadata, skipped=skipped)
+        report.page_layout = attach_bootstrap_meta(report.page_layout, bootstrap)
 
     report.save(update_fields=["page_layout", "updated_at"])
     return report
