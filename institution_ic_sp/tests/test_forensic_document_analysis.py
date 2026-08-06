@@ -133,10 +133,13 @@ class AnalyzeDocumentsViewTests(TestCase):
         self.assertEqual(metadata["requesting_authority"], "Dr. Manual")
         self.assertEqual(metadata["occurrence_report"], "BO-IA")
 
-    def test_intake_page_exposes_analyze_button(self):
-        """Garante botão e script de análise documental no template do intake."""
+    def test_intake_page_hides_manual_preview_and_advanced_form(self):
+        """Garante que pré-visualização e formulário avançado permanecem ocultos no intake."""
         self.client.login(username="perito_analyze", password="senha-segura")
         response = self.client.get(reverse("institution_ic_sp:forensic_report:intake"))
-        self.assertContains(response, "Pré-visualizar metadados nos campos avançados")
-        self.assertContains(response, "case_intake_analyze.js")
+        self.assertNotContains(response, "Pré-visualizar metadados nos campos avançados")
+        self.assertNotContains(response, "case_intake_analyze.js")
+        self.assertNotContains(response, "Preencher ou revisar dados manualmente")
         self.assertContains(response, "case_intake_analyze.css")
+        self.assertContains(response, "btn-open-report-quick")
+        self.assertNotContains(response, " com IA")

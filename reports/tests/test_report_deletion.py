@@ -86,6 +86,18 @@ class ReportMediaFolderDeletionTests(TestCase):
         self.assertFalse(Report.objects.filter(pk=report.pk).exists())
         self.assertFalse(default_storage.exists(folder_path))
 
+    def test_delete_report_removes_empty_media_folder_after_image_files(self):
+        """Garante remoção da pasta UUID mesmo após apagar só os arquivos de imagem."""
+        report = Report.objects.create(author=self.author, title="Laudo pasta vazia")
+        store_report_image(report, self._build_image_upload())
+        folder_path = report_media_folder_relative_path(report.pk)
+
+        self.assertTrue(default_storage.exists(folder_path))
+
+        delete_report(report)
+
+        self.assertFalse(default_storage.exists(folder_path))
+
     def test_direct_report_delete_removes_media_folder(self):
         """Garante limpeza da pasta mesmo quando o laudo é excluído via ORM."""
         report = Report.objects.create(author=self.author, title="Laudo ORM")

@@ -3,6 +3,7 @@
 from django.contrib import admin
 
 from reports.models import Report
+from reports.services.report_deletion import delete_report
 
 
 @admin.register(Report)
@@ -49,6 +50,15 @@ class ReportAdmin(admin.ModelAdmin):
             },
         ),
     )
+
+    def delete_model(self, request, obj):
+        """Remove laudo pelo serviço centralizado, incluindo pasta em MEDIA."""
+        delete_report(obj)
+
+    def delete_queryset(self, request, queryset):
+        """Remove laudos em lote com limpeza de mídia por registro."""
+        for report in queryset:
+            delete_report(report)
 
     @admin.display(description="Autor")
     def author_label_display(self, obj):

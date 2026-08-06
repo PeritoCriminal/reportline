@@ -14,7 +14,7 @@
     const STATE_BUILDING = "building";
     const BUILD_PHASE_SCENE = "scene";
     const ANALYZE_STATUS_MESSAGES = [
-        "Lendo documentos com IA…",
+        "Lendo documentos…",
         "Extraindo dados administrativos…",
         "Preparando montagem do laudo…",
     ];

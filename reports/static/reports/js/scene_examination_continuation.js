@@ -19,7 +19,7 @@
         unknown: "Não identificado",
     };
     const SCENE_ANALYZE_STATUS_MESSAGES = [
-        "Lendo imagens do local com IA…",
+        "Lendo imagens do local…",
         "Identificando fechamentos e ambientes…",
         "Preparando descrição para o laudo…",
     ];
@@ -523,7 +523,7 @@
                 if (uploads.length) {
                     startSceneAnalyzeRotation();
                 } else {
-                    setSceneAnalyzeMessage("Analisando orientações complementares com IA…");
+                    setSceneAnalyzeMessage("Analisando orientações complementares…");
                 }
 
                 const response = await persistContinuation(config, CATEGORY_PROPERTY_SCENE, {
@@ -534,7 +534,7 @@
                 succeeded = true;
                 return response;
             } catch (error) {
-                setError(error.message || "Não foi possível analisar o local com IA.");
+                setError(error.message || "Não foi possível analisar o local.");
             } finally {
                 stopSceneAnalyzeRotation();
                 endSceneAnalysis();

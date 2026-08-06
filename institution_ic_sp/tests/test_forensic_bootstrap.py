@@ -224,7 +224,9 @@ class ForensicBootstrapPhaseOneTests(TestCase):
         self.assertContains(response, "btn-open-report-quick")
         self.assertContains(response, "case_intake_quick.js")
         self.assertContains(response, "forensic_bootstrap_documents.js")
-        self.assertContains(response, "Preencher ou revisar dados manualmente")
+        self.assertNotContains(response, "Preencher ou revisar dados manualmente")
+        self.assertNotContains(response, "Pré-visualizar metadados nos campos avançados")
+        self.assertNotContains(response, " com IA")
 
     def test_editor_exposes_runner_config_when_shell_created(self):
         """Garante URLs de bootstrap no editor quando laudo está em casca."""
@@ -236,7 +238,8 @@ class ForensicBootstrapPhaseOneTests(TestCase):
         self.assertContains(response, "forensic_bootstrap_runner.js")
         self.assertContains(response, "scene_examination_continuation.js")
         self.assertContains(response, "scene-location-analyze-status")
-        self.assertContains(response, "Analisar imagens e orientações com IA")
+        self.assertContains(response, "Analisar imagens e orientações")
+        self.assertNotContains(response, " com IA")
         self.assertContains(response, "case_intake_analyze.css")
         self.assertContains(response, "forensic-bootstrap-build-shell")
         self.assertContains(

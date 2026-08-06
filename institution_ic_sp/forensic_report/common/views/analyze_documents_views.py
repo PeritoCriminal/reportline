@@ -56,7 +56,7 @@ class AnalyzeDocumentsView(ForensicExaminerSPRequiredMixin, View):
             )
         elif not is_ai_configured():
             warnings.append(
-                "Serviço de IA indisponível. Configure OPENAI_API_KEY ou "
+                "Serviço de análise indisponível. Configure OPENAI_API_KEY ou "
                 "preencha os campos manualmente."
             )
 

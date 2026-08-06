@@ -15,6 +15,7 @@ from PIL import Image
 
 from reports.models import Report, ReportBlock, ReportBlockType, ReportImage, ReportNode
 from reports.services.report_image_upload import build_image_block_content, store_report_image
+from reports.services.report_media_cleanup import report_media_folder_relative_path
 
 User = get_user_model()
 
@@ -134,6 +135,7 @@ class ReportDeleteViewTests(TestCase):
         report_image = store_report_image(self.report, upload)
         image_path = report_image.image.name
         image_id = report_image.pk
+        folder_path = report_media_folder_relative_path(self.report.pk)
 
         block = ReportBlock.objects.create(
             block_type=ReportBlockType.IMAGE,
@@ -146,6 +148,7 @@ class ReportDeleteViewTests(TestCase):
         )
 
         self.assertTrue(default_storage.exists(image_path))
+        self.assertTrue(default_storage.exists(folder_path))
 
         self.client.login(username="delete_autor", password="senha-segura")
         self.client.post(
@@ -154,3 +157,4 @@ class ReportDeleteViewTests(TestCase):
 
         self.assertFalse(ReportImage.objects.filter(pk=image_id).exists())
         self.assertFalse(default_storage.exists(image_path))
+        self.assertFalse(default_storage.exists(folder_path))

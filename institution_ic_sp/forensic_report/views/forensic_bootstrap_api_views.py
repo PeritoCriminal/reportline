@@ -148,7 +148,7 @@ class ForensicBootstrapAnalyzeView(ForensicReportAuthorMixin, View):
             )
         elif not is_ai_configured():
             warnings.append(
-                "Serviço de IA indisponível. O laudo será montado com os dados disponíveis."
+                "Serviço de análise indisponível. O laudo será montado com os dados disponíveis."
             )
 
         report.refresh_from_db()
