@@ -21,6 +21,7 @@ Registro de decisões arquiteturais do ReportLine. Cada ADR documenta o
 | [0005](./0005-external-api-credentials.md) | Credenciais de APIs externas (pessoais vs institucionais) | ✅ Aceito |
 | [0006](./0006-provisional-institution-ic-sp.md) | App provisório de dados institucionais do IC-SP | ✅ Aceito |
 | [0007](./0007-forensic-examiner-sp.md) | Perfil do perito criminal (SP) — `ForensicExaminerSP` | ✅ Aceito |
+| [0008](./0008-ai-pii-sanitization.md) | Sanitização local de PII antes de APIs externas de IA | ✅ Aceito |
 
 ## Template para novos ADRs
 

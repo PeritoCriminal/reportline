@@ -16,6 +16,7 @@ evolução junto com o projeto.
 | [06-user-messaging.md](./06-user-messaging.md) | Mensagens ao usuário — toasts, validação inline e modal |
 | [07-reports.md](./07-reports.md) | App reports — relatórios modulares |
 | [08-report-document-render.md](./08-report-document-render.md) | ✅ Pipeline HTML paginado → PDF (Fases 0–2); KaTeX pendente |
+| [09-forensic-ai-privacy.md](./09-forensic-ai-privacy.md) | ✅ Sanitização PII, gateway OpenAI, allowlist e permissões |
 | [../runbook_pdf.md](../runbook_pdf.md) | Implantação Playwright/Chromium para export PDF |
 | [../decisions/](../decisions/) | Registros de decisão arquitetural (ADRs) |
 
@@ -28,6 +29,7 @@ evolução junto com o projeto.
 | [0005](../decisions/0005-external-api-credentials.md) | Credenciais pessoais (dev) vs institucionais (prod) |
 | [0006](../decisions/0006-provisional-institution-ic-sp.md) | App provisório de dados institucionais do IC-SP |
 | [0007](../decisions/0007-forensic-examiner-sp.md) | Perfil do perito criminal (SP) — `ForensicExaminerSP` |
+| [0008](../decisions/0008-ai-pii-sanitization.md) | Sanitização PII antes de IA externa (OpenAI) |
 
 Detalhes em [01-context.md](./01-context.md) — seções **Persistência** e **Integrações externas**.
 

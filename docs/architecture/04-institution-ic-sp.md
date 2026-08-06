@@ -378,9 +378,30 @@ nos apps consumidores.
 
 ---
 
+---
+
+## Módulo `forensic_report` (laudo pericial)
+
+Pacote dentro de `institution_ic_sp` — intake, bootstrap assistido por IA,
+dossiê confirmado e workflows por tipo de exame.
+
+| Aspecto | Descrição |
+|---|---|
+| **Intake** | Upload de documentos, campos manuais, análise com IA (`case_intake`) |
+| **Bootstrap** | Montagem inicial do laudo a partir de metadados confirmados |
+| **Dossiê** | `ForensicReportMetadata.data` — fases `initial_data`, `property_crime`, … |
+| **IA externa** | Gateway único; texto sanitizado localmente antes da OpenAI |
+| **Workflows** | `initial_data` (metadados administrativos), `property_crime` (exame de local) |
+
+Documentação operacional: [09-forensic-ai-privacy.md](./09-forensic-ai-privacy.md).
+
+---
+
 ## Referências
 
 - [ADR-0006: App provisório IC-SP](../decisions/0006-provisional-institution-ic-sp.md)
+- [ADR-0008: Sanitização PII antes de IA externa](../decisions/0008-ai-pii-sanitization.md)
+- [09-forensic-ai-privacy.md](./09-forensic-ai-privacy.md)
 - [ADR-0007: ForensicExaminerSP](../decisions/0007-forensic-examiner-sp.md)
 - [App profiles](./05-profiles.md)
 - [Modelo de dados — seção IC-SP](./02-data-model.md#dados-institucionais-ic-sp-)

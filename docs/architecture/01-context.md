@@ -32,7 +32,8 @@ flowchart TB
     db[("PostgreSQL<br/>padrão dev")]
     google["Login Google ✅<br/>(dev/pessoal)"]
     govbr["Login gov.br 🟡<br/>(institucional)"]
-    apis["APIs externas 🟡<br/>(IA, voz…)"]
+    openai["OpenAI ✅<br/>(sanitização local)"]
+    apis["Outras APIs 🟡<br/>(voz, Safe Browsing…)"]
 
     perito -->|"Cria e edita laudos"| web
     admin -->|"Administra usuários"| web
@@ -41,13 +42,17 @@ flowchart TB
     google -.-> core
     perito -.->|"Auth institucional"| govbr
     govbr -.-> core
+    core -->|"Texto sanitizado + opt-in imagens"| openai
     core -.->|"Integrações futuras"| apis
 ```
 
 > **Nota:** PostgreSQL é o SGBD padrão em desenvolvimento ([ADR-0004](../decisions/0004-postgresql-sgbd.md)).
 > Login Google (fase 1) está implementado para dev e deploy pessoal; gov.br é alvo
-> institucional; APIs externas seguem [ADR-0005](../decisions/0005-external-api-credentials.md)
-> ([ADR-0003](../decisions/0003-govbr-authentication.md)).
+> institucional ([ADR-0003](../decisions/0003-govbr-authentication.md)).
+> Integração com **OpenAI** está ativa no módulo de laudo pericial, com
+> sanitização local de PII antes do envio ([ADR-0008](../decisions/0008-ai-pii-sanitization.md),
+> [09-forensic-ai-privacy.md](./09-forensic-ai-privacy.md)); credenciais seguem
+> [ADR-0005](../decisions/0005-external-api-credentials.md).
 
 ## Containers (C4 — Nível 2)
 
@@ -95,20 +100,29 @@ Detalhes operacionais e checklist de deploy:
 
 ## Integrações externas (APIs)
 
-Funcionalidades futuras podem consumir **APIs externas** (IA, comando por voz
-Google, entre outras). Na fase de **desenvolvimento**, o autor utiliza
-credenciais **pessoais** via `.env` (fora do Git). Em ambiente
-**institucional**, todas as chaves devem ser **institucionais**, geridas pelo
-órgão adotante (ver [ADR-0005](../decisions/0005-external-api-credentials.md)).
+| Integração | Status | Observação |
+|---|---|---|
+| **OpenAI** (laudo pericial) | ✅ | Extração administrativa e redação assistida; texto sanitizado localmente antes do envio ([ADR-0008](../decisions/0008-ai-pii-sanitization.md)) |
+| **Google OAuth** (login) | ✅ | Dev/pessoal — fase 1 ([ADR-0003](../decisions/0003-govbr-authentication.md)) |
+| **Google Cloud STT** (ditado) | 🟡 | Variáveis em `.env.example`; service account em `var/secrets/` |
+| **Google Safe Browsing** | 🟡 | Moderação de links no editor |
+| **gov.br OIDC** | 🟡 | Alvo institucional |
+
+Na fase de **desenvolvimento**, credenciais **pessoais** via `.env` (fora do Git).
+Em ambiente **institucional**, chaves **institucionais** geridas pelo órgão
+([ADR-0005](../decisions/0005-external-api-credentials.md)).
+
+Setup de IA e sanitização: [09-forensic-ai-privacy.md](./09-forensic-ai-privacy.md).
 
 ## Estado atual vs. alvo
 
 | Container | Status | Observação |
 |---|---|---|
 | `accounts` | ✅ Implementado | `CustomUser` (UUID, OAuth), login Google (fase 1) + local staff; alvo institucional: gov.br ([ADR-0003](../decisions/0003-govbr-authentication.md)) |
-| `institution_ic_sp` | ✅ Implementado 🔵 | Núcleos e equipes IC-SP; **substituível** em produção (ver ADR-0006) |
-| `profiles` | ✅ Implementado | `ForensicExaminerSP` 1:1 com user, lotação em `ForensicTeam` (ver ADR-0007) |
+| `institution_ic_sp` | ✅ Implementado 🔵 | Núcleos/equipes IC-SP + módulo `forensic_report` (intake, bootstrap, IA); **substituível** em produção (ADR-0006) |
+| `profiles` | ✅ Implementado | `ForensicExaminerSP` 1:1 com user, lotação, permissão de imagens à IA (ADR-0007) |
 | `reports` | ✅ Implementado | Editor completo; preview paginado e export PDF Playwright ([07-reports.md](./07-reports.md), [08-report-document-render.md](./08-report-document-render.md), [runbook_pdf.md](../runbook_pdf.md)) |
+| `common` (privacidade) | ✅ Implementado | Sanitização PII + `AiSanitizationAudit` (ADR-0008) |
 
 ## Referências
 
@@ -121,5 +135,7 @@ credenciais **pessoais** via `.env` (fora do Git). Em ambiente
 - [ADR-0005: Credenciais de APIs externas](../decisions/0005-external-api-credentials.md)
 - [ADR-0006: App provisório IC-SP](../decisions/0006-provisional-institution-ic-sp.md)
 - [ADR-0007: ForensicExaminerSP](../decisions/0007-forensic-examiner-sp.md)
+- [ADR-0008: Sanitização PII antes de IA externa](../decisions/0008-ai-pii-sanitization.md)
+- [IA externa e privacidade](./09-forensic-ai-privacy.md)
 - [App profiles](./05-profiles.md)
 - [App reports](./07-reports.md)

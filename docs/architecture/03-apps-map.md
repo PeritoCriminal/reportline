@@ -30,16 +30,25 @@ flowchart TB
 | Item | Valor |
 |---|---|
 | **Responsabilidade** | Bases e utilitários compartilhados entre apps |
-| **Models** | `BaseModel` (UUID, `created_at`, `updated_at`) |
+| **Models** | `BaseModel` (UUID, `created_at`, `updated_at`); `AiSanitizationAudit` |
+| **Privacidade / IA** | `privacy/services/` — sanitização de texto (regex + Presidio); auditoria por hash |
 | **Utilitários** | `user_messages.notify_*` (flash messages padronizados) |
 | **Depende de** | — |
 | **Consumido por** | `institution_ic_sp`, `profiles`, `reports`, layout global (`base.html`) |
-| **Documentação** | [06-user-messaging.md](./06-user-messaging.md) (mensagens) |
+| **Documentação** | [06-user-messaging.md](./06-user-messaging.md); [09-forensic-ai-privacy.md](./09-forensic-ai-privacy.md) |
 
 ```
 common/
   models/
     base_model.py
+    ai_sanitization_audit.py
+  privacy/
+    services/
+      text_sanitizer.py
+      regex_patterns.py
+      sanitization_allowlist.py
+      analyzer_registry.py
+      audit.py
   user_messages.py
   tests/
     test_base_model.py
@@ -93,11 +102,13 @@ Rotas OAuth (em `reportline/urls.py`): `/accounts/social/` → django-allauth.
 
 | Item | Valor |
 |---|---|
-| **Responsabilidade** | Cadastro provisório de núcleos e equipes periciais do IC-SP |
-| **Models** | `Institution`, `ForensicNucleus`, `ForensicTeam` |
-| **Depende de** | `common` (`BaseModel`) |
-| **Consumido por** | `profiles` (lotação do perito) |
+| **Responsabilidade** | Cadastro provisório IC-SP + **laudo pericial** (`forensic_report/`) |
+| **Models** | `Institution`, `ForensicNucleus`, `ForensicTeam`, `ForensicReportMetadata` |
+| **Módulo `forensic_report`** | Intake, bootstrap, dossiê por fase, gateway IA, workflows (`initial_data`, `property_crime`) |
+| **Depende de** | `common` (`BaseModel`, sanitização), `reports`, `profiles` |
+| **Consumido por** | `profiles` (lotação do perito); fluxo de laudo pericial |
 | **Substituição** | Integração institucional equivalente — ver [ADR-0006](../decisions/0006-provisional-institution-ic-sp.md) |
+| **IA / privacidade** | [ADR-0008](../decisions/0008-ai-pii-sanitization.md), [09-forensic-ai-privacy.md](./09-forensic-ai-privacy.md) |
 
 ```
 institution_ic_sp/
@@ -105,16 +116,18 @@ institution_ic_sp/
     institution.py
     forensic_nucleus.py
     forensic_team.py
+    forensic_report_metadata.py
+  forensic_report/
+    common/ai/              # gateway OpenAI, sanitização forense
+    workflows/              # initial_data, property_crime
+    services/               # bootstrap, dossiê, corpo do laudo
+    views/
   data/
     ic_sp_seed.py
   admin/
-    institution_admin.py
-    forensic_nucleus_admin.py
-    forensic_team_admin.py
   management/commands/
     load_ic_sp_data.py
   tests/
-    test_institution_models.py
   templates/institution_ic_sp/
   static/institution_ic_sp/
   urls.py
@@ -129,7 +142,7 @@ Documentação completa: [04-institution-ic-sp.md](./04-institution-ic-sp.md).
 | Item | Valor |
 |---|---|
 | **Responsabilidade** | Perfil profissional do perito criminal de SP |
-| **Models** | `ForensicExaminerSP` (1:1 com `CustomUser`, N:1 com `ForensicTeam`) |
+| **Models** | `ForensicExaminerSP` (1:1 com `CustomUser`, N:1 com `ForensicTeam`; `can_send_images_to_external_ai`) |
 | **Depende de** | `accounts`, `institution_ic_sp`, `common` |
 | **Relação com `reports`** | Metadados periciais (lotação, `display_name`) enriquecem laudos na renderização; autor do relatório é `CustomUser` |
 | **Decisão** | [ADR-0007](../decisions/0007-forensic-examiner-sp.md) |
@@ -163,7 +176,7 @@ Documentação completa: [05-profiles.md](./05-profiles.md).
 | **URLs (usuário)** | `reports:list`, `reports:new`, `reports:edit`, `reports:outline`, `reports:image_upload`, `reports:node_create`, `reports:node_update`, `reports:node_reorder` |
 | **Hub na home** | Cards em `templates/index.html` (autenticado) |
 | **Depende de** | `accounts`, `common` |
-| **Integrações futuras** | APIs externas (IA, voz) via variáveis de ambiente — ver [ADR-0005](../decisions/0005-external-api-credentials.md) |
+| **Integrações** | OpenAI via `institution_ic_sp/forensic_report` (texto sanitizado); demais APIs via `.env` — [ADR-0005](../decisions/0005-external-api-credentials.md), [ADR-0008](../decisions/0008-ai-pii-sanitization.md) |
 | **Decisão** | [ADR-0002](../decisions/0002-report-node-structure.md) |
 
 ```
@@ -252,7 +265,7 @@ Decisões que atravessam apps (não pertencem a um único bounded context):
 |---|---|---|---|
 | **SGBD** | PostgreSQL | Outro SGBD a critério do órgão | [0004](../decisions/0004-postgresql-sgbd.md) |
 | **Autenticação** | Google OAuth + local staff (dev/pessoal); gov.br (institucional) | [0003](../decisions/0003-govbr-authentication.md) |
-| **APIs externas** | Credenciais pessoais (`.env` + `var/secrets/`) | Credenciais institucionais | [0005](../decisions/0005-external-api-credentials.md) |
+| **APIs externas** | Credenciais pessoais (`.env` + `var/secrets/`); OpenAI com sanitização PII | Credenciais institucionais | [0005](../decisions/0005-external-api-credentials.md), [0008](../decisions/0008-ai-pii-sanitization.md) |
 | **Cadastro IC-SP** | App local `institution_ic_sp` | Cadastro oficial SPTC | [0006](../decisions/0006-provisional-institution-ic-sp.md) |
 | **Mensagens ao usuário** | Toasts + modal Bootstrap via `common.user_messages` | — | [06-user-messaging.md](./06-user-messaging.md) |
 
@@ -271,3 +284,5 @@ Visão consolidada em [01-context.md](./01-context.md).
 - [Mensagens ao usuário](./06-user-messaging.md)
 - [ADR-0006: App provisório IC-SP](../decisions/0006-provisional-institution-ic-sp.md)
 - [ADR-0007: ForensicExaminerSP](../decisions/0007-forensic-examiner-sp.md)
+- [ADR-0008: Sanitização PII antes de IA externa](../decisions/0008-ai-pii-sanitization.md)
+- [09-forensic-ai-privacy.md](./09-forensic-ai-privacy.md)

@@ -79,15 +79,18 @@ não substituem client institucional em produção.
 
 ## TODO (implantação institucional)
 
-- [ ] Inventariar integrações externas ativas (IA, voz Google, outras APIs).
+- [x] Inventariar integração OpenAI ativa no laudo pericial (extração administrativa, exame de local).
 - [ ] Substituir credenciais pessoais por credenciais/contas institucionais.
-- [ ] Documentar variáveis de ambiente exigidas por ambiente (dev/homolog/prod).
-- [ ] Definir política de retenção e envio de conteúdo de laudos a provedores de IA.
+- [x] Documentar variáveis de ambiente exigidas (`.env.example`, [09-forensic-ai-privacy.md](../architecture/09-forensic-ai-privacy.md)).
+- [x] Definir política de envio de conteúdo a provedores de IA — sanitização local obrigatória ([ADR-0008](./0008-ai-pii-sanitization.md)).
 - [ ] Configurar rotação e auditoria de segredos no cofre da instituição.
+- [ ] Inventariar demais integrações (voz Google, Safe Browsing).
 
 ## Referências
 
 - [Contexto do sistema — integrações externas](../architecture/01-context.md)
+- [ADR-0008: Sanitização PII antes de IA externa](./0008-ai-pii-sanitization.md)
+- [09-forensic-ai-privacy.md](../architecture/09-forensic-ai-privacy.md)
 - [ADR-0003: Autenticação gov.br (institucional)](./0003-govbr-authentication.md)
 - `.gitignore` — exclusão de `.env` e variantes
 - `reportline/settings.py` — `load_dotenv()` e leitura de configuração

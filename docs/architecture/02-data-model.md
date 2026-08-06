@@ -74,8 +74,28 @@ erDiagram
         uuid user_id FK "UK — 1:1"
         uuid forensic_team_id FK
         string display_name
+        boolean can_send_images_to_external_ai
         datetime created_at
         datetime updated_at
+    }
+
+    ForensicReportMetadata {
+        uuid id PK
+        uuid report_id FK "UK — 1:1"
+        json data "dossiê por fase"
+        datetime created_at
+        datetime updated_at
+    }
+
+    AiSanitizationAudit {
+        uuid id PK
+        uuid user_id FK "nullable"
+        uuid report_id FK "nullable"
+        string operation
+        string content_hash
+        json replacement_counts
+        boolean blocked
+        datetime created_at
     }
 
     Report {
@@ -121,6 +141,9 @@ erDiagram
     CustomUser ||--|| ForensicExaminerSP : "possui (1:1)"
     ForensicTeam ||--o{ ForensicExaminerSP : "lotacao (1:N)"
     CustomUser ||--o{ Report : "author (1:N)"
+    Report ||--|| ForensicReportMetadata : "dossiê (1:1)"
+    Report ||--o{ AiSanitizationAudit : "auditoria IA (1:N)"
+    CustomUser ||--o{ AiSanitizationAudit : "auditoria IA (1:N)"
     Report ||--o{ ReportNode : "contém (1:N)"
     ReportNode ||--|| ReportBlock : "renderiza (1:1)"
     ReportNode ||--o{ ReportNode : "pai → filhos"
@@ -129,7 +152,8 @@ erDiagram
 | App | Models | Decisão |
 |---|---|---|
 | `accounts` | `CustomUser` | [ADR-0001](../decisions/0001-custom-user-uuid.md) |
-| `institution_ic_sp` | `Institution`, `ForensicNucleus`, `ForensicTeam` | [ADR-0006](../decisions/0006-provisional-institution-ic-sp.md) |
+| `common` | `BaseModel`, `AiSanitizationAudit` | [ADR-0008](../decisions/0008-ai-pii-sanitization.md) |
+| `institution_ic_sp` | `Institution`, `ForensicNucleus`, `ForensicTeam`, `ForensicReportMetadata` | [ADR-0006](../decisions/0006-provisional-institution-ic-sp.md) |
 | `profiles` | `ForensicExaminerSP` | [ADR-0007](../decisions/0007-forensic-examiner-sp.md) |
 | `reports` | `Report`, `ReportNode`, `ReportBlock` | [ADR-0002](../decisions/0002-report-node-structure.md) |
 
@@ -174,18 +198,26 @@ Detalhes em [05-profiles.md](./05-profiles.md).
 
 | Entidade | Descrição |
 |---|---|
-| `ForensicExaminerSP` | Perfil 1:1 com `CustomUser`; lotação N:1 em `ForensicTeam`; `display_name` para laudos |
+| `ForensicExaminerSP` | Perfil 1:1 com `CustomUser`; lotação N:1 em `ForensicTeam`; `display_name`; permissão de imagens à IA |
+| `ForensicReportMetadata` | Dossiê 1:1 com `Report`; metadados confirmados por fase (`initial_data`, `property_crime`, …) |
+| `AiSanitizationAudit` | Hash e contadores de sanitização pré-envio à OpenAI; sem texto bruto |
+
+Detalhes de IA e privacidade: [09-forensic-ai-privacy.md](./09-forensic-ai-privacy.md).
 
 ---
 
 ## Estado alvo 🟡
 
 Camada de **laudo pericial específico** sobre a estrutura genérica de relatórios
-já implementada.
+— parcialmente implementada em `institution_ic_sp/forensic_report/`.
 
 | Item | Descrição | Status |
 |---|---|---|
-| Templates de laudo | Mapeamento semântico (ex.: `report_number` → bloco `heading` nível 0) | 🟡 |
+| Intake e bootstrap pericial | Upload, extração administrativa, confirmação do perito | ✅ |
+| Dossiê por fase | `ForensicReportMetadata` após confirmação | ✅ |
+| Fluxo exame de local (property crime) | Características do local assistidas por IA | ✅ |
+| Sanitização PII antes da OpenAI | Gateway único + auditoria | ✅ ([ADR-0008](../decisions/0008-ai-pii-sanitization.md)) |
+| Templates de laudo | Mapeamento semântico completo | 🟡 |
 | Editor web | CBVs de criação/edição da árvore de nós | 🟡 |
 | Renderização | PDF/HTML interpretando `ReportBlock` e opções de layout | ✅ (preview + PDF; KaTeX pendente) |
 | Versionamento | Imutabilidade de blocos após publicação | 🟡 em discussão |
@@ -205,6 +237,8 @@ entre laudos pode ser reavaliada quando templates institucionais exigirem.
 | `ForensicNucleus` | `institution_ic_sp` | ✅ 🔵 provisório |
 | `ForensicTeam` | `institution_ic_sp` | ✅ 🔵 provisório |
 | `ForensicExaminerSP` | `profiles` | ✅ |
+| `ForensicReportMetadata` | `institution_ic_sp` | ✅ |
+| `AiSanitizationAudit` | `common` | ✅ |
 | `Report` | `reports` | ✅ |
 | `ReportNode` | `reports` | ✅ |
 | `ReportBlock` | `reports` | ✅ |
@@ -233,5 +267,7 @@ entre laudos pode ser reavaliada quando templates institucionais exigirem.
 - [ADR-0005: Credenciais de APIs externas](../decisions/0005-external-api-credentials.md)
 - [ADR-0006: App provisório IC-SP](../decisions/0006-provisional-institution-ic-sp.md)
 - [ADR-0007: ForensicExaminerSP](../decisions/0007-forensic-examiner-sp.md)
+- [ADR-0008: Sanitização PII antes de IA externa](../decisions/0008-ai-pii-sanitization.md)
+- [09-forensic-ai-privacy.md](./09-forensic-ai-privacy.md)
 - [App institution_ic_sp](./04-institution-ic-sp.md)
 - [App profiles](./05-profiles.md)

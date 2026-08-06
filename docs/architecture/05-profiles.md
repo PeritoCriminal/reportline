@@ -49,6 +49,7 @@ Perfil profissional do perito criminal de SP. Herda `BaseModel` (UUID + timestam
 | `user` | OneToOne → `CustomUser` | Usuário autenticado (`related_name="forensic_examiner_sp"`) |
 | `display_name` | CharField(255) | Nome de exibição na assinatura do laudo |
 | `forensic_team` | FK → `ForensicTeam` | Equipe de lotação (`related_name="examiners"`, `PROTECT`) |
+| `can_send_images_to_external_ai` | BooleanField | Permite envio de fotografias do local à OpenAI (default `False`; admin) |
 
 **Meta:**
 
@@ -78,6 +79,7 @@ erDiagram
         uuid user_id FK "UK"
         uuid forensic_team_id FK
         string display_name
+        boolean can_send_images_to_external_ai
         datetime created_at
         datetime updated_at
     }
@@ -121,8 +123,13 @@ examiner.forensic_team.nucleus
 | Lotação obrigatória | `forensic_team` não nullable |
 | Proteger equipe com peritos | `on_delete=PROTECT` em `forensic_team` |
 | Nome no laudo independente do login | `display_name` separado de `user.first_name` |
+| Imagens à IA externa desligadas por padrão | `can_send_images_to_external_ai=False`; admin habilita por perito |
 
-Testes em `profiles/tests/test_forensic_examiner_sp.py`.
+Testes em `profiles/tests/test_forensic_examiner_sp.py` e
+`test_forensic_examiner_external_ai.py`.
+
+Detalhes do fluxo de sanitização e envio multimodal:
+[09-forensic-ai-privacy.md](./09-forensic-ai-privacy.md).
 
 ---
 
@@ -159,6 +166,8 @@ No Django Admin, cadastre peritos em **Peritos criminais (SP)**:
 1. Selecione o `CustomUser` (autocomplete).
 2. Informe o **Nome de exibição no laudo**.
 3. Escolha a **Equipe pericial** (`ForensicTeam` do seed IC-SP).
+4. Opcional — seção **Integração com IA**: marque *Permitir envio de imagens
+   a IA externa* somente para peritos autorizados pela instituição.
 
 Equipes embutidas (DHPP, DEIC, DETRAN) também estão disponíveis no seed.
 
@@ -177,6 +186,8 @@ Equipes embutidas (DHPP, DEIC, DETRAN) também estão disponíveis no seed.
 ## Referências
 
 - [ADR-0007: ForensicExaminerSP](../decisions/0007-forensic-examiner-sp.md)
+- [ADR-0008: Sanitização PII antes de IA externa](../decisions/0008-ai-pii-sanitization.md)
+- [09-forensic-ai-privacy.md](./09-forensic-ai-privacy.md)
 - [App institution_ic_sp](./04-institution-ic-sp.md)
 - [Modelo de dados — ERD](./02-data-model.md)
 - [Mapa de apps](./03-apps-map.md)
