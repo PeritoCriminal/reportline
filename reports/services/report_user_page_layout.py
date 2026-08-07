@@ -2,7 +2,7 @@
 """
 Preferências de cabeçalho e rodapé por usuário.
 
-Persiste o último layout de faixas editado pelo usuário e reaplica
+Persiste layouts pessoais e institucionais separadamente e reaplica
 cópias em laudos novos, clonando imagens referenciadas quando necessário.
 """
 
@@ -100,34 +100,50 @@ def clone_page_layout_for_report(
     return normalized
 
 
+def _stored_bands_from_layout(page_layout: dict[str, Any] | None) -> dict[str, Any]:
+    """Extrai apenas cabeçalho e rodapé para persistência no perfil do usuário."""
+    normalized = normalize_page_layout(page_layout)
+    return {
+        "header": deepcopy(normalized["header"]),
+        "footer": deepcopy(normalized["footer"]),
+    }
+
+
+def _layout_has_enabled_bands(page_layout: dict[str, Any] | None) -> bool:
+    normalized = normalize_page_layout(page_layout)
+    return bool(
+        normalized["header"].get("enabled") or normalized["footer"].get("enabled")
+    )
+
+
 def sync_user_page_layout_preferences(
     user: AbstractBaseUser,
     page_layout: dict[str, Any] | None,
 ) -> None:
     """Atualiza cabeçalho e rodapé padrão do usuário a partir do laudo editado."""
+    config = get_or_create_user_config(user)
+    stored_bands = _stored_bands_from_layout(page_layout)
+
     if is_forensic_report_layout(page_layout):
+        config.institutional_page_layout = stored_bands
+        config.save(update_fields=["institutional_page_layout", "updated_at"])
         return
 
-    config = get_or_create_user_config(user)
-    normalized = normalize_page_layout(page_layout)
-    config.page_layout = {
-        "header": deepcopy(normalized["header"]),
-        "footer": deepcopy(normalized["footer"]),
-    }
-    config.save(update_fields=["page_layout", "updated_at"])
+    config.personal_page_layout = stored_bands
+    config.save(update_fields=["personal_page_layout", "updated_at"])
 
 
 def apply_user_page_layout_to_report(
     report: Report,
     user: AbstractBaseUser,
 ) -> Report:
-    """Copia cabeçalho e rodapé salvos nas preferências do usuário para o laudo."""
+    """Copia cabeçalho e rodapé pessoais salvos nas preferências do usuário para o laudo."""
     config = get_or_create_user_config(user)
-    if not config.page_layout:
+    if not config.personal_page_layout:
         return report
 
-    normalized = normalize_page_layout(config.page_layout)
-    if not normalized["header"].get("enabled") and not normalized["footer"].get("enabled"):
+    normalized = normalize_page_layout(config.personal_page_layout)
+    if not _layout_has_enabled_bands(normalized):
         return report
 
     report.page_layout = clone_page_layout_for_report(normalized, report)
@@ -135,9 +151,35 @@ def apply_user_page_layout_to_report(
     return report
 
 
-def user_page_layout_or_default(user: AbstractBaseUser) -> dict[str, Any]:
-    """Retorna layout de faixas padrão do usuário normalizado."""
+def merge_institutional_layout_with_user_preferences(
+    report: Report,
+    user: AbstractBaseUser,
+    fresh_layout: dict[str, Any],
+) -> dict[str, Any]:
+    """
+    Aplica preferências institucionais salvas sobre layout recém-gerado.
+
+    Preserva ``reportline_meta`` (incluindo snapshot oficial) do layout
+    institucional fresco, permitindo restauração sem afetar relatórios pessoais.
+    """
     config = get_or_create_user_config(user)
-    if not config.page_layout:
+    if not config.institutional_page_layout:
+        return fresh_layout
+
+    normalized = normalize_page_layout(config.institutional_page_layout)
+    if not _layout_has_enabled_bands(normalized):
+        return fresh_layout
+
+    user_bands = clone_page_layout_for_report(normalized, report)
+    merged = deepcopy(fresh_layout)
+    merged["header"] = user_bands["header"]
+    merged["footer"] = user_bands["footer"]
+    return merged
+
+
+def user_page_layout_or_default(user: AbstractBaseUser) -> dict[str, Any]:
+    """Retorna layout de faixas pessoais padrão do usuário normalizado."""
+    config = get_or_create_user_config(user)
+    if not config.personal_page_layout:
         return default_page_layout()
-    return normalize_page_layout(config.page_layout)
+    return normalize_page_layout(config.personal_page_layout)

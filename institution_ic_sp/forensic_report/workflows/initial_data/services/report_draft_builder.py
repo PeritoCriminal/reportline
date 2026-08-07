@@ -32,6 +32,9 @@ from institution_ic_sp.models import Institution
 from profiles.models import ForensicExaminerSP
 from reports.models import Report
 from reports.services.report_creation import create_report
+from reports.services.report_user_page_layout import (
+    merge_institutional_layout_with_user_preferences,
+)
 
 
 @transaction.atomic
@@ -51,14 +54,23 @@ def build_generic_forensic_report_draft(
     if institution is None:
         raise ValueError("Instituição IC-SP não cadastrada.")
 
-    report = create_report(author=author, title=metadata.list_title)
+    report = create_report(
+        author=author,
+        title=metadata.list_title,
+        apply_page_layout=False,
+    )
 
-    page_layout = build_institution_page_layout(
+    fresh_layout = build_institution_page_layout(
         report,
         institution=institution,
         examiner=examiner,
         workflow=INITIAL_DATA_WORKFLOW.slug,
         main_title_text=metadata.header_report_number_text,
+    )
+    page_layout = merge_institutional_layout_with_user_preferences(
+        report,
+        author,
+        fresh_layout,
     )
     report.page_layout = page_layout
     report.save(update_fields=["page_layout", "updated_at"])

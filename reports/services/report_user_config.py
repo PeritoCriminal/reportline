@@ -27,7 +27,12 @@ def get_or_create_user_config(user: AbstractBaseUser) -> ReportUserConfig:
     return config
 
 
-def apply_user_defaults_to_report(report: Report, user: AbstractBaseUser) -> Report:
+def apply_user_defaults_to_report(
+    report: Report,
+    user: AbstractBaseUser,
+    *,
+    apply_page_layout: bool = True,
+) -> Report:
     """Copia preferências do usuário para um laudo recém-criado."""
     config = get_or_create_user_config(user)
     report.number_headings = config.number_headings
@@ -41,9 +46,10 @@ def apply_user_defaults_to_report(report: Report, user: AbstractBaseUser) -> Rep
             "updated_at",
         ]
     )
-    from reports.services.report_user_page_layout import apply_user_page_layout_to_report
+    if apply_page_layout:
+        from reports.services.report_user_page_layout import apply_user_page_layout_to_report
 
-    apply_user_page_layout_to_report(report, user)
+        apply_user_page_layout_to_report(report, user)
     return report
 
 

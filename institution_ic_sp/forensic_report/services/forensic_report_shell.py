@@ -26,6 +26,9 @@ from institution_ic_sp.models import Institution
 from profiles.models import ForensicExaminerSP
 from reports.models import Report
 from reports.services.report_creation import create_report
+from reports.services.report_user_page_layout import (
+    merge_institutional_layout_with_user_preferences,
+)
 
 
 @transaction.atomic
@@ -52,13 +55,22 @@ def create_forensic_report_shell(
         examiner=(examiner.display_name or "").strip(),
     )
 
-    report = create_report(author=author, title=metadata.list_title)
-    page_layout = build_institution_page_layout(
+    report = create_report(
+        author=author,
+        title=metadata.list_title,
+        apply_page_layout=False,
+    )
+    fresh_layout = build_institution_page_layout(
         report,
         institution=institution,
         examiner=examiner,
         workflow=workflow_slug,
         main_title_text=metadata.header_report_number_text,
+    )
+    page_layout = merge_institutional_layout_with_user_preferences(
+        report,
+        author,
+        fresh_layout,
     )
     bootstrap = empty_bootstrap_payload(supplementary_prompt=supplementary_prompt)
     bootstrap["metadata"]["examiner"] = metadata.examiner

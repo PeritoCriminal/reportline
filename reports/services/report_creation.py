@@ -12,7 +12,12 @@ from reports.models import Report, ReportStatus
 from reports.services.report_user_config import apply_user_defaults_to_report
 
 
-def create_report(*, author: AbstractBaseUser, title: str) -> Report:
+def create_report(
+    *,
+    author: AbstractBaseUser,
+    title: str,
+    apply_page_layout: bool = True,
+) -> Report:
     """
     Cria relatório em rascunho vinculado ao autor informado.
 
@@ -25,5 +30,5 @@ def create_report(*, author: AbstractBaseUser, title: str) -> Report:
         title=title.strip(),
         status=ReportStatus.DRAFT,
     )
-    apply_user_defaults_to_report(report, author)
+    apply_user_defaults_to_report(report, author, apply_page_layout=apply_page_layout)
     return report

@@ -39,11 +39,23 @@ class ReportUserConfig(BaseModel):
         default=True,
         verbose_name="Recuar primeira linha",
     )
-    page_layout = models.JSONField(
+    personal_page_layout = models.JSONField(
         default=dict,
         blank=True,
-        verbose_name="Layout de página padrão",
-        help_text="Último cabeçalho e rodapé usados pelo usuário, aplicados a laudos novos.",
+        verbose_name="Layout de página pessoal",
+        help_text=(
+            "Último cabeçalho e rodapé de relatórios comuns editados pelo usuário, "
+            "aplicados a novos relatórios pessoais."
+        ),
+    )
+    institutional_page_layout = models.JSONField(
+        default=dict,
+        blank=True,
+        verbose_name="Layout de página institucional",
+        help_text=(
+            "Último cabeçalho e rodapé de laudos periciais editados pelo usuário, "
+            "aplicados a novos laudos institucionais."
+        ),
     )
 
     class Meta:

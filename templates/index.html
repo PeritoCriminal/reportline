@@ -11,22 +11,6 @@
 
 {% if user.is_authenticated %}
     <div class="row justify-content-center g-3 g-md-4">
-        {% if is_forensic_examiner_sp %}
-        <div class="col-md-6 col-lg-5 col-xl-4">
-            <a class="card border-secondary-subtle shadow-sm h-100 text-decoration-none report-home-card"
-               href="{% url 'institution_ic_sp:forensic_report:intake' %}">
-                <div class="card-body p-4 d-flex flex-column">
-                    <div class="mb-3">
-                        <i class="bi bi-file-earmark-medical fs-2 text-primary" aria-hidden="true"></i>
-                    </div>
-                    <h2 class="h5 text-body mb-2">Novo laudo pericial</h2>
-                    <p class="text-muted small mb-0 flex-grow-1">
-                        Gere um laudo com cabeçalho institucional e estrutura inicial a partir dos dados do caso.
-                    </p>
-                </div>
-            </a>
-        </div>
-        {% endif %}
         <div class="col-md-6 col-lg-5 col-xl-4">
             <a class="card border-secondary-subtle shadow-sm h-100 text-decoration-none report-home-card"
                href="{% url 'reports:list' %}">
@@ -42,18 +26,28 @@
             </a>
         </div>
         <div class="col-md-6 col-lg-5 col-xl-4">
-            <a class="card border-secondary-subtle shadow-sm h-100 text-decoration-none report-home-card"
-               href="{% url 'reports:new' %}">
+            <div class="card border-secondary-subtle shadow-sm h-100">
                 <div class="card-body p-4 d-flex flex-column">
                     <div class="mb-3">
                         <i class="bi bi-file-earmark-plus fs-2 text-primary" aria-hidden="true"></i>
                     </div>
-                    <h2 class="h5 text-body mb-2">Novo relatório</h2>
-                    <p class="text-muted small mb-0 flex-grow-1">
-                        Inicie um documento em branco e abra o editor para composição.
-                    </p>
+                    <h2 class="h5 text-body mb-3">Novo relatório</h2>
+                    <div class="list-group list-group-flush border rounded flex-grow-1">
+                        {% for option in home_new_report_options %}
+                            <a class="list-group-item list-group-item-action report-home-option"
+                               href="{{ option.url }}">
+                                <div class="d-flex align-items-center justify-content-between gap-2">
+                                    <div class="min-w-0">
+                                        <span class="fw-semibold">{{ option.title }}</span>
+                                        <span class="text-muted"> — {{ option.subtitle }}</span>
+                                    </div>
+                                    <i class="bi bi-chevron-right text-muted flex-shrink-0" aria-hidden="true"></i>
+                                </div>
+                            </a>
+                        {% endfor %}
+                    </div>
                 </div>
-            </a>
+            </div>
         </div>
     </div>
 {% else %}
@@ -73,6 +67,10 @@
     .report-home-card:focus-visible {
         transform: translateY(-2px);
         box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.12) !important;
+    }
+
+    .report-home-option {
+        transition: background-color 0.15s ease;
     }
 </style>
 {% endblock %}

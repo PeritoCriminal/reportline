@@ -23,6 +23,7 @@ from reports.services.report_user_config import get_or_create_user_config
 from reports.services.report_user_page_layout import (
     apply_user_page_layout_to_report,
     clone_page_layout_for_report,
+    merge_institutional_layout_with_user_preferences,
     sync_user_page_layout_preferences,
 )
 
@@ -45,8 +46,8 @@ class ReportUserPageLayoutTests(TestCase):
         buffer.seek(0)
         return SimpleUploadedFile("logo.jpg", buffer.read(), content_type="image/jpeg")
 
-    def test_sync_user_page_layout_preferences_stores_bands(self):
-        """Garante cópia de cabeçalho e rodapé para preferências do usuário."""
+    def test_sync_user_page_layout_preferences_stores_personal_bands(self):
+        """Garante cópia de cabeçalho e rodapé pessoais para preferências do usuário."""
         report = Report.objects.create(author=self.author, title="Origem")
         layout = apply_header_template(report.page_layout, HEADER_TEMPLATE_LOGO_LEFT_TEXT_RIGHT)
         layout = apply_footer_template(layout, FOOTER_TEMPLATE_TEXT_ONLY)
@@ -56,22 +57,22 @@ class ReportUserPageLayoutTests(TestCase):
         sync_user_page_layout_preferences(self.author, layout)
 
         user_config = ReportUserConfig.objects.get(user=self.author)
-        self.assertTrue(user_config.page_layout["header"]["enabled"])
-        self.assertTrue(user_config.page_layout["footer"]["enabled"])
+        self.assertTrue(user_config.personal_page_layout["header"]["enabled"])
+        self.assertTrue(user_config.personal_page_layout["footer"]["enabled"])
         self.assertEqual(
-            user_config.page_layout["header"]["cells"][1]["text"],
+            user_config.personal_page_layout["header"]["cells"][1]["text"],
             "Instituto de Criminalística",
         )
         self.assertEqual(
-            user_config.page_layout["footer"]["cells"][0]["text"],
+            user_config.personal_page_layout["footer"]["cells"][0]["text"],
             "Página",
         )
 
-    def test_sync_user_page_layout_skips_forensic_reports(self):
-        """Garante que laudos periciais não alterem preferências de faixas do usuário."""
+    def test_sync_user_page_layout_stores_forensic_in_institutional_bucket(self):
+        """Garante que laudos periciais atualizem preferências institucionais."""
         user_config = get_or_create_user_config(self.author)
-        user_config.page_layout = apply_footer_template({}, FOOTER_TEMPLATE_TEXT_ONLY)
-        user_config.page_layout["footer"]["cells"][0]["text"] = "Preferência anterior"
+        user_config.personal_page_layout = apply_footer_template({}, FOOTER_TEMPLATE_TEXT_ONLY)
+        user_config.personal_page_layout["footer"]["cells"][0]["text"] = "Rodapé pessoal"
         user_config.save()
 
         layout = apply_footer_template({}, FOOTER_TEMPLATE_TEXT_ONLY)
@@ -82,18 +83,22 @@ class ReportUserPageLayoutTests(TestCase):
 
         user_config.refresh_from_db()
         self.assertEqual(
-            user_config.page_layout["footer"]["cells"][0]["text"],
-            "Preferência anterior",
+            user_config.personal_page_layout["footer"]["cells"][0]["text"],
+            "Rodapé pessoal",
+        )
+        self.assertEqual(
+            user_config.institutional_page_layout["footer"]["cells"][0]["text"],
+            "Rodapé pericial",
         )
 
-    def test_create_report_applies_saved_page_layout(self):
-        """Garante que laudo novo recebe último cabeçalho e rodapé do usuário."""
+    def test_create_report_applies_saved_personal_page_layout(self):
+        """Garante que laudo pessoal novo recebe último cabeçalho e rodapé do usuário."""
         user_config = get_or_create_user_config(self.author)
-        user_config.page_layout = apply_footer_template(
+        user_config.personal_page_layout = apply_footer_template(
             apply_header_template({}, HEADER_TEMPLATE_LOGO_LEFT_TEXT_RIGHT),
             FOOTER_TEMPLATE_TEXT_ONLY,
         )
-        user_config.page_layout["header"]["cells"][1]["text"] = "IC-SP"
+        user_config.personal_page_layout["header"]["cells"][1]["text"] = "IC-SP"
         user_config.save()
 
         report = create_report(author=self.author, title="Novo laudo")
@@ -101,6 +106,37 @@ class ReportUserPageLayoutTests(TestCase):
         self.assertTrue(report.page_layout["header"]["enabled"])
         self.assertTrue(report.page_layout["footer"]["enabled"])
         self.assertEqual(report.page_layout["header"]["cells"][1]["text"], "IC-SP")
+
+    def test_merge_institutional_layout_with_user_preferences_preserves_snapshot(self):
+        """Garante aplicação de preferências institucionais sem alterar snapshot oficial."""
+        user_config = get_or_create_user_config(self.author)
+        user_config.institutional_page_layout = apply_footer_template(
+            apply_header_template({}, HEADER_TEMPLATE_LOGO_LEFT_TEXT_RIGHT),
+            FOOTER_TEMPLATE_TEXT_ONLY,
+        )
+        user_config.institutional_page_layout["header"]["cells"][1]["text"] = "Cabeçalho salvo"
+        user_config.save()
+
+        report = Report.objects.create(author=self.author, title="Laudo pericial")
+        fresh_layout = apply_header_template({}, HEADER_TEMPLATE_LOGO_LEFT_TEXT_RIGHT)
+        fresh_layout.update(forensic_report_meta(workflow="generic"))
+        fresh_layout["header"]["cells"][1]["text"] = "Cabeçalho oficial"
+        fresh_layout["reportline_meta"]["institutional_page_layout_snapshot"] = {
+            "header": fresh_layout["header"],
+            "footer": fresh_layout["footer"],
+        }
+
+        merged = merge_institutional_layout_with_user_preferences(
+            report,
+            self.author,
+            fresh_layout,
+        )
+
+        self.assertEqual(merged["header"]["cells"][1]["text"], "Cabeçalho salvo")
+        self.assertEqual(
+            merged["reportline_meta"]["institutional_page_layout_snapshot"]["header"]["cells"][1]["text"],
+            "Cabeçalho oficial",
+        )
 
     def test_clone_page_layout_for_report_duplicates_logo_images(self):
         """Garante clonagem de imagens de logo ao aplicar layout em laudo novo."""
@@ -128,11 +164,11 @@ class ReportUserPageLayoutTests(TestCase):
         self.assertEqual(cloned_image.report_id, target_report.pk)
         self.assertTrue(cloned_image.image.name)
 
-    def test_apply_user_page_layout_to_report_uses_preferences(self):
-        """Garante serviço de aplicação direta das preferências no laudo."""
+    def test_apply_user_page_layout_to_report_uses_personal_preferences(self):
+        """Garante serviço de aplicação direta das preferências pessoais no laudo."""
         user_config = get_or_create_user_config(self.author)
-        user_config.page_layout = apply_footer_template({}, FOOTER_TEMPLATE_TEXT_ONLY)
-        user_config.page_layout["footer"]["cells"][0]["text"] = "Rodapé padrão"
+        user_config.personal_page_layout = apply_footer_template({}, FOOTER_TEMPLATE_TEXT_ONLY)
+        user_config.personal_page_layout["footer"]["cells"][0]["text"] = "Rodapé padrão"
         user_config.save()
 
         report = Report.objects.create(author=self.author, title="Sem layout")
