@@ -1,3 +1,4 @@
+# reportline/reports/tests/test_report_table_display_width.py
 """Testes de largura de exibição de tabelas no editor."""
 
 from django.core.exceptions import ValidationError

@@ -1,3 +1,4 @@
+# reportline/common/user_messages.py
 """
 API centralizada de mensagens flash ao usuário do ReportLine.
 

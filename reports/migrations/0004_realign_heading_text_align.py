@@ -1,3 +1,4 @@
+# reportline/reports/migrations/0004_realign_heading_text_align.py
 """Corrige alinhamento de títulos conforme numeração (principal centralizado)."""
 
 from django.db import migrations

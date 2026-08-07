@@ -1,3 +1,4 @@
+# reportline/reports/tests/test_report_image_processing.py
 """
 Testes de redimensionamento de imagens para blocos de relatório.
 """

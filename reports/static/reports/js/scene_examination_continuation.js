@@ -1,3 +1,4 @@
+// reportline/reports/static/reports/js/scene_examination_continuation.js
 /**
  * Continuação de exame de local no editor após análise documental.
  *

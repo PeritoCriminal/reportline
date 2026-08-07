@@ -1,3 +1,4 @@
+# reportline/profiles/tests/test_forensic_examiner_external_ai.py
 """
 Testes da permissão de envio de imagens à IA externa no perfil do perito.
 """

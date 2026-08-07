@@ -1,3 +1,4 @@
+# reportline/reports/models/report.py
 """
 Model de relatório modular do ReportLine.
 

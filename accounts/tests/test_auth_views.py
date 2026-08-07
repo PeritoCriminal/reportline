@@ -1,3 +1,4 @@
+# reportline/accounts/tests/test_auth_views.py
 """
 Testes das views de autenticação do app accounts.
 """

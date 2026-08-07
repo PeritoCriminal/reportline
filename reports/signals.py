@@ -1,3 +1,4 @@
+# reportline/reports/signals.py
 """
 Sinais do app reports.
 

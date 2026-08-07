@@ -1,3 +1,4 @@
+// reportline/reports/static/reports/js/report_outline_sync.js
 /**
  * Sincronização assíncrona do sumário lateral com o documento em edição.
  */

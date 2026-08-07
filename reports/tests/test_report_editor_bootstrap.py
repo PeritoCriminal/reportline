@@ -1,3 +1,4 @@
+# reportline/reports/tests/test_report_editor_bootstrap.py
 """
 Testes do bootstrap inicial do editor de relatório.
 """

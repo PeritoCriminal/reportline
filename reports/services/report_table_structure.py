@@ -1,3 +1,4 @@
+# reportline/reports/services/report_table_structure.py
 """
 Operações estruturais em tabelas do editor (linhas e colunas).
 

@@ -1,3 +1,4 @@
+# reportline/common/privacy/exceptions.py
 """
 Exceções do pipeline de sanitização para IA externa.
 """

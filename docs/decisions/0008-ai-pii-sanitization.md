@@ -1,3 +1,4 @@
+# reportline/docs/decisions/0008-ai-pii-sanitization.md
 # ADR-0008: Sanitização local de PII antes de APIs externas de IA
 
 **Status:** ✅ Aceito  

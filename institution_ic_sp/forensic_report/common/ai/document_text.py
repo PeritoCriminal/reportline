@@ -1,3 +1,4 @@
+# reportline/institution_ic_sp/forensic_report/common/ai/document_text.py
 """
 Extração de texto de documentos enviados no intake, em memória.
 

@@ -1,3 +1,4 @@
+# reportline/.cursor/rules/django-templates.mdc
 ---
 description: Padrões de templates Django — comentários e textos em português
 globs: **/templates/**/*.html

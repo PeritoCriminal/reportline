@@ -1,3 +1,4 @@
+{# reportline/templates/includes/confirm_action_button.html #}
 {# Botão de ação com confirmação via modal global. Deve estar dentro de um form POST com csrf_token. #}
 <button type="button"
         class="btn btn-{{ variant|default:'danger' }}{% if extra_class %} {{ extra_class }}{% endif %}"

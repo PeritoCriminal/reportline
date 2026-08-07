@@ -1,3 +1,4 @@
+# reportline/docs/decisions/0007-forensic-examiner-sp.md
 # ADR-0007: Perfil do perito criminal (SP) — `ForensicExaminerSP`
 
 **Status:** ✅ Aceito  

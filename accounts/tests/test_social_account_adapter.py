@@ -1,3 +1,4 @@
+# reportline/accounts/tests/test_social_account_adapter.py
 """
 Testes do adapter social django-allauth do app accounts.
 """

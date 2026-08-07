@@ -1,3 +1,4 @@
+# reportline/reports/migrations/0003_reportblock_text_align.py
 """Adiciona alinhamento de texto aos blocos de relatório."""
 
 from django.db import migrations, models

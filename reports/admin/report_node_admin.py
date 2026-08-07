@@ -1,3 +1,4 @@
+# reportline/reports/admin/report_node_admin.py
 """Registrador administrativo de nós na árvore de relatório."""
 
 from django.contrib import admin

@@ -1,3 +1,4 @@
+# reportline/docs/architecture/04-institution-ic-sp.md
 # App `institution_ic_sp` — Dados institucionais provisórios
 
 Cadastro local da estrutura organizacional do **Instituto de Criminalística de

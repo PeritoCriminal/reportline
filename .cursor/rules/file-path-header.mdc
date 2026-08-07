@@ -1,0 +1,33 @@
+# reportline/.cursor/rules/file-path-header.mdc
+---
+description: Comentário de path na primeira linha de todo arquivo de texto
+alwaysApply: true
+---
+
+# Header de path do arquivo
+
+Todo arquivo de texto do repositório deve ter, na **primeira linha**, um comentário com o path completo a partir da raiz (`reportline/...`).
+
+## Formato por extensão
+
+| Extensão / tipo | Sintaxe | Exemplo |
+|---|---|---|
+| `.py`, `.md`, `.mdc`, `.txt`, `.sh`, `.yml`, `.po`, `.example` | `#` | `# reportline/accounts/views/auth_views.py` |
+| `.html` (templates Django) | `{# #}` | `{# reportline/templates/base.html #}` |
+| `.js` | `//` | `// reportline/reports/static/reports/js/report_editor.js` |
+| `.css` | `/* */` | `/* reportline/reports/static/reports/css/editor.css */` |
+| `.sql` | `--` | `-- reportline/scripts/init.sql` |
+
+Priorizar sintaxe **server-side** e oculta no frontend quando possível. Arquivos sem comentários nativos (`.json`, `.mo`, binários) ficam de fora.
+
+## Exceções
+
+- **Shebang** (`#!/usr/bin/env python`): o header de path vem na **segunda linha**.
+- Arquivos **novos** criados pelo agente devem incluir o header desde o início.
+- Para backfill em lote: `python scripts/add_path_headers.py`.
+
+## Proibido
+
+- `<!-- -->` em templates Django (usar `{# #}`).
+- Path relativo sem o prefixo `reportline/`.
+- Duplicar o header se o arquivo já tiver a linha.

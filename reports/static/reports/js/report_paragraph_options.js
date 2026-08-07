@@ -1,3 +1,4 @@
+// reportline/reports/static/reports/js/report_paragraph_options.js
 /**
  * Menu de opções do parágrafo selecionado no editor (recuo).
  */

@@ -1,3 +1,4 @@
+# reportline/common/templatetags/versioned_static.py
 """
 Tags de template para arquivos estáticos com invalidação de cache em DEBUG.
 """

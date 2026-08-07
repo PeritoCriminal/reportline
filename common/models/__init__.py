@@ -1,3 +1,4 @@
+# reportline/common/models/__init__.py
 """Models compartilhados do app common."""
 
 from .ai_sanitization_audit import AiSanitizationAudit

@@ -1,3 +1,4 @@
+# reportline/reports/migrations/0006_report_page_layout.py
 """Adiciona layout de página (cabeçalho) ao relatório."""
 
 from django.db import migrations, models

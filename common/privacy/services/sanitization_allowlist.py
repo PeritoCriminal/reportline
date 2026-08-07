@@ -1,3 +1,4 @@
+# reportline/common/privacy/services/sanitization_allowlist.py
 """
 Utilitários de allowlist para preservar termos durante sanitização Presidio.
 """

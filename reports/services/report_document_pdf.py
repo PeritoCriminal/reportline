@@ -1,3 +1,4 @@
+# reportline/reports/services/report_document_pdf.py
 """
 Geração de PDF do laudo via Playwright + Chromium.
 

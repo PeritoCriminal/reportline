@@ -1,3 +1,4 @@
+# reportline/common/file_fields.py
 """
 Utilitários para limpeza de arquivos substituídos em FileField/ImageField.
 

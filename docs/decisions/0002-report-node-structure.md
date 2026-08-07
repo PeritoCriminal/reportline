@@ -1,3 +1,4 @@
+# reportline/docs/decisions/0002-report-node-structure.md
 # ADR-0002: Estrutura modular de relatório (Report → ReportNode → ReportBlock)
 
 **Status:** ✅ Aceito  

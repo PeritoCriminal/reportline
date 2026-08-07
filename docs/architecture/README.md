@@ -1,3 +1,4 @@
+# reportline/docs/architecture/README.md
 # Documentação de Arquitetura — ReportLine
 
 Este diretório concentra a **documentação técnica em desenho** do ReportLine.

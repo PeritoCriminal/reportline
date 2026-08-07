@@ -1,3 +1,4 @@
+# reportline/reports/services/report_editor_bootstrap.py
 """
 Bootstrap inicial do editor de relatório.
 

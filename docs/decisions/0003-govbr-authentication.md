@@ -1,3 +1,4 @@
+# reportline/docs/decisions/0003-govbr-authentication.md
 # ADR-0003: Estratégia de autenticação em fases (local → Google → gov.br)
 
 **Status:** 🟡 Proposto (fases 0 e 1 implementadas)  

@@ -1,3 +1,4 @@
+# reportline/reports/views/report_image_api_views.py
 """
 View JSON para upload de imagens no editor de relatório.
 """

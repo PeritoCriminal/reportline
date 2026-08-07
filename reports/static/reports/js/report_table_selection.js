@@ -1,3 +1,4 @@
+// reportline/reports/static/reports/js/report_table_selection.js
 /**
  * Seleção múltipla de células em tabelas do editor.
  *

@@ -1,3 +1,4 @@
+# reportline/accounts/adapters/custom_social_account_adapter.py
 """
 Adapter django-allauth para login social OAuth.
 

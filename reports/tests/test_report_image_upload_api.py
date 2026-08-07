@@ -1,3 +1,4 @@
+# reportline/reports/tests/test_report_image_upload_api.py
 """
 Testes do endpoint de upload de imagens do editor.
 """

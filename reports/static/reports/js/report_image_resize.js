@@ -1,3 +1,4 @@
+// reportline/reports/static/reports/js/report_image_resize.js
 /**
  * Redimensionamento interativo de imagens no editor via alças nos cantos.
  *

@@ -1,3 +1,4 @@
+# reportline/accounts/views/auth_views.py
 """
 Views de autenticação do app accounts.
 

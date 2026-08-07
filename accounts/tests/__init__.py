@@ -1,3 +1,4 @@
+# reportline/accounts/tests/__init__.py
 """
 Pacote de testes do app accounts.
 

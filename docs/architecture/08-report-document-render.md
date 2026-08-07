@@ -1,3 +1,4 @@
+# reportline/docs/architecture/08-report-document-render.md
 # Renderização de documento — HTML paginado e PDF
 
 Pipeline de **visualização de leitura** e **exportação PDF** do laudo,

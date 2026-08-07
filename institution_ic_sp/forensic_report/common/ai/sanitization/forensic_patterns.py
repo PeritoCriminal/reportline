@@ -1,3 +1,4 @@
+# reportline/institution_ic_sp/forensic_report/common/ai/sanitization/forensic_patterns.py
 """
 Padrões regex de documentos periciais e policiais (IC-SP).
 """

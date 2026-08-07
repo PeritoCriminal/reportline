@@ -1,3 +1,4 @@
+# reportline/reports/services/report_block_image_cleanup.py
 """
 Serviço de limpeza de imagens referenciadas em blocos de relatório.
 """

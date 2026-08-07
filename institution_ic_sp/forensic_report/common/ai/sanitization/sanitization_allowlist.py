@@ -1,3 +1,4 @@
+# reportline/institution_ic_sp/forensic_report/common/ai/sanitization/sanitization_allowlist.py
 """
 Termos institucionais preservados na sanitização pericial para IA externa.
 """

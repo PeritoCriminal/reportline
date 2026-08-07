@@ -1,3 +1,4 @@
+# reportline/institution_ic_sp/forensic_report/common/ai/client.py
 """
 Cliente fino para chamadas JSON à API OpenAI no fluxo de laudo pericial.
 """

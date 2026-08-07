@@ -1,3 +1,4 @@
+// reportline/reports/static/reports/js/report_page_band_text.js
 /**
  * Recuo e campos compartilhados de células de texto em cabeçalho/rodapé.
  */

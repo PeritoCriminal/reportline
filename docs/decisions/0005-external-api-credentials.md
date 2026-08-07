@@ -1,3 +1,4 @@
+# reportline/docs/decisions/0005-external-api-credentials.md
 # ADR-0005: Credenciais de APIs externas (pessoais vs institucionais)
 
 **Status:** ✅ Aceito  

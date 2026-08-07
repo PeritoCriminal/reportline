@@ -1,3 +1,4 @@
+# reportline/reports/tests/test_report_page_layout_image_cleanup.py
 """Testes de limpeza de imagens do layout de página (cabeçalho e rodapé)."""
 
 from io import BytesIO

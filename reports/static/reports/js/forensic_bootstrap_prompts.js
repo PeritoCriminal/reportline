@@ -1,3 +1,4 @@
+// reportline/reports/static/reports/js/forensic_bootstrap_prompts.js
 /**
  * Prompts inline do bootstrap pericial no editor de laudos.
  *

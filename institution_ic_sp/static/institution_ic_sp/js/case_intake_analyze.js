@@ -1,3 +1,4 @@
+// reportline/institution_ic_sp/static/institution_ic_sp/js/case_intake_analyze.js
 /**
  * Análise documental no intake comum de laudo pericial.
  *

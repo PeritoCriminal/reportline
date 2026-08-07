@@ -1,3 +1,4 @@
+# reportline/docs/decisions/README.md
 # Architecture Decision Records (ADRs)
 
 Registro de decisões arquiteturais do ReportLine. Cada ADR documenta o

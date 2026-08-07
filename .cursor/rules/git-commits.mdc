@@ -1,3 +1,4 @@
+# reportline/.cursor/rules/git-commits.mdc
 ---
 description: Commits sempre em português, detalhados e descritivos
 alwaysApply: true

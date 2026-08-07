@@ -1,3 +1,4 @@
+// reportline/reports/static/reports/js/report_block_navigation.js
 /**
  * Navegação entre blocos de texto do editor com as setas do teclado.
  *

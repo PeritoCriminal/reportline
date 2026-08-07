@@ -1,3 +1,4 @@
+// reportline/reports/static/reports/js/report_inline_text.js
 /**
  * Sanitização e utilitários de HTML inline no editor.
  */

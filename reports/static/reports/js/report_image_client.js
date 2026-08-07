@@ -1,3 +1,4 @@
+// reportline/reports/static/reports/js/report_image_client.js
 /**
  * Preparação leve de imagem no cliente e upload compartilhado.
  *

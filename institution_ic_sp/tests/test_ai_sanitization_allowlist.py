@@ -1,3 +1,4 @@
+# reportline/institution_ic_sp/tests/test_ai_sanitization_allowlist.py
 """
 Testes da allowlist de termos preservados na sanitização para IA externa.
 """

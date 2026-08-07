@@ -1,3 +1,4 @@
+# reportline/profiles/admin/__init__.py
 """Registradores do Django Admin do app profiles."""
 
 from profiles.admin.forensic_examiner_sp_admin import ForensicExaminerSPAdmin

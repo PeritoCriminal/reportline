@@ -1,3 +1,4 @@
+# reportline/institution_ic_sp/forensic_report/mixins.py
 """
 Mixin de autorização para views restritas a ForensicExaminerSP.
 """

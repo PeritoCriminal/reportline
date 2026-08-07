@@ -1,3 +1,4 @@
+# reportline/common/tests/test_admin_site.py
 """
 Testes de branding e templates do Django Admin do ReportLine.
 """

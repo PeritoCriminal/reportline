@@ -1,3 +1,4 @@
+// reportline/reports/static/reports/js/report_document_pagination.js
 /**
  * Paginação client-side do preview de leitura do laudo.
  *

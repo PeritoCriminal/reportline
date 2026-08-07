@@ -1,3 +1,4 @@
+// reportline/reports/static/reports/js/report_config.js
 /**
  * Modal de configuração do laudo (numeração e recuo).
  */

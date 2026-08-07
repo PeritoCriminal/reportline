@@ -1,3 +1,4 @@
+// reportline/reports/static/reports/js/report_editor_dev_ipsum.js
 /**
  * Atalho de desenvolvimento para preencher parágrafos vazios com lorem ipsum.
  *

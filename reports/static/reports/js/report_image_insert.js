@@ -1,3 +1,4 @@
+// reportline/reports/static/reports/js/report_image_insert.js
 /**
  * Seleção de arquivo e upload de imagem para inserção no editor.
  */

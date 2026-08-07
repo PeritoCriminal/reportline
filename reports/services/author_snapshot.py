@@ -1,3 +1,4 @@
+# reportline/reports/services/author_snapshot.py
 """
 Utilitários de snapshot do autor em relatórios.
 

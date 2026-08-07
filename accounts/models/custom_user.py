@@ -1,3 +1,4 @@
+# reportline/accounts/models/custom_user.py
 """
 Model de usuário personalizado do app accounts.
 

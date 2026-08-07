@@ -1,3 +1,4 @@
+# reportline/reports/services/report_block_sequence.py
 """
 Regras de sequência de blocos no editor interativo.
 

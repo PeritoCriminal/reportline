@@ -1,3 +1,4 @@
+# reportline/institution_ic_sp/forensic_report/common/ai/structured_output.py
 """
 Conversão de JSON inferido pela IA para ``CaseMetadata``.
 """

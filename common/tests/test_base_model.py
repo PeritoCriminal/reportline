@@ -1,3 +1,4 @@
+# reportline/common/tests/test_base_model.py
 """
 Testes do BaseModel e regras de identificação e auditoria temporal.
 """

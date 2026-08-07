@@ -1,3 +1,4 @@
+// reportline/reports/static/reports/js/report_table_clipboard.js
 /**
  * Copiar e colar células de tabela (estilo planilha).
  *

@@ -1,3 +1,4 @@
+// reportline/reports/static/reports/js/report_table_insert.js
 /**
  * Modal interativo para escolher dimensões da tabela antes da inserção.
  */

@@ -1,3 +1,4 @@
+# reportline/reports/templatetags/report_inline_text.py
 """Filtros de template para exibição segura de texto inline formatado."""
 
 from django import template

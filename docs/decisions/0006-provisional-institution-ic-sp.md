@@ -1,3 +1,4 @@
+# reportline/docs/decisions/0006-provisional-institution-ic-sp.md
 # ADR-0006: App provisório de dados institucionais do IC-SP
 
 **Status:** ✅ Aceito  

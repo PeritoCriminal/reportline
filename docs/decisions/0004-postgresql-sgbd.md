@@ -1,3 +1,4 @@
+# reportline/docs/decisions/0004-postgresql-sgbd.md
 # ADR-0004: PostgreSQL como SGBD padrão do projeto
 
 **Status:** ✅ Aceito  

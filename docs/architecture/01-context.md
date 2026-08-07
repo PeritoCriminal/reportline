@@ -1,3 +1,4 @@
+# reportline/docs/architecture/01-context.md
 # Contexto do Sistema
 
 Visão de alto nível do ReportLine: propósito, atores e containers principais.

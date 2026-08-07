@@ -1,3 +1,4 @@
+# reportline/institution_ic_sp/forensic_report/services/forensic_bootstrap_finalize.py
 """
 Finalização em lote dos prompts inline do bootstrap pericial.
 

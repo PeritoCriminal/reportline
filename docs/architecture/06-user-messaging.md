@@ -1,3 +1,4 @@
+# reportline/docs/architecture/06-user-messaging.md
 # Mensagens ao usuário — padrão transversal
 
 Convenção centralizada de **feedback visual** ao usuário final do ReportLine: mensagens

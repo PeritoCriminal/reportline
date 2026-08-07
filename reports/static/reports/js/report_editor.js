@@ -1,3 +1,4 @@
+// reportline/reports/static/reports/js/report_editor.js
 /**
  * Editor interativo de relatórios modulares.
  *

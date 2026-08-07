@@ -1,3 +1,4 @@
+# reportline/common/privacy/services/audit.py
 """
 Persistência de auditoria do pipeline de sanitização para IA externa.
 """

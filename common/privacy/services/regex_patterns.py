@@ -1,3 +1,4 @@
+# reportline/common/privacy/services/regex_patterns.py
 """
 Padrões regex genéricos de PII para sanitização local.
 """

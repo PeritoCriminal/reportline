@@ -1,3 +1,4 @@
+// reportline/reports/static/reports/js/report_image_options.js
 /**
  * Menu de opções da imagem selecionada no editor (alinhamento e legenda).
  */

@@ -1,3 +1,4 @@
+# reportline/reports/services/report_page_layout_image_cleanup.py
 """
 Limpeza de imagens referenciadas no layout de página (cabeçalho e rodapé).
 """

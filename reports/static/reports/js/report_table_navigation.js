@@ -1,3 +1,4 @@
+// reportline/reports/static/reports/js/report_table_navigation.js
 /**
  * Navegação entre células de tabela com as setas do teclado.
  *

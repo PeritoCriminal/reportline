@@ -1,3 +1,4 @@
+# reportline/reports/services/report_inline_text.py
 """
 Sanitização de HTML inline para campos de texto editáveis.
 

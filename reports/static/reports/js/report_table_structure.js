@@ -1,3 +1,4 @@
+// reportline/reports/static/reports/js/report_table_structure.js
 /**
  * Inserção e exclusão de linhas/colunas em tabelas do editor.
  */

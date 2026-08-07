@@ -1,3 +1,4 @@
+# reportline/common/apps.py
 """Configuração do app common."""
 
 from django.apps import AppConfig

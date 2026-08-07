@@ -1,3 +1,4 @@
+# reportline/institution_ic_sp/forensic_report/common/services/case_metadata_serialization.py
 """
 Conversão entre ``CaseMetadata`` e estruturas usadas no intake HTTP.
 """

@@ -1,3 +1,4 @@
+# reportline/common/privacy/services/analyzer_registry.py
 """
 Registro lazy do engine Presidio — carregado uma vez por processo worker.
 """

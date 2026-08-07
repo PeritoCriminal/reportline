@@ -1,3 +1,4 @@
+# reportline/docs/architecture/07-reports.md
 # App `reports` — Relatórios modulares
 
 Composição de **relatórios genéricos** por árvore de nós e blocos de conteúdo

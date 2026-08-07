@@ -1,3 +1,4 @@
+# reportline/docs/decisions/0001-custom-user-uuid.md
 # ADR-0001: CustomUser com chave primária UUID
 
 **Status:** ✅ Aceito  

@@ -1,3 +1,4 @@
+# reportline/institution_ic_sp/forensic_report/workflows/initial_data/ai/prompts/metadata_extraction/user.md
 Extraia metadados administrativos dos trechos abaixo e devolva JSON conforme o schema.
 
 Identifique o tipo de cada documento (Requisição, Minuta, Boletim de Ocorrência, Inquérito Policial, Memorando/Ofício, Laudo Pericial, Laudo Necroscópico, Oitivas) antes de preencher os campos.

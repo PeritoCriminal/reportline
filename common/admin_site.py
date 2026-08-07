@@ -1,3 +1,4 @@
+# reportline/common/admin_site.py
 """
 Configuração de branding e textos do Django Admin do ReportLine.
 """

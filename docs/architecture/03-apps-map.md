@@ -1,3 +1,4 @@
+# reportline/docs/architecture/03-apps-map.md
 # Mapa de Apps Django
 
 Organização modular prevista para o ReportLine. Cada app representa um

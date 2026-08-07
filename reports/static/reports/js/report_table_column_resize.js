@@ -1,3 +1,4 @@
+// reportline/reports/static/reports/js/report_table_column_resize.js
 /**
  * Redimensionamento interativo de colunas em tabelas do editor.
  */

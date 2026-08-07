@@ -1,3 +1,4 @@
+// reportline/reports/static/reports/js/report_text_link.js
 /**
  * Inserção de link inline em texto selecionado no editor.
  */

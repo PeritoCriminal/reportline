@@ -1,3 +1,4 @@
+# reportline/.cursor/rules/testing-standards.mdc
 ---
 description: Testes unitários obrigatórios para regras e comportamentos novos
 globs: **/test*.py,**/tests.py,**/tests/**/*.py

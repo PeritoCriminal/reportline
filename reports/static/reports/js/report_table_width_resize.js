@@ -1,3 +1,4 @@
+// reportline/reports/static/reports/js/report_table_width_resize.js
 /**
  * Redimensionamento da largura total da tabela pelas bordas externas.
  *

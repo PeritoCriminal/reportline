@@ -1,3 +1,4 @@
+# reportline/reports/services/report_table_cell_content.py
 """
 Normalização de conteúdo de células de tabela.
 

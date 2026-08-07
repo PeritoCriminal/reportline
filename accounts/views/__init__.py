@@ -1,3 +1,4 @@
+# reportline/accounts/views/__init__.py
 """
 Pacote de views do app accounts.
 

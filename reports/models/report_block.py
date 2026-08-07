@@ -1,3 +1,4 @@
+# reportline/reports/models/report_block.py
 """
 Model de bloco genérico de conteúdo de relatório.
 

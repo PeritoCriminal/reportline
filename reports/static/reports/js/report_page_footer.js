@@ -1,3 +1,4 @@
+// reportline/reports/static/reports/js/report_page_footer.js
 /**
  * Rodapé de página do relatório (modelos, imagens, texto e numeração).
  */

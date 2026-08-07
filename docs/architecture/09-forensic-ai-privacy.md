@@ -1,3 +1,4 @@
+# reportline/docs/architecture/09-forensic-ai-privacy.md
 # Laudo pericial — IA externa e privacidade (PII)
 
 Fluxo de **sanitização local** antes do envio de conteúdo à OpenAI, auditoria

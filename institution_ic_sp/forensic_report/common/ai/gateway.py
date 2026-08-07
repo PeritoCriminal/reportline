@@ -1,3 +1,4 @@
+# reportline/institution_ic_sp/forensic_report/common/ai/gateway.py
 """
 Porta de saída única para IA externa — sempre com sanitização local de PII.
 """

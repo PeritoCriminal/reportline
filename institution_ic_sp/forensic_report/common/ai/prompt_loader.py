@@ -1,3 +1,4 @@
+# reportline/institution_ic_sp/forensic_report/common/ai/prompt_loader.py
 """
 Carregamento e composição de prompts de IA por workflow e tarefa.
 """

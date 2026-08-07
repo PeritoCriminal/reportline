@@ -1,3 +1,4 @@
+# reportline/institution_ic_sp/forensic_report/workflows/property_crime/ai/writing_style/characteristics.md
 # Biblioteca de Estilo – Características do Local
 
 Os textos abaixo constituem exemplos fictícios elaborados exclusivamente para servir como referência de estilo para a redação da seção **Características do Local**.

@@ -1,3 +1,4 @@
+// reportline/reports/static/reports/js/report_outline_dnd.js
 /**
  * Reordenação por arrastar e soltar no sumário do editor de relatórios.
  */

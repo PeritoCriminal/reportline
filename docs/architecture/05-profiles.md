@@ -1,3 +1,4 @@
+# reportline/docs/architecture/05-profiles.md
 # App `profiles` — Perfil do perito criminal (SP)
 
 Cadastro do **perfil profissional** do perito criminalístico de São Paulo:

@@ -1,3 +1,4 @@
+# reportline/common/privacy/dataclasses.py
 """
 Estruturas de dados do pipeline de sanitização de PII.
 """

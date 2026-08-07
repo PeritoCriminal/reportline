@@ -1,3 +1,4 @@
+# reportline/docs/runbook_pdf.md
 # Runbook — exportação PDF do laudo (Playwright)
 
 Procedimento para habilitar `GET /reports/<uuid>/document/` em ambientes de servidor.

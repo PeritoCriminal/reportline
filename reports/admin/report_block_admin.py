@@ -1,3 +1,4 @@
+# reportline/reports/admin/report_block_admin.py
 """Registrador administrativo de blocos genéricos de relatório."""
 
 from django.contrib import admin

@@ -1,3 +1,4 @@
+# reportline/institution_ic_sp/tests/test_ai_gateway.py
 """
 Testes do gateway de IA externa com sanitização.
 """

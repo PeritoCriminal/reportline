@@ -1,3 +1,4 @@
+// reportline/institution_ic_sp/static/institution_ic_sp/js/case_intake_documents.js
 /**
  * Seleção e arrastar/soltar de documentos no intake de laudo pericial.
  *

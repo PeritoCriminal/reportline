@@ -1,3 +1,4 @@
+# reportline/reports/services/report_horizontal_rule_shortcut.py
 """
 Atalho de teclado para inserir linha horizontal no editor.
 

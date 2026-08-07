@@ -1,3 +1,4 @@
+# reportline/accounts/tests/test_custom_user.py
 """
 Testes do model CustomUser e regras de identificação.
 """

@@ -1,3 +1,4 @@
+# reportline/institution_ic_sp/forensic_report/common/ai/sanitization/forensic_sanitizer.py
 """
 Sanitização de texto pericial antes de envio a IA externa.
 """

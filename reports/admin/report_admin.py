@@ -1,3 +1,4 @@
+# reportline/reports/admin/report_admin.py
 """Registrador administrativo de relatórios modulares."""
 
 from django.contrib import admin

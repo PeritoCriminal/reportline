@@ -1,3 +1,4 @@
+# reportline/common/models/base_model.py
 """
 Model abstrato base do ReportLine.
 

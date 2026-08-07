@@ -1,3 +1,4 @@
+# reportline/reports/services/report_image_processing.py
 """
 Processamento de imagens para blocos de relatório.
 

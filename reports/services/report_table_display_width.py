@@ -1,3 +1,4 @@
+# reportline/reports/services/report_table_display_width.py
 """
 Largura de exibição de tabelas no editor.
 

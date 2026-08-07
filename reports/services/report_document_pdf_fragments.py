@@ -1,3 +1,4 @@
+# reportline/reports/services/report_document_pdf_fragments.py
 """
 Fragmentos HTML de cabeçalho e rodapé para Playwright PDF.
 

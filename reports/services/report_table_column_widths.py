@@ -1,3 +1,4 @@
+# reportline/reports/services/report_table_column_widths.py
 """
 Larguras de colunas em tabelas do editor.
 

@@ -1,3 +1,4 @@
+# reportline/common/privacy/services/text_sanitizer.py
 """
 Pipeline base de sanitização de PII (regex genéricos + Presidio opcional).
 """

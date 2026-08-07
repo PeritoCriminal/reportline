@@ -1,3 +1,4 @@
+# reportline/reports/models/report_node.py
 """
 Model de nó na árvore de composição de um relatório.
 

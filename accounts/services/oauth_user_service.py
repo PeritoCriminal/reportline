@@ -1,3 +1,4 @@
+# reportline/accounts/services/oauth_user_service.py
 """
 Serviço de provisionamento de CustomUser a partir de claims OAuth.
 

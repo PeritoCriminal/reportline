@@ -1,3 +1,4 @@
+# reportline/institution_ic_sp/tests/test_ai_text_sanitizer.py
 """
 Testes de sanitização de PII antes de envio a IA externa.
 """

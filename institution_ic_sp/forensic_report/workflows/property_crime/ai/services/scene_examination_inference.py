@@ -1,3 +1,4 @@
+# reportline/institution_ic_sp/forensic_report/workflows/property_crime/ai/services/scene_examination_inference.py
 """
 Inferência de texto para a seção Descrição e Exame do Local (crime patrimonial).
 """

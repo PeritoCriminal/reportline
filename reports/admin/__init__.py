@@ -1,3 +1,4 @@
+# reportline/reports/admin/__init__.py
 """Registradores do Django Admin do app reports."""
 
 from reports.admin.report_admin import ReportAdmin

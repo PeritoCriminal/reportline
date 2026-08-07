@@ -1,3 +1,4 @@
+# reportline/reports/models/report_user_config.py
 """
 Preferências padrão de editor de laudos por usuário.
 

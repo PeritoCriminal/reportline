@@ -1,3 +1,4 @@
+# reportline/docs/architecture/02-data-model.md
 # Modelo de Dados (ERD)
 
 Relacionamentos entre entidades do domínio ReportLine.

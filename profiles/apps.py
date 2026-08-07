@@ -1,3 +1,4 @@
+# reportline/profiles/apps.py
 """
 Configuração do app profiles.
 

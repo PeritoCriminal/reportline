@@ -1,3 +1,4 @@
+# reportline/common/models/ai_sanitization_audit.py
 """
 Auditoria de sanitização pré-envio a provedores externos de IA.
 """

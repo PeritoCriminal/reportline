@@ -1,3 +1,4 @@
+# reportline/reports/services/report_block_content.py
 """
 Normalização e conteúdo padrão de blocos de relatório.
 

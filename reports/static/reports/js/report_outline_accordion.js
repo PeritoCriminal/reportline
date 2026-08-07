@@ -1,3 +1,4 @@
+// reportline/reports/static/reports/js/report_outline_accordion.js
 /**
  * Accordion do sumário lateral do editor de relatórios.
  *

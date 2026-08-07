@@ -1,3 +1,4 @@
+# reportline/institution_ic_sp/forensic_report/common/services/case_metadata.py
 """
 Metadados de caso inferidos ou informados no intake de laudo pericial.
 """

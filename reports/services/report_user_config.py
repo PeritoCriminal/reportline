@@ -1,3 +1,4 @@
+# reportline/reports/services/report_user_config.py
 """
 Preferências padrão de laudo por usuário e cópia para novos relatórios.
 """

@@ -1,3 +1,4 @@
+# reportline/reports/models/report_image.py
 """
 Model de imagem enviada para blocos de relatório.
 

@@ -1,3 +1,4 @@
+# reportline/.cursor/rules/django-patterns.mdc
 ---
 description: Padrões Django — CBV, models, comentários Python e docstrings
 globs: **/*.py

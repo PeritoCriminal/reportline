@@ -1,3 +1,4 @@
+// reportline/institution_ic_sp/static/institution_ic_sp/js/case_intake_quick.js
 /**
  * Fluxo rápido de intake: casca → editor → análise e montagem em background.
  */

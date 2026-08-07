@@ -1,3 +1,4 @@
+# reportline/reports/tests/test_report_image_cleanup.py
 """
 Testes de limpeza de imagens ao excluir blocos.
 """
