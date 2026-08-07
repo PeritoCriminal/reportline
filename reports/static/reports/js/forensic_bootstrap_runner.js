@@ -10,10 +10,12 @@
 
     const STATE_SHELL_CREATED = "shell_created";
     const STATE_COLLECTING_SCENE_CONTINUATION = "collecting_scene_continuation";
+    const STATE_COLLECTING_TRACES = "collecting_traces";
     const STATE_ANALYZED = "analyzed";
     const STATE_COLLECTING_PROMPTS = "collecting_prompts";
     const STATE_BUILDING = "building";
     const BUILD_PHASE_SCENE = "scene";
+    const BUILD_PHASE_TRACES = "traces";
     const ANALYZE_STATUS_MESSAGES = [
         "Lendo documentos…",
         "Extraindo dados administrativos…",
@@ -468,6 +470,16 @@
         });
     }
 
+    function applyCaptionNumbers(payload) {
+        if (
+            !payload?.caption_numbers
+            || !window.ReportLineReportConfig?.applyCaptionNumbers
+        ) {
+            return;
+        }
+        window.ReportLineReportConfig.applyCaptionNumbers(payload.caption_numbers);
+    }
+
     function updateHeaderReportNumber(text) {
         const headerNumberCell = document.querySelector(
             '[data-report-page-header-extra-text][data-extra-row-index="1"]'
@@ -524,6 +536,7 @@
             }
 
             applyOutlinePayload(payload);
+            applyCaptionNumbers(payload);
             if (payload.header_report_number_text) {
                 updateHeaderReportNumber(payload.header_report_number_text);
             }
@@ -539,8 +552,14 @@
             if (payload.scene_continuation_config) {
                 Object.assign(config, payload.scene_continuation_config);
             }
+            if (payload.trace_collection_config) {
+                Object.assign(config, payload.trace_collection_config);
+            }
 
             if (config.state === STATE_COLLECTING_SCENE_CONTINUATION) {
+                break;
+            }
+            if (config.state === STATE_COLLECTING_TRACES) {
                 break;
             }
             if (animated) {
@@ -575,6 +594,40 @@
         }
         if (response.prompt_config) {
             Object.assign(config, response.prompt_config);
+        }
+    }
+
+    async function runTraceCollection() {
+        const traceFlow = window.ReportLineTraceCollectionContinuation;
+        if (!traceFlow?.askDecision || !traceFlow?.collectTraceObservation) {
+            throw new Error("Coleta de vestígios indisponível nesta tela.");
+        }
+        if (progressPill) {
+            progressPill.hidden = true;
+        }
+
+        while (config.state === STATE_COLLECTING_TRACES) {
+            const decision = await traceFlow.askDecision({ ...config });
+            config.state = decision.state || config.state;
+            if (decision.state && decision.state !== STATE_COLLECTING_TRACES) {
+                Object.assign(config, decision);
+                break;
+            }
+            if (!decision.addTrace) {
+                break;
+            }
+
+            const addResponse = await traceFlow.collectTraceObservation({ ...config });
+            config.state = addResponse.state || config.state;
+            if (addResponse.build_phase) {
+                config.buildPhase = addResponse.build_phase;
+            }
+            Object.assign(config, addResponse);
+
+            if (config.state === STATE_BUILDING && config.buildPhase === BUILD_PHASE_TRACES) {
+                showLiveBuildMode("Inserindo vestígio observado…");
+                await runIncrementalBuild(true);
+            }
         }
     }
 
@@ -646,6 +699,10 @@
                 await runIncrementalBuild(true);
             }
 
+            if (config.state === STATE_COLLECTING_TRACES) {
+                await runTraceCollection();
+            }
+
             hideBuildUi();
             markBootstrapCompletedOnce();
             if (!readStoredTimingProfile()) {
@@ -654,6 +711,8 @@
             isRunning = false;
         } catch (error) {
             if (error?.code === window.ReportLineSceneExaminationContinuation?.SCENE_CONTINUATION_CANCELLED) {
+                hideBuildUi();
+            } else if (error?.code === window.ReportLineTraceCollectionContinuation?.TRACE_COLLECTION_CANCELLED) {
                 hideBuildUi();
             } else {
                 showError(error.message || "Falha ao preparar o laudo.");

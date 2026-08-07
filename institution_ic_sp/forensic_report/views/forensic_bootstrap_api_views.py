@@ -45,6 +45,7 @@ from institution_ic_sp.forensic_report.services.forensic_bootstrap import (
     STATE_BUILDING,
     STATE_COLLECTING_PROMPTS,
     STATE_COLLECTING_SCENE_CONTINUATION,
+    STATE_COLLECTING_TRACES,
     STATE_PROMPTING,
     STATE_READY,
     STATE_SHELL_CREATED,
@@ -53,6 +54,7 @@ from institution_ic_sp.forensic_report.services.forensic_bootstrap import (
     compute_pending_prompts,
     forensic_bootstrap_prompt_config,
     forensic_scene_continuation_runner_config,
+    forensic_trace_collection_runner_config,
     get_bootstrap_meta,
     is_initial_build_completed,
     mark_prompt_skipped,
@@ -67,6 +69,7 @@ from institution_ic_sp.forensic_report.services.forensic_bootstrap_finalize impo
 )
 from institution_ic_sp.forensic_report.services.forensic_report_body_incremental import (
     BUILD_PHASE_INITIAL,
+    BUILD_PHASE_TRACES,
     BUILD_STEP_IDS,
     BUILD_STEP_LABELS,
     advance_forensic_body_build_step,
@@ -79,8 +82,15 @@ from institution_ic_sp.forensic_report.services.forensic_report_metadata_sync im
     sync_forensic_metadata_fields,
     validate_prompt_submit_value,
 )
+from reports.services.report_config import build_caption_numbers_payload
 from institution_ic_sp.forensic_report.services.scene_examination_continuation import (
     save_scene_examination_continuation,
+)
+from institution_ic_sp.forensic_report.services.trace_observation_continuation import (
+    COLLECTED_ITEMS_TODO_MESSAGE,
+    complete_traces_collection,
+    save_trace_observation,
+    traces_from_bootstrap,
 )
 from institution_ic_sp.forensic_report.workflows.initial_data.services.report_draft_builder import (
     build_forensic_report_from_bootstrap,
@@ -313,8 +323,12 @@ class ForensicBootstrapBuildStepView(ForensicReportAuthorMixin, View):
             "report_title": report.title,
             "header_report_number_text": metadata.header_report_number_text,
         }
+        if report.number_captions and created_nodes:
+            response["caption_numbers"] = build_caption_numbers_payload(report)
         if final_state == STATE_COLLECTING_SCENE_CONTINUATION:
             response["scene_continuation_config"] = forensic_scene_continuation_runner_config(report)
+        if final_state == STATE_COLLECTING_TRACES:
+            response["trace_collection_config"] = forensic_trace_collection_runner_config(report)
         return JsonResponse(response)
 
     def http_method_not_allowed(self, request, *args, **kwargs):
@@ -570,6 +584,128 @@ class ForensicBootstrapSceneContinuationView(ForensicReportAuthorMixin, View):
             response["build_phase"] = build_progress.get("phase")
         if is_deferred_module_category(exam_category):
             response["todo_message"] = DEFERRED_MODULE_TODO_MESSAGES[exam_category]
+        return JsonResponse(response)
+
+    def http_method_not_allowed(self, request, *args, **kwargs):
+        return HttpResponseNotAllowed(["POST"])
+
+
+class ForensicBootstrapTraceDecisionView(ForensicReportAuthorMixin, View):
+    """Registra decisão de incluir ou encerrar vestígios observados."""
+
+    def post(self, request, pk):
+        """Persiste recusa ou encerramento do loop de vestígios."""
+        report = self.get_report()
+        state = bootstrap_state(report)
+        if state != STATE_COLLECTING_TRACES:
+            return JsonResponse(
+                {"errors": ["A coleta de vestígios não está disponível nesta etapa."]},
+                status=400,
+            )
+
+        try:
+            payload = json.loads(request.body.decode("utf-8") or "{}")
+        except json.JSONDecodeError:
+            return JsonResponse({"errors": ["JSON inválido."]}, status=400)
+
+        add_trace = bool(payload.get("add_trace"))
+        if add_trace:
+            response = {
+                "state": STATE_COLLECTING_TRACES,
+                **forensic_trace_collection_runner_config(report),
+            }
+            return JsonResponse(response)
+
+        traces_count = len(traces_from_bootstrap(report.page_layout))
+        complete_traces_collection(report, skipped=traces_count == 0)
+        report.refresh_from_db()
+        response = {
+            "state": bootstrap_state(report),
+            "todo_message": COLLECTED_ITEMS_TODO_MESSAGE,
+            **forensic_trace_collection_runner_config(report),
+        }
+        return JsonResponse(response)
+
+    def http_method_not_allowed(self, request, *args, **kwargs):
+        return HttpResponseNotAllowed(["POST"])
+
+
+class ForensicBootstrapTraceAddView(ForensicReportAuthorMixin, View):
+    """Infere e persiste um vestígio observado antes da montagem incremental."""
+
+    def post(self, request, pk):
+        """Recebe orientações e imagens de vestígio e inicia build da seção."""
+        report = self.get_report()
+        state = bootstrap_state(report)
+        if state != STATE_COLLECTING_TRACES:
+            return JsonResponse(
+                {"errors": ["A coleta de vestígios não está disponível nesta etapa."]},
+                status=400,
+            )
+
+        try:
+            payload = json.loads(request.body.decode("utf-8") or "{}")
+        except json.JSONDecodeError:
+            return JsonResponse({"errors": ["JSON inválido."]}, status=400)
+
+        prompt = str(payload.get("prompt", "")).strip()
+        raw_images = payload.get("images")
+        raw_image_ids = payload.get("image_ids", [])
+        if raw_image_ids is not None and not isinstance(raw_image_ids, list):
+            return JsonResponse({"errors": ["Informe image_ids como lista."]}, status=400)
+        if raw_images is not None and not isinstance(raw_images, list):
+            return JsonResponse({"errors": ["Informe images como lista."]}, status=400)
+
+        from reports.services.report_image_attachments import normalize_report_image_attachments
+
+        legacy_image_ids = [str(item) for item in (raw_image_ids or []) if str(item).strip()]
+        attachments = normalize_report_image_attachments(raw_images, legacy_image_ids=legacy_image_ids)
+        image_ids = [item.image_id for item in attachments]
+
+        if not prompt and not image_ids:
+            return JsonResponse(
+                {"errors": ["Informe imagens ou orientações sobre o vestígio."]},
+                status=400,
+            )
+
+        if image_ids and not self.examiner_profile.can_send_images_to_external_ai:
+            return JsonResponse(
+                {
+                    "errors": [
+                        "Seu perfil não está autorizado a enviar imagens a serviços "
+                        "externos de IA. Use orientações em texto ou solicite habilitação "
+                        "ao administrador."
+                    ]
+                },
+                status=403,
+            )
+
+        try:
+            save_trace_observation(
+                report,
+                prompt=prompt,
+                images=attachments,
+                allow_external_images=self.examiner_profile.can_send_images_to_external_ai,
+                audit_context={
+                    "operation": "trace_observation",
+                    "user_id": str(request.user.pk),
+                    "report_id": str(report.pk),
+                },
+            )
+        except ExternalAiBlockedError as exc:
+            return JsonResponse({"errors": [str(exc)]}, status=422)
+        except ValueError as exc:
+            return JsonResponse({"errors": [str(exc)]}, status=400)
+
+        report.refresh_from_db()
+        bootstrap = get_bootstrap_meta(report.page_layout) or {}
+        build_progress = bootstrap.get("build_progress")
+        response: dict[str, object] = {
+            "state": bootstrap_state(report),
+            **forensic_trace_collection_runner_config(report),
+        }
+        if isinstance(build_progress, dict):
+            response["build_phase"] = build_progress.get("phase", BUILD_PHASE_TRACES)
         return JsonResponse(response)
 
     def http_method_not_allowed(self, request, *args, **kwargs):

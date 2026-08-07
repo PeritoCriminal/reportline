@@ -1,6 +1,6 @@
-# reportline/institution_ic_sp/forensic_report/workflows/property_crime/ai/services/scene_examination_inference.py
+# reportline/institution_ic_sp/forensic_report/workflows/property_crime/ai/services/trace_observation_inference.py
 """
-Inferência de texto para a seção Descrição e Exame do Local (crime patrimonial).
+Inferência de texto para vestígios (Elementos Observados) em exame de local patrimonial.
 """
 
 from __future__ import annotations
@@ -10,21 +10,13 @@ import logging
 import mimetypes
 from pathlib import Path
 
-from institution_ic_sp.forensic_report.common.ai.gateway import (
-    complete_json_with_images_safe,
-    sanitize_uploaded_document_text,
-)
+from institution_ic_sp.forensic_report.common.ai.gateway import complete_json_with_images_safe
 from institution_ic_sp.forensic_report.common.ai.prompt_loader import (
     load_prompt_markdown,
     load_writing_style_markdown,
     render_prompt_template,
 )
 from institution_ic_sp.forensic_report.common.services.case_metadata import CaseMetadata
-from institution_ic_sp.forensic_report.common.services.scene_attendance_context import (
-    attendance_context_summary_for_prompt,
-    scene_attendance_context_from_bootstrap,
-)
-from institution_ic_sp.forensic_report.common.services.scene_location import SceneLocationData
 from institution_ic_sp.forensic_report.registry import PROPERTY_CRIME_WORKFLOW
 from reports.models import Report, ReportImage
 from reports.services.report_caption_text import normalize_caption_text
@@ -32,21 +24,11 @@ from reports.services.report_image_attachments import ReportImageAttachment
 
 logger = logging.getLogger(__name__)
 
-ALLOWED_CHARACTERISTICS_HEADINGS = frozenset(
-    {
-        "Características do Local",
-        "Características da Propriedade",
-        "Características do Imóvel",
-    }
-)
 
-
-def _default_scene_examination_content() -> dict[str, str | list]:
+def _default_trace_observation_content() -> dict[str, str | list]:
     """Retorna conteúdo vazio quando a IA não estiver disponível."""
     return {
-        "characteristics_heading": "Características do Local",
-        "attendance_context_paragraph": "",
-        "characteristics_paragraph": "",
+        "trace_paragraph": "",
         "report_images": [],
     }
 
@@ -74,7 +56,7 @@ def _image_data_urls(report: Report, image_ids: list[str]) -> list[str]:
     return urls
 
 
-def _scene_images_json_for_prompt(attachments: list[ReportImageAttachment]) -> str:
+def _trace_images_json_for_prompt(attachments: list[ReportImageAttachment]) -> str:
     """Serializa metadados das imagens para o prompt do usuário."""
     if not attachments:
         return "(nenhuma)"
@@ -93,11 +75,7 @@ def _normalize_report_images(
     payload: dict | None,
     attachments: list[ReportImageAttachment],
 ) -> list[dict[str, str]]:
-    """
-    Valida legendas inferidas apenas para imagens marcadas para exibição no laudo.
-
-    Preserva a ordem de upload e usa a legenda proposta como fallback.
-    """
+    """Valida legendas inferidas para imagens marcadas para exibição no laudo."""
     show_attachments = [item for item in attachments if item.show_in_report]
     if not show_attachments:
         return []
@@ -134,85 +112,49 @@ def _normalize_ai_content(
 ) -> dict[str, str | list]:
     """Valida e normaliza JSON inferido para persistência no bootstrap."""
     if not payload:
-        return _default_scene_examination_content()
+        return _default_trace_observation_content()
 
-    heading = str(payload.get("characteristics_heading", "")).strip()
-    if heading not in ALLOWED_CHARACTERISTICS_HEADINGS:
-        heading = "Características do Local"
-
-    attendance = str(payload.get("attendance_context_paragraph", "")).strip()
-    characteristics = str(payload.get("characteristics_paragraph", "")).strip()
+    paragraph = str(payload.get("trace_paragraph", "")).strip()
     return {
-        "characteristics_heading": heading,
-        "attendance_context_paragraph": attendance,
-        "characteristics_paragraph": characteristics,
+        "trace_paragraph": paragraph,
         "report_images": _normalize_report_images(payload, attachments),
     }
 
 
-def infer_scene_examination_content(
+def infer_trace_observation_content(
     *,
     report: Report,
     metadata: CaseMetadata,
-    scene_prompt: str = "",
-    scene_image_ids: list[str] | None = None,
-    scene_image_attachments: list[ReportImageAttachment] | None = None,
-    location: SceneLocationData | None = None,
-    document_excerpts: str = "",
+    trace_prompt: str = "",
+    trace_image_attachments: list[ReportImageAttachment] | None = None,
     allow_external_images: bool = False,
     audit_context: dict | None = None,
 ) -> dict[str, str | list]:
     """
-    Infere parágrafos de contexto de atendimento, características do local e legendas.
+    Infere parágrafo e legendas para um vestígio observado no exame de local.
 
-    Usa metadados administrativos, orientações do perito, localização e imagens
-    (quando o perito tiver permissão institucional).
+    Usa orientações do perito, imagens (quando permitido) e biblioteca traces.md.
     """
-    attachments = list(scene_image_attachments or [])
-    if not attachments and scene_image_ids:
-        attachments = [
-            ReportImageAttachment(image_id=str(image_id))
-            for image_id in scene_image_ids
-            if str(image_id).strip()
-        ]
+    attachments = list(trace_image_attachments or [])
 
     system_template = load_prompt_markdown(
         workflow_slug=PROPERTY_CRIME_WORKFLOW.slug,
-        task="scene_examination",
+        task="trace_observation",
         name="system",
     )
-    attendance_context_style = load_writing_style_markdown(
+    traces_style = load_writing_style_markdown(
         workflow_slug=PROPERTY_CRIME_WORKFLOW.slug,
-        name="attendance_context",
-    )
-    characteristics_style = load_writing_style_markdown(
-        workflow_slug=PROPERTY_CRIME_WORKFLOW.slug,
-        name="characteristics",
+        name="traces",
     )
     system_prompt = render_prompt_template(
         system_template,
-        attendance_context_style=attendance_context_style,
-        characteristics_style=characteristics_style,
+        traces_style=traces_style,
     )
     user_template = load_prompt_markdown(
         workflow_slug=PROPERTY_CRIME_WORKFLOW.slug,
-        task="scene_examination",
+        task="trace_observation",
         name="user",
     )
-
-    location_text = ""
-    if location and location.is_present:
-        location_text = location.display_text
-
-    attendance_context = scene_attendance_context_from_bootstrap(report.page_layout)
-
-    document_reference = document_excerpts.strip()
-    if document_reference and document_reference != "(nenhum)":
-        document_reference = sanitize_uploaded_document_text(
-            document_reference,
-            audit_context=audit_context,
-        )
-
     user_prompt = render_prompt_template(
         user_template,
         metadata_json=json.dumps(
@@ -229,11 +171,8 @@ def infer_scene_examination_content(
             ensure_ascii=False,
             indent=2,
         ),
-        scene_prompt=scene_prompt.strip() or "(nenhuma)",
-        location_text=location_text or "(não informada)",
-        attendance_context_text=attendance_context_summary_for_prompt(attendance_context),
-        document_excerpts=document_reference or "(nenhum)",
-        scene_images_json=_scene_images_json_for_prompt(attachments),
+        trace_prompt=trace_prompt.strip() or "(nenhuma)",
+        trace_images_json=_trace_images_json_for_prompt(attachments),
     )
 
     image_ids = [item.image_id for item in attachments]

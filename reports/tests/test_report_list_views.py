@@ -7,6 +7,8 @@ from django.contrib.auth import get_user_model
 from django.test import TestCase
 from django.urls import reverse
 
+from institution_ic_sp.models import ForensicTeam
+from profiles.models import ForensicExaminerSP
 from reports.models import Report, ReportStatus
 
 User = get_user_model()
@@ -61,6 +63,41 @@ class ReportListViewTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "ainda não possui relatórios")
+        self.assertContains(response, reverse("reports:new"))
+
+    def test_examiner_sees_institutional_and_common_new_report_options(self):
+        """Garante opções institucional e comum no comando Novo relatório da listagem."""
+        team = ForensicTeam.objects.get(code="EPC-SPC")
+        examiner_user = User.objects.create_user(
+            username="perito_lista",
+            password="senha-segura",
+            first_name="Perito",
+            last_name="Lista",
+        )
+        ForensicExaminerSP.objects.create(
+            user=examiner_user,
+            forensic_team=team,
+        )
+        self.client.login(username="perito_lista", password="senha-segura")
+        response = self.client.get(reverse("reports:list"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Institucional")
+        self.assertContains(response, "SPTC")
+        self.assertContains(response, "Relatório Comum")
+        self.assertContains(response, "Perito Lista")
+        self.assertContains(response, reverse("institution_ic_sp:forensic_report:intake"))
+        self.assertContains(response, reverse("reports:new"))
+
+    def test_regular_user_sees_only_common_new_report_option(self):
+        """Garante apenas relatório comum para usuário sem perfil pericial na listagem."""
+        User.objects.create_user(username="comum_lista", password="senha-segura")
+        self.client.login(username="comum_lista", password="senha-segura")
+        response = self.client.get(reverse("reports:list"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, "Institucional")
+        self.assertContains(response, "Relatório Comum")
         self.assertContains(response, reverse("reports:new"))
 
     def test_index_shows_report_cards_for_authenticated_user(self):

@@ -138,6 +138,8 @@ Exemplos institucionais:
 - Nomes de pessoas e logradouros citados: capitalização normativa (*José da Silva*,
   *Maria das Dores*, *Rua das Acácias*), preservando a identificação informada
   pelo perito ou visível na imagem.
+- **Não** prefixar legendas com numeração (*Figura 1*, *Figura 2 -*, etc.): o
+  ReportLine insere a numeração automaticamente nos blocos nativos de legenda.
 
 ### Termos proibidos nas legendas desta etapa
 

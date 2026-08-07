@@ -12,10 +12,7 @@
                 <h1 class="h4 mb-1">Meus relatórios</h1>
                 <p class="text-muted small mb-0">Documentos em rascunho ou publicados por você.</p>
             </div>
-            <a class="btn btn-primary" href="{% url 'reports:new' %}">
-                <i class="bi bi-file-earmark-plus me-1" aria-hidden="true"></i>
-                Novo relatório
-            </a>
+            {% include "reports/includes/new_report_options.html" %}
         </div>
 
         {% if reports %}
@@ -72,10 +69,9 @@
             <div class="card border-secondary-subtle shadow-sm">
                 <div class="card-body p-4 text-center">
                     <p class="text-muted mb-3">Você ainda não possui relatórios.</p>
-                    <a class="btn btn-primary" href="{% url 'reports:new' %}">
-                        <i class="bi bi-file-earmark-plus me-1" aria-hidden="true"></i>
-                        Criar primeiro relatório
-                    </a>
+                    <div class="mx-auto" style="max-width: 28rem;">
+                        {% include "reports/includes/new_report_options.html" with variant="list" %}
+                    </div>
                 </div>
             </div>
         {% endif %}

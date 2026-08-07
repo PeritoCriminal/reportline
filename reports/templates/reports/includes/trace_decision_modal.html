@@ -1,0 +1,37 @@
+{# reportline/reports/templates/reports/includes/trace_decision_modal.html #}
+{# Modal de decisão para incluir vestígios observados. #}
+<div class="modal fade"
+     id="traceDecisionModal"
+     tabindex="-1"
+     aria-labelledby="traceDecisionModalLabel"
+     aria-hidden="true"
+     data-bs-backdrop="static"
+     data-bs-keyboard="false">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header border-secondary-subtle">
+                <h2 class="modal-title fs-5" id="traceDecisionModalLabel">
+                    <i class="bi bi-search text-primary me-2" aria-hidden="true"></i>
+                    <span id="trace-decision-modal-title">Acrescentar vestígio?</span>
+                </h2>
+            </div>
+            <div class="modal-body">
+                <p class="mb-0" id="trace-decision-modal-message">
+                    Deseja registrar vestígios ou elementos observados no local?
+                </p>
+            </div>
+            <div class="modal-footer border-secondary-subtle">
+                <button type="button"
+                        class="btn btn-outline-secondary"
+                        id="trace-decision-decline">
+                    Não
+                </button>
+                <button type="button"
+                        class="btn btn-primary"
+                        id="trace-decision-accept">
+                    Sim
+                </button>
+            </div>
+        </div>
+    </div>
+</div>

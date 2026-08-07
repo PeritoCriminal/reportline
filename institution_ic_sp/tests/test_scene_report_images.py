@@ -67,6 +67,31 @@ class SceneReportImagesInferenceTests(TestCase):
 
         self.assertEqual(result["report_images"][0]["caption"], "Portão metálico")
 
+    def test_normalize_report_images_strips_figure_prefix(self):
+        """Garante remoção de prefixo Figura N inferido pela IA."""
+        attachments = [
+            ReportImageAttachment(image_id="b", show_in_report=True, proposed_caption=""),
+        ]
+        payload = {
+            "report_images": [
+                {"image_id": "b", "caption": "Figura 4 - Vista frontal do imóvel."},
+            ]
+        }
+
+        result = _normalize_ai_content(payload, attachments=attachments)
+
+        self.assertEqual(result["report_images"][0]["caption"], "Vista frontal do imóvel.")
+
+    def test_normalize_report_image_attachments_strips_figure_prefix(self):
+        """Garante remoção de prefixo Figura N em legenda proposta do upload."""
+        from reports.services.report_image_attachments import normalize_report_image_attachments
+
+        attachments = normalize_report_image_attachments(
+            [{"image_id": "abc", "show_in_report": True, "proposed_caption": "Figura 2 - Portão."}]
+        )
+
+        self.assertEqual(attachments[0].proposed_caption, "Portão.")
+
 
 class SceneReportImagesBuildTests(TestCase):
     """Testes da inserção de blocos IMAGE e legenda após os parágrafos de local."""

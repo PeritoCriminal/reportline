@@ -1,0 +1,46 @@
+{# reportline/reports/templates/reports/includes/new_report_options.html #}
+{# Opções de novo relatório (institucional e/ou comum), alinhadas à home. #}
+{% if home_new_report_options %}
+    {% if variant == "list" %}
+        <div class="list-group list-group-flush border rounded{% if list_class %} {{ list_class }}{% endif %}">
+            {% for option in home_new_report_options %}
+                <a class="list-group-item list-group-item-action report-home-option"
+                   href="{{ option.url }}">
+                    <div class="d-flex align-items-center justify-content-between gap-2">
+                        <div class="min-w-0">
+                            <span class="fw-semibold">{{ option.title }}</span>
+                            <span class="text-muted"> — {{ option.subtitle }}</span>
+                        </div>
+                        <i class="bi bi-chevron-right text-muted flex-shrink-0" aria-hidden="true"></i>
+                    </div>
+                </a>
+            {% endfor %}
+        </div>
+    {% elif home_new_report_options|length == 1 %}
+        <a class="btn btn-primary{% if button_class %} {{ button_class }}{% endif %}"
+           href="{{ home_new_report_options.0.url }}">
+            <i class="bi bi-file-earmark-plus me-1" aria-hidden="true"></i>
+            Novo relatório
+        </a>
+    {% else %}
+        <div class="dropdown">
+            <button type="button"
+                    class="btn btn-primary dropdown-toggle{% if button_class %} {{ button_class }}{% endif %}"
+                    data-bs-toggle="dropdown"
+                    aria-expanded="false">
+                <i class="bi bi-file-earmark-plus me-1" aria-hidden="true"></i>
+                Novo relatório
+            </button>
+            <ul class="dropdown-menu dropdown-menu-end">
+                {% for option in home_new_report_options %}
+                    <li>
+                        <a class="dropdown-item" href="{{ option.url }}">
+                            <span class="fw-semibold">{{ option.title }}</span>
+                            <span class="text-muted"> — {{ option.subtitle }}</span>
+                        </a>
+                    </li>
+                {% endfor %}
+            </ul>
+        </div>
+    {% endif %}
+{% endif %}

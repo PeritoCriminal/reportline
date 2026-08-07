@@ -28,9 +28,13 @@ from institution_ic_sp.forensic_report.services.scene_location_table import (
     build_scene_location_table_content,
 )
 from institution_ic_sp.forensic_report.registry import GENERIC_WORKFLOW
+from institution_ic_sp.forensic_report.common.services.exam_category import (
+    is_property_scene_category,
+)
 from institution_ic_sp.forensic_report.services.forensic_bootstrap import (
     STATE_BUILDING,
     STATE_COLLECTING_SCENE_CONTINUATION,
+    STATE_COLLECTING_TRACES,
     STATE_READY,
     attach_bootstrap_meta,
     compute_pending_prompts,
@@ -41,6 +45,10 @@ from institution_ic_sp.forensic_report.services.forensic_bootstrap import (
     resolve_state_after_initial_build,
     set_bootstrap_state,
     skipped_prompts_from_bootstrap,
+)
+from institution_ic_sp.forensic_report.services.trace_observation_continuation import (
+    TRACES_SECTION_HEADING,
+    trace_at_index,
 )
 from institution_ic_sp.forensic_report.services.forensic_report_body_builder import (
     CLOSING_DIGITAL_ARCHIVE_NOTICE,
@@ -62,6 +70,7 @@ from reports.services.report_tree import insert_sibling_after
 
 BUILD_PHASE_INITIAL = "initial"
 BUILD_PHASE_SCENE = "scene"
+BUILD_PHASE_TRACES = "traces"
 
 INITIAL_BUILD_STEP_IDS: tuple[str, ...] = (
     "main_title",
@@ -90,7 +99,15 @@ SCENE_BUILD_STEP_IDS: tuple[str, ...] = (
     "scene_report_images",
 )
 
-BUILD_STEP_IDS: tuple[str, ...] = INITIAL_BUILD_STEP_IDS + SCENE_BUILD_STEP_IDS
+TRACES_BUILD_STEP_IDS: tuple[str, ...] = (
+    "traces_section_heading",
+    "trace_body",
+    "trace_report_images",
+)
+
+BUILD_STEP_IDS: tuple[str, ...] = (
+    INITIAL_BUILD_STEP_IDS + SCENE_BUILD_STEP_IDS + TRACES_BUILD_STEP_IDS
+)
 
 INTERACTIVE_BUILD_STEP_IDS: frozenset[str] = frozenset(
     {
@@ -110,14 +127,19 @@ INTERACTIVE_BUILD_STEP_IDS: frozenset[str] = frozenset(
         "scene_characteristics_heading",
         "scene_characteristics_body",
         "scene_report_images",
+        "traces_section_heading",
+        "trace_body",
+        "trace_report_images",
     }
 )
 
 INITIAL_INTERACTIVE_BUILD_STEP_IDS = INTERACTIVE_BUILD_STEP_IDS - frozenset(
     step_id for step_id in SCENE_BUILD_STEP_IDS
-)
+) - frozenset(TRACES_BUILD_STEP_IDS)
 
 SCENE_INTERACTIVE_BUILD_STEP_IDS = frozenset(SCENE_BUILD_STEP_IDS)
+
+TRACES_INTERACTIVE_BUILD_STEP_IDS = frozenset(TRACES_BUILD_STEP_IDS)
 
 SILENT_BUILD_STEP_IDS: frozenset[str] = frozenset(
     {
@@ -146,6 +168,9 @@ BUILD_STEP_LABELS: dict[str, str] = {
     "scene_characteristics_heading": "Abrindo características do local…",
     "scene_characteristics_body": "Descrevendo características do local…",
     "scene_report_images": "Inserindo imagens do local…",
+    "traces_section_heading": "Abrindo elementos observados…",
+    "trace_body": "Descrevendo vestígio…",
+    "trace_report_images": "Inserindo imagens do vestígio…",
     "body_spacer": "Organizando fechamento…",
     "closing_phrase": "Inserindo encerramento…",
     "closing_notice": "Registrando arquivamento digital…",
@@ -158,6 +183,8 @@ def _build_steps_for_phase(phase: str) -> tuple[str, ...]:
     """Retorna sequência de passos conforme fase de montagem."""
     if phase == BUILD_PHASE_SCENE:
         return SCENE_BUILD_STEP_IDS
+    if phase == BUILD_PHASE_TRACES:
+        return TRACES_BUILD_STEP_IDS
     return INITIAL_BUILD_STEP_IDS
 
 
@@ -165,6 +192,8 @@ def _interactive_steps_for_phase(phase: str) -> frozenset[str]:
     """Retorna passos animados conforme fase de montagem."""
     if phase == BUILD_PHASE_SCENE:
         return SCENE_INTERACTIVE_BUILD_STEP_IDS
+    if phase == BUILD_PHASE_TRACES:
+        return TRACES_INTERACTIVE_BUILD_STEP_IDS
     return INITIAL_INTERACTIVE_BUILD_STEP_IDS
 
 
@@ -186,6 +215,38 @@ def _resolve_scene_insert_anchor(node_registry: dict[str, str]) -> str:
     raise ValueError("Não foi possível determinar ponto de inserção da seção de local.")
 
 
+def _resolve_traces_insert_anchor(node_registry: dict[str, str]) -> str:
+    """Determina nó após o qual vestígios devem ser inseridos."""
+    for key in (
+        "scene_report_images",
+        "scene_characteristics_body",
+        "scene_characteristics_heading",
+        "scene_context_body",
+        "scene_context_heading",
+        "scene_location_table",
+        "scene_location_heading",
+        "scene_section_heading",
+        "attendance_list",
+        "attendance_heading",
+    ):
+        node_id = node_registry.get(key)
+        if node_id:
+            return node_id
+    raise ValueError("Não foi possível determinar ponto de inserção dos vestígios.")
+
+
+def _trace_index_from_page_layout(page_layout: dict | None) -> int:
+    """Retorna índice do vestígio em montagem a partir do bootstrap."""
+    bootstrap = get_bootstrap_meta(page_layout) or {}
+    progress = bootstrap.get("build_progress")
+    if isinstance(progress, dict) and progress.get("trace_index") is not None:
+        return int(progress["trace_index"])
+    traces = bootstrap.get("traces", [])
+    if isinstance(traces, list) and traces:
+        return len(traces) - 1
+    return 0
+
+
 def step_should_run(
     step_id: str,
     metadata: CaseMetadata,
@@ -194,9 +255,19 @@ def step_should_run(
     phase: str = BUILD_PHASE_INITIAL,
 ) -> bool:
     """Indica se o passo produz conteúdo a partir dos metadados inferidos pela IA."""
-    if phase == BUILD_PHASE_INITIAL and step_id.startswith("scene_"):
+    if phase == BUILD_PHASE_INITIAL and (
+        step_id.startswith("scene_") or step_id.startswith("trace") or step_id.startswith("traces_")
+    ):
         return False
-    if phase == BUILD_PHASE_SCENE and not step_id.startswith("scene_"):
+    if phase == BUILD_PHASE_SCENE and (
+        not step_id.startswith("scene_")
+        or step_id.startswith("trace")
+        or step_id.startswith("traces_")
+    ):
+        return False
+    if phase == BUILD_PHASE_TRACES and not (
+        step_id.startswith("trace") or step_id.startswith("traces_")
+    ):
         return False
     if step_id in SILENT_BUILD_STEP_IDS:
         return True
@@ -227,6 +298,22 @@ def step_should_run(
             return bool(content.get("characteristics_paragraph"))
         if step_id == "scene_report_images":
             return bool(content.get("report_images"))
+        return False
+    if phase == BUILD_PHASE_TRACES:
+        bootstrap = get_bootstrap_meta(page_layout) or {}
+        trace = trace_at_index(page_layout, _trace_index_from_page_layout(page_layout))
+        if not trace:
+            return False
+        inferred = trace.get("inferred", {})
+        if not isinstance(inferred, dict):
+            inferred = {}
+        if step_id == "traces_section_heading":
+            return not bootstrap.get("traces_heading_inserted")
+        if step_id == "trace_body":
+            return bool(inferred.get("trace_paragraph"))
+        if step_id == "trace_report_images":
+            report_images = inferred.get("report_images", [])
+            return isinstance(report_images, list) and bool(report_images)
         return False
     return True
 
@@ -456,6 +543,102 @@ def start_scene_build_phase(report: Report) -> Report:
         "nodes": dict(bootstrap.get("nodes") or {}),
         "scene_insert_after_node_id": anchor_id,
         "scene_anchor_node_id": anchor_id,
+    }
+    bootstrap["state"] = STATE_BUILDING
+    report.page_layout = attach_bootstrap_meta(report.page_layout, bootstrap)
+    report.save(update_fields=["page_layout", "updated_at"])
+    return report
+
+
+def _context_from_traces_progress(
+    report: Report,
+    *,
+    examiner: ForensicExaminerSP,
+    metadata: CaseMetadata,
+    institution: Institution,
+    progress: dict,
+) -> SceneBuildContext:
+    """Reconstrói contexto de inserção de vestígios."""
+    nodes = progress.get("nodes", {})
+    node_registry = dict(nodes) if isinstance(nodes, dict) else {}
+    anchor_id = progress.get("traces_anchor_node_id") or progress.get("traces_insert_after_node_id")
+    if not anchor_id:
+        raise ValueError("Ponto de inserção dos vestígios não definido.")
+    anchor_node = ReportNode.objects.select_related("block").get(
+        pk=anchor_id,
+        report=report,
+    )
+    return SceneBuildContext(
+        report=report,
+        examiner=examiner,
+        metadata=metadata,
+        institution=institution,
+        anchor_node=anchor_node,
+        node_registry=node_registry,
+    )
+
+
+def _run_traces_build_step(step_id: str, ctx: SceneBuildContext) -> list[ReportNode]:
+    """Executa passo de montagem de um vestígio observado."""
+    trace_index = _trace_index_from_page_layout(ctx.report.page_layout)
+    trace = trace_at_index(ctx.report.page_layout, trace_index)
+    if not trace:
+        return []
+    inferred = trace.get("inferred", {})
+    if not isinstance(inferred, dict):
+        inferred = {}
+
+    if step_id == "traces_section_heading":
+        node = _insert_scene_report_node(
+            ctx,
+            block_type=ReportBlockType.HEADING,
+            content={"text": TRACES_SECTION_HEADING},
+            title_level=0,
+        )
+        ctx.node_registry["traces_section_heading"] = str(node.pk)
+        return [node]
+
+    if step_id == "trace_body":
+        paragraph = str(inferred.get("trace_paragraph", "")).strip()
+        if not paragraph:
+            return []
+        node = _insert_scene_report_node(
+            ctx,
+            block_type=ReportBlockType.PARAGRAPH,
+            content={"text": paragraph},
+        )
+        ctx.node_registry[f"trace_body_{trace_index}"] = str(node.pk)
+        return [node]
+
+    if step_id == "trace_report_images":
+        report_images = inferred.get("report_images", [])
+        if not isinstance(report_images, list) or not report_images:
+            return []
+        from institution_ic_sp.forensic_report.services.trace_report_image_nodes import (
+            insert_trace_report_image_nodes,
+        )
+
+        nodes = insert_trace_report_image_nodes(ctx, report_images)
+        if nodes:
+            ctx.node_registry[f"trace_report_images_{trace_index}"] = str(nodes[-1].pk)
+        return nodes
+
+    raise ValueError(f"Passo de montagem de vestígio desconhecido: {step_id}")
+
+
+def start_traces_build_phase(report: Report, *, trace_index: int) -> Report:
+    """Prepara montagem incremental de um vestígio após inferência."""
+    bootstrap = get_bootstrap_meta(report.page_layout) or {}
+    nodes = dict(bootstrap.get("nodes") or {})
+    anchor_id = _resolve_traces_insert_anchor(nodes)
+
+    bootstrap["build_progress"] = {
+        "phase": BUILD_PHASE_TRACES,
+        "step_index": 0,
+        "trace_index": trace_index,
+        "nodes": nodes,
+        "traces_insert_after_node_id": anchor_id,
+        "traces_anchor_node_id": anchor_id,
     }
     bootstrap["state"] = STATE_BUILDING
     report.page_layout = attach_bootstrap_meta(report.page_layout, bootstrap)
@@ -792,11 +975,47 @@ def _complete_scene_build_phase(
     bootstrap["workflow"] = GENERIC_WORKFLOW.slug
     bootstrap.pop("build_progress", None)
 
-    final_state = resolve_bootstrap_state(metadata, skipped=skipped)
-    bootstrap["state"] = final_state
     report.page_layout = attach_bootstrap_meta(report.page_layout, bootstrap)
     persist_property_crime_phase(report, metadata)
+
+    if is_property_scene_category(metadata.exam_category):
+        from institution_ic_sp.forensic_report.services.trace_observation_continuation import (
+            start_traces_collection_after_scene,
+        )
+
+        start_traces_collection_after_scene(report)
+        return STATE_COLLECTING_TRACES
+
+    final_state = resolve_bootstrap_state(metadata, skipped=skipped)
+    bootstrap = get_bootstrap_meta(report.page_layout) or {}
+    bootstrap["state"] = final_state
+    report.page_layout = attach_bootstrap_meta(report.page_layout, bootstrap)
+    report.save(update_fields=["page_layout", "updated_at"])
     return final_state
+
+
+def _complete_traces_build_phase(
+    report: Report,
+    metadata: CaseMetadata,
+    *,
+    nodes: dict[str, str],
+) -> str:
+    """Finaliza montagem de um vestígio e retorna à coleta interativa."""
+    from institution_ic_sp.forensic_report.services.forensic_report_dossier import (
+        persist_property_crime_phase,
+    )
+
+    bootstrap = get_bootstrap_meta(report.page_layout) or {}
+    bootstrap["nodes"] = dict(nodes)
+    if nodes.get("traces_section_heading"):
+        bootstrap["traces_heading_inserted"] = True
+    bootstrap["traces_collection_active"] = True
+    bootstrap["state"] = STATE_COLLECTING_TRACES
+    bootstrap.pop("build_progress", None)
+    report.page_layout = attach_bootstrap_meta(report.page_layout, bootstrap)
+    persist_property_crime_phase(report, metadata)
+    report.save(update_fields=["page_layout", "updated_at"])
+    return STATE_COLLECTING_TRACES
 
 
 def _complete_bootstrap_after_build(
@@ -810,6 +1029,8 @@ def _complete_bootstrap_after_build(
     resolved_nodes = dict(nodes or (get_bootstrap_meta(report.page_layout) or {}).get("nodes") or {})
     if phase == BUILD_PHASE_SCENE:
         return _complete_scene_build_phase(report, metadata, nodes=resolved_nodes)
+    if phase == BUILD_PHASE_TRACES:
+        return _complete_traces_build_phase(report, metadata, nodes=resolved_nodes)
     return _complete_initial_build_phase(report, metadata, nodes=resolved_nodes)
 
 
@@ -892,6 +1113,40 @@ def advance_forensic_body_build_step(
                 report,
                 metadata,
                 nodes=scene_ctx.node_registry,
+                phase=phase,
+            )
+            _save_build_progress(report, None)
+            report.save(update_fields=["page_layout", "updated_at"])
+            return [], True, final_state, None, phase
+    elif phase == BUILD_PHASE_TRACES:
+        traces_ctx = _context_from_traces_progress(
+            report,
+            examiner=examiner,
+            metadata=metadata,
+            institution=institution,
+            progress=progress,
+        )
+        while step_index < len(build_steps):
+            candidate = build_steps[step_index]
+            step_index += 1
+            if not step_should_run(
+                candidate,
+                metadata,
+                page_layout=report.page_layout,
+                phase=phase,
+            ):
+                continue
+            step_id = candidate
+            created_nodes = _run_traces_build_step(step_id, traces_ctx)
+            progress["traces_anchor_node_id"] = str(traces_ctx.anchor_node.pk)
+            progress["nodes"] = traces_ctx.node_registry
+            break
+
+        if step_id is None:
+            final_state = _complete_bootstrap_after_build(
+                report,
+                metadata,
+                nodes=traces_ctx.node_registry,
                 phase=phase,
             )
             _save_build_progress(report, None)

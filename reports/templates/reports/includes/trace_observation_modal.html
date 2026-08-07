@@ -1,0 +1,88 @@
+{# reportline/reports/templates/reports/includes/trace_observation_modal.html #}
+{# Modal de coleta de vestígio observado no exame de local. #}
+<div class="modal fade"
+     id="traceObservationModal"
+     tabindex="-1"
+     aria-labelledby="traceObservationModalLabel"
+     aria-hidden="true"
+     data-bs-backdrop="static"
+     data-bs-keyboard="false">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content">
+            <div class="modal-header border-secondary-subtle">
+                <h2 class="modal-title fs-5" id="traceObservationModalLabel">
+                    <i class="bi bi-camera text-primary me-2" aria-hidden="true"></i>
+                    Vestígio observado
+                </h2>
+            </div>
+            <div class="modal-body">
+                <p class="text-muted small mb-3">
+                    Envie imagens do vestígio e descreva onde foi observado, suas características
+                    e o contexto imediato no local.
+                </p>
+                <div class="scene-location-dropzone mb-3"
+                     id="trace-observation-dropzone"
+                     role="button"
+                     tabindex="0"
+                     aria-describedby="trace-observation-dropzone-help">
+                    <input type="file"
+                           id="trace-observation-file-input"
+                           class="visually-hidden"
+                           accept="image/*"
+                           multiple>
+                    <div class="scene-location-dropzone-inner">
+                        <i class="bi bi-cloud-arrow-up scene-location-dropzone-icon" aria-hidden="true"></i>
+                        <p class="mb-1 fw-medium">Arraste imagens aqui ou clique para selecionar</p>
+                        <p class="text-muted small mb-0" id="trace-observation-dropzone-help">
+                            Formatos de imagem comuns (JPG, PNG, WEBP).
+                        </p>
+                    </div>
+                </div>
+                <div class="report-image-upload-preview-grid mb-3"
+                     id="trace-observation-preview-grid"
+                     hidden
+                     aria-live="polite"></div>
+                <div class="mb-0">
+                    <label class="form-label" for="trace-observation-prompt-input">
+                        Orientações sobre o vestígio
+                    </label>
+                    <textarea class="form-control"
+                              id="trace-observation-prompt-input"
+                              rows="4"
+                              placeholder="Descreva o vestígio, o ambiente onde foi visto e detalhes relevantes…"></textarea>
+                </div>
+                <div class="invalid-feedback d-block"
+                     id="trace-observation-error"
+                     hidden></div>
+            </div>
+            <div class="modal-footer border-secondary-subtle flex-column align-items-stretch gap-2">
+                <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 w-100">
+                    <button type="button"
+                            class="btn btn-link text-muted px-0"
+                            id="trace-observation-cancel">
+                        Continuar depois
+                    </button>
+                    <button type="button"
+                            class="btn btn-outline-primary btn-ai-analyze"
+                            id="trace-observation-submit"
+                            aria-describedby="trace-observation-analyze-status">
+                        <span class="ai-analyze-icon me-1" aria-hidden="true"><i class="bi bi-stars"></i></span>
+                        Ler imagens e orientações com IA
+                    </button>
+                </div>
+                <div class="analyze-status-panel"
+                     id="trace-observation-analyze-status"
+                     role="status"
+                     aria-live="polite"
+                     hidden>
+                    <span class="analyze-status-dot" aria-hidden="true"></span>
+                    <span class="analyze-status-dot" aria-hidden="true"></span>
+                    <span class="analyze-status-dot" aria-hidden="true"></span>
+                    <span class="analyze-status-text" id="trace-observation-analyze-status-text">
+                        Lendo imagens do vestígio…
+                    </span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

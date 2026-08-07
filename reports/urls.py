@@ -32,6 +32,8 @@ from institution_ic_sp.forensic_report.views.forensic_bootstrap_api_views import
     ForensicBootstrapPromptView,
     ForensicBootstrapSceneContinuationView,
     ForensicBootstrapStatusView,
+    ForensicBootstrapTraceAddView,
+    ForensicBootstrapTraceDecisionView,
 )
 
 app_name = "reports"
@@ -116,6 +118,16 @@ urlpatterns = [
         "<uuid:pk>/forensic-bootstrap/scene-continuation/",
         ForensicBootstrapSceneContinuationView.as_view(),
         name="forensic_bootstrap_scene_continuation",
+    ),
+    path(
+        "<uuid:pk>/forensic-bootstrap/trace-decision/",
+        ForensicBootstrapTraceDecisionView.as_view(),
+        name="forensic_bootstrap_trace_decision",
+    ),
+    path(
+        "<uuid:pk>/forensic-bootstrap/trace-add/",
+        ForensicBootstrapTraceAddView.as_view(),
+        name="forensic_bootstrap_trace_add",
     ),
     path(
         "<uuid:pk>/forensic-bootstrap/attendance-context/",

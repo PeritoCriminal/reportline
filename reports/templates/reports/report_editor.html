@@ -47,6 +47,8 @@
 {% include "reports/includes/scene_examination_type_modal.html" %}
 {% include "reports/includes/scene_examination_confirm_modal.html" %}
 {% include "reports/includes/scene_location_characteristics_modal.html" %}
+{% include "reports/includes/trace_decision_modal.html" %}
+{% include "reports/includes/trace_observation_modal.html" %}
 {% include "reports/includes/forensic_bootstrap_prompt_panel.html" %}
 {% include "reports/includes/forensic_bootstrap_build_panel.html" %}
 {{ report_config|json_script:"report-editor-initial-config" }}
@@ -105,6 +107,7 @@
 <script src="{% versioned_static 'institution_ic_sp/js/forensic_bootstrap_documents.js' %}" defer></script>
 <script src="{% versioned_static 'reports/js/report_image_upload_preview.js' %}" defer></script>
 <script src="{% versioned_static 'reports/js/scene_examination_continuation.js' %}" defer></script>
+<script src="{% versioned_static 'reports/js/trace_collection_continuation.js' %}" defer></script>
 <script src="{% versioned_static 'reports/js/forensic_bootstrap_runner.js' %}" defer></script>
 <script src="{% versioned_static 'reports/js/forensic_bootstrap_prompts.js' %}" defer></script>
 <script src="{% versioned_static 'reports/js/report_page_header.js' %}" defer></script>
@@ -181,6 +184,9 @@
         }
         if (window.ReportLineSceneExaminationContinuation) {
             window.ReportLineSceneExaminationContinuation.initDomReferences();
+        }
+        if (window.ReportLineTraceCollectionContinuation) {
+            window.ReportLineTraceCollectionContinuation.initDomReferences();
         }
         if (window.ReportLineForensicBootstrapRunner && window.REPORT_EDITOR_FORENSIC_BOOTSTRAP) {
             const bootstrapConfig = window.REPORT_EDITOR_FORENSIC_BOOTSTRAP;

@@ -38,6 +38,9 @@ from institution_ic_sp.forensic_report.services.scene_examination_continuation i
 from institution_ic_sp.forensic_report.services.scene_examination_content import (
     scene_examination_content_from_bootstrap,
 )
+from institution_ic_sp.forensic_report.services.trace_observation_continuation import (
+    traces_from_bootstrap,
+)
 from institution_ic_sp.forensic_report.services.forensic_bootstrap_field_coverage import (
     ALL_PROMPT_FIELD_NAMES,
 )
@@ -297,6 +300,7 @@ def build_property_crime_phase_payload(
     report_images = content.get("report_images", [])
     if not isinstance(report_images, list):
         report_images = []
+    traces = traces_from_bootstrap(page_layout)
 
     return {
         "inputs": {
@@ -305,6 +309,13 @@ def build_property_crime_phase_payload(
             "images": scene_images,
             "location": _location_inputs_payload(location),
             "attendance_context": attendance_context,
+            "traces": [
+                {
+                    "prompt": str(item.get("prompt", "")).strip(),
+                    "images": item.get("images", []) if isinstance(item.get("images"), list) else [],
+                }
+                for item in traces
+            ],
         },
         "data": {
             "exam_category": normalize_exam_category(metadata.exam_category),
@@ -312,6 +323,18 @@ def build_property_crime_phase_payload(
             "attendance_context_paragraph": content.get("attendance_context_paragraph", ""),
             "characteristics_paragraph": content.get("characteristics_paragraph", ""),
             "report_images": report_images,
+            "traces": [
+                {
+                    "trace_paragraph": str(
+                        (item.get("inferred") or {}).get("trace_paragraph", "")
+                    ).strip(),
+                    "report_images": (item.get("inferred") or {}).get("report_images", [])
+                    if isinstance((item.get("inferred") or {}).get("report_images"), list)
+                    else [],
+                }
+                for item in traces
+                if isinstance(item, dict)
+            ],
         },
         "meta": {
             "confirmed_at": timezone.now().isoformat(),

@@ -33,6 +33,9 @@ Regras obrigatórias para ``report_images``:
   proposta do perito sem perder objetividade.
 - Corrigir **ortografia** e **capitalização** conforme o padrão da língua portuguesa
   (nomes de pessoas e logradouros incluídos).
+- **Não** incluir prefixo de numeração (*Figura 1*, *Figura 2 -*, etc.) no campo
+  ``caption``: o laudo numera figuras automaticamente em blocos nativos de imagem
+  e legenda.
 
 O parágrafo ``characteristics_paragraph`` **não** segue estas regras de tempo verbal
 das legendas; mantém pretérito imperfeito/perfeito conforme a biblioteca de estilo.

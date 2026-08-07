@@ -72,3 +72,11 @@ class ReportImageAttachmentsTests(TestCase):
 
         self.assertEqual(restored[0].image_id, "uuid-1")
         self.assertEqual(restored[0].proposed_caption, "Entrada lateral")
+
+    def test_normalize_strips_figure_prefix_from_proposed_caption(self):
+        """Garante remoção de prefixo Figura N em legenda proposta no upload."""
+        attachments = normalize_report_image_attachments(
+            [{"image_id": "abc", "show_in_report": True, "proposed_caption": "Figura 2 - Portão."}]
+        )
+
+        self.assertEqual(attachments[0].proposed_caption, "Portão.")

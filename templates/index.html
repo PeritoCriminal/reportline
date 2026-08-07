@@ -32,20 +32,7 @@
                         <i class="bi bi-file-earmark-plus fs-2 text-primary" aria-hidden="true"></i>
                     </div>
                     <h2 class="h5 text-body mb-3">Novo relatório</h2>
-                    <div class="list-group list-group-flush border rounded flex-grow-1">
-                        {% for option in home_new_report_options %}
-                            <a class="list-group-item list-group-item-action report-home-option"
-                               href="{{ option.url }}">
-                                <div class="d-flex align-items-center justify-content-between gap-2">
-                                    <div class="min-w-0">
-                                        <span class="fw-semibold">{{ option.title }}</span>
-                                        <span class="text-muted"> — {{ option.subtitle }}</span>
-                                    </div>
-                                    <i class="bi bi-chevron-right text-muted flex-shrink-0" aria-hidden="true"></i>
-                                </div>
-                            </a>
-                        {% endfor %}
-                    </div>
+                    {% include "reports/includes/new_report_options.html" with variant="list" list_class="flex-grow-1" %}
                 </div>
             </div>
         </div>

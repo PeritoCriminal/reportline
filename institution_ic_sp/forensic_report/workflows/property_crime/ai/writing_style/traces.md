@@ -206,3 +206,11 @@ Cada novo texto deverá ser elaborado exclusivamente a partir dos vestígios efe
 - Não extrapolar as inferências permitidas pelos elementos materiais encontrados.
 - Sempre conduzir a descrição do ambiente para o vestígio, mantendo linguagem técnica, objetiva e compatível com a metodologia pericial.
 - Aplicar ortografia e capitalização normativa do português a nomes de pessoas e logradouros quando citados.
+
+## Legendas de imagens (Elementos Observados)
+
+Quando houver imagens de vestígios marcadas para exibição no laudo:
+
+- Redigir apenas o **texto descritivo** da legenda, sem prefixo *Figura N* — a
+  numeração é aplicada automaticamente pelo editor em blocos nativos de imagem e legenda.
+- Preferir descrição direta do vestígio ou elemento visual observado.

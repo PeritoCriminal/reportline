@@ -68,7 +68,21 @@ def update_node_block(
 
     if content is not None:
         block.block_type = target_type
-        block.content = normalize_block_content(target_type, content)
+        normalized_content = normalize_block_content(target_type, content)
+        if (
+            target_type == ReportBlockType.PARAGRAPH
+            and isinstance(normalized_content, dict)
+            and "text" in normalized_content
+        ):
+            from reports.services.report_editor_context import is_caption_paragraph_node
+            from reports.services.report_caption_text import normalize_caption_text
+
+            if is_caption_paragraph_node(node):
+                normalized_content = dict(normalized_content)
+                normalized_content["text"] = normalize_caption_text(
+                    str(normalized_content.get("text", ""))
+                )
+        block.content = normalized_content
     elif block_type is not None:
         block.block_type = target_type
 

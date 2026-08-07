@@ -10,6 +10,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from reports.services.report_caption_text import normalize_caption_text
+
 
 @dataclass(frozen=True)
 class ReportImageAttachment:
@@ -42,7 +44,7 @@ def normalize_report_image_attachments(
             if not image_id or image_id in seen_ids:
                 continue
             show_in_report = bool(item.get("show_in_report", True))
-            proposed_caption = str(item.get("proposed_caption", "")).strip()
+            proposed_caption = normalize_caption_text(str(item.get("proposed_caption", "")).strip())
             attachments.append(
                 ReportImageAttachment(
                     image_id=image_id,

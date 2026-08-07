@@ -47,6 +47,8 @@ BOOTSTRAP_META_KEY = "bootstrap"
 
 STATE_SHELL_CREATED = "shell_created"
 STATE_COLLECTING_SCENE_CONTINUATION = "collecting_scene_continuation"
+STATE_COLLECTING_TRACES = "collecting_traces"
+STATE_COLLECTING_COLLECTED_ITEMS = "collecting_collected_items"
 STATE_ANALYZED = "analyzed"
 STATE_COLLECTING_PROMPTS = "collecting_prompts"
 STATE_BUILDING = "building"
@@ -553,6 +555,14 @@ def forensic_bootstrap_editor_config(report: Report) -> dict[str, Any] | None:
             "reports:forensic_bootstrap_scene_continuation",
             kwargs={"pk": report.pk},
         ),
+        "traceDecisionUrl": reverse(
+            "reports:forensic_bootstrap_trace_decision",
+            kwargs={"pk": report.pk},
+        ),
+        "traceAddUrl": reverse(
+            "reports:forensic_bootstrap_trace_add",
+            kwargs={"pk": report.pk},
+        ),
         "attendanceContextFinalizeUrl": reverse(
             "reports:forensic_bootstrap_attendance_context",
             kwargs={"pk": report.pk},
@@ -566,11 +576,19 @@ def forensic_bootstrap_editor_config(report: Report) -> dict[str, Any] | None:
         ),
     }
 
-    if state in (STATE_COLLECTING_SCENE_CONTINUATION, STATE_COLLECTING_PROMPTS, STATE_PROMPTING):
+    if state in (
+        STATE_COLLECTING_SCENE_CONTINUATION,
+        STATE_COLLECTING_TRACES,
+        STATE_COLLECTING_COLLECTED_ITEMS,
+        STATE_COLLECTING_PROMPTS,
+        STATE_PROMPTING,
+    ):
         metadata = metadata_from_bootstrap(report.page_layout)
         config["metadata"] = case_metadata_to_form_dict(metadata)
         if state == STATE_COLLECTING_SCENE_CONTINUATION:
             config.update(forensic_scene_continuation_runner_config(report))
+        if state == STATE_COLLECTING_TRACES:
+            config.update(forensic_trace_collection_runner_config(report))
         if state in (STATE_COLLECTING_PROMPTS, STATE_PROMPTING):
             config.update(forensic_bootstrap_prompt_config(report))
 
@@ -637,6 +655,18 @@ def forensic_scene_continuation_runner_config(report: Report) -> dict[str, Any]:
         runner_config["suggestedLocation"] = scene_location_to_payload(suggested_location)
     runner_config.update(_forensic_attendance_context_prompt_config(report))
     return runner_config
+
+
+def forensic_trace_collection_runner_config(report: Report) -> dict[str, Any]:
+    """Monta configuração JSON da coleta de vestígios para o runner."""
+    bootstrap = get_bootstrap_meta(report.page_layout) or {}
+    traces = bootstrap.get("traces", [])
+    trace_count = len(traces) if isinstance(traces, list) else 0
+    return {
+        "tracesCollectionActive": bool(bootstrap.get("traces_collection_active")),
+        "tracesCount": trace_count,
+        "askAnotherTrace": trace_count > 0,
+    }
 
 
 def pending_prompt_catalog(page_layout: dict[str, Any] | None) -> list[dict[str, str]]:
