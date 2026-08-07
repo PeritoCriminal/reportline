@@ -90,3 +90,5 @@ class MetadataExtractionPromptTests(TestCase):
         self.assertIn("Tipos de documento", system)
         self.assertIn("Memorando / Ofício", system)
         self.assertIn("Laudo Pericial", system)
+        self.assertIn("scene_location_preserved", system)
+        self.assertIn("scene_access_granted_by", system)

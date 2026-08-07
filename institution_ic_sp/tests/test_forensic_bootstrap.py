@@ -341,6 +341,11 @@ class ForensicBootstrapPhaseOneTests(TestCase):
         self.assertTrue(payload.get("done"))
         self.assertEqual(payload.get("state"), STATE_COLLECTING_SCENE_CONTINUATION)
         self.assertEqual(payload.get("step_id"), "finalize")
+        self.assertIn("scene_continuation_config", payload)
+        scene_config = payload["scene_continuation_config"]
+        self.assertIn("pendingAttendanceContextPrompts", scene_config)
+        self.assertGreater(len(scene_config["pendingAttendanceContextPrompts"]), 0)
+        self.assertIn("attendanceContextFinalizeUrl", scene_config)
 
         report.refresh_from_db()
         self.assertEqual(bootstrap_state(report), STATE_COLLECTING_SCENE_CONTINUATION)

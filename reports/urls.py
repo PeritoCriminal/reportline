@@ -24,6 +24,7 @@ from reports.views.report_node_api_views import (
 from reports.views.report_page_layout_api_views import ReportPageLayoutView
 from institution_ic_sp.forensic_report.views.forensic_bootstrap_api_views import (
     ForensicBootstrapAnalyzeView,
+    ForensicBootstrapAttendanceContextView,
     ForensicBootstrapBuildStepView,
     ForensicBootstrapBuildView,
     ForensicBootstrapFinalizeView,
@@ -114,6 +115,11 @@ urlpatterns = [
         "<uuid:pk>/forensic-bootstrap/scene-continuation/",
         ForensicBootstrapSceneContinuationView.as_view(),
         name="forensic_bootstrap_scene_continuation",
+    ),
+    path(
+        "<uuid:pk>/forensic-bootstrap/attendance-context/",
+        ForensicBootstrapAttendanceContextView.as_view(),
+        name="forensic_bootstrap_attendance_context",
     ),
     path(
         "<uuid:pk>/forensic-bootstrap/finalize/",

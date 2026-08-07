@@ -19,6 +19,10 @@ from institution_ic_sp.forensic_report.common.services.case_metadata_serializati
     case_metadata_to_form_dict,
 )
 from institution_ic_sp.forensic_report.common.services.exam_category import normalize_exam_category
+from institution_ic_sp.forensic_report.common.services.scene_attendance_context import (
+    scene_attendance_context_from_extensions,
+    scene_attendance_context_to_payload,
+)
 from institution_ic_sp.forensic_report.common.services.scene_location import (
     exam_location_from_dossier,
     scene_location_to_payload,
@@ -30,6 +34,10 @@ from institution_ic_sp.forensic_report.services.forensic_bootstrap_field_coverag
     default_prompt_value,
     is_prompt_field_value_empty,
     merge_field_coverage_with_metadata,
+)
+from institution_ic_sp.forensic_report.services.scene_attendance_context_prompts import (
+    compute_pending_attendance_context_prompts,
+    pending_attendance_context_prompt_catalog,
 )
 from reports.models import Report
 from reports.services.report_kind import REPORTLINE_META_KEY, is_forensic_report
@@ -147,6 +155,30 @@ PROMPT_FIELD_CONFIG: dict[str, dict[str, str]] = {
         "placeholder": "",
     },
 }
+
+
+def _seed_scene_attendance_context_from_extensions(bootstrap: dict[str, Any]) -> None:
+    """Preenche contexto de atendimento a partir de extensions inferidas na análise."""
+    from institution_ic_sp.forensic_report.common.services.scene_attendance_context import (
+        normalize_scene_attendance_context,
+        scene_attendance_context_from_extensions,
+        scene_attendance_context_to_payload,
+    )
+
+    extensions = bootstrap.get("extensions", {})
+    if not isinstance(extensions, dict):
+        return
+
+    inferred = scene_attendance_context_from_extensions(extensions)
+    existing_raw = bootstrap.get("scene_attendance_context", {})
+    existing = normalize_scene_attendance_context(
+        existing_raw if isinstance(existing_raw, dict) else {}
+    )
+    merged = scene_attendance_context_to_payload(existing)
+    for field_name, value in scene_attendance_context_to_payload(inferred).items():
+        if value and not merged.get(field_name):
+            merged[field_name] = value
+    bootstrap["scene_attendance_context"] = merged
 
 
 def empty_bootstrap_payload(*, supplementary_prompt: str = "") -> dict[str, Any]:
@@ -333,6 +365,7 @@ def save_bootstrap_after_analyze(
     bootstrap["document_count"] = max(document_count, 0)
     bootstrap["supplementary_prompt"] = preserved_prompt
     bootstrap["extensions"] = dict(extensions or {})
+    _seed_scene_attendance_context_from_extensions(bootstrap)
     report.page_layout = attach_bootstrap_meta(report.page_layout, bootstrap)
     report.save(update_fields=["page_layout", "updated_at"])
     return report
@@ -519,6 +552,10 @@ def forensic_bootstrap_editor_config(report: Report) -> dict[str, Any] | None:
             "reports:forensic_bootstrap_scene_continuation",
             kwargs={"pk": report.pk},
         ),
+        "attendanceContextFinalizeUrl": reverse(
+            "reports:forensic_bootstrap_attendance_context",
+            kwargs={"pk": report.pk},
+        ),
         "buildUrl": reverse("reports:forensic_bootstrap_build", kwargs={"pk": report.pk}),
         "buildStepUrl": reverse("reports:forensic_bootstrap_build_step", kwargs={"pk": report.pk}),
         "statusUrl": reverse("reports:forensic_bootstrap_status", kwargs={"pk": report.pk}),
@@ -532,12 +569,7 @@ def forensic_bootstrap_editor_config(report: Report) -> dict[str, Any] | None:
         metadata = metadata_from_bootstrap(report.page_layout)
         config["metadata"] = case_metadata_to_form_dict(metadata)
         if state == STATE_COLLECTING_SCENE_CONTINUATION:
-            config["examCategory"] = inferred_exam_category_from_bootstrap(report.page_layout)
-            config["inferredExamCategory"] = inferred_exam_category_from_bootstrap(report.page_layout)
-            config["initialBuildCompleted"] = is_initial_build_completed(report.page_layout)
-            suggested_location = exam_location_from_dossier(report)
-            if suggested_location.is_present:
-                config["suggestedLocation"] = scene_location_to_payload(suggested_location)
+            config.update(forensic_scene_continuation_runner_config(report))
         if state in (STATE_COLLECTING_PROMPTS, STATE_PROMPTING):
             config.update(forensic_bootstrap_prompt_config(report))
 
@@ -561,6 +593,49 @@ def forensic_bootstrap_prompt_config(report: Report) -> dict[str, Any]:
         "metadata": case_metadata_to_form_dict(metadata),
         "pendingPrompts": pending_prompt_catalog(report.page_layout),
     }
+
+
+def _forensic_attendance_context_prompt_config(report: Report) -> dict[str, Any]:
+    """Monta configuração JSON dos prompts de contexto de atendimento."""
+    from django.urls import reverse
+
+    from institution_ic_sp.forensic_report.common.services.scene_attendance_context import (
+        scene_attendance_context_from_bootstrap,
+    )
+    from institution_ic_sp.forensic_report.services.scene_attendance_context_finalize import (
+        skipped_attendance_context_prompts_from_bootstrap,
+    )
+
+    context = scene_attendance_context_from_bootstrap(report.page_layout)
+    skipped = skipped_attendance_context_prompts_from_bootstrap(report.page_layout)
+    pending = compute_pending_attendance_context_prompts(context, skipped=skipped)
+    return {
+        "attendanceContextFinalizeUrl": reverse(
+            "reports:forensic_bootstrap_attendance_context",
+            kwargs={"pk": report.pk},
+        ),
+        "attendanceContext": scene_attendance_context_to_payload(context),
+        "pendingAttendanceContextPrompts": pending_attendance_context_prompt_catalog(
+            context,
+            skipped=skipped,
+        ),
+    }
+
+
+def forensic_scene_continuation_runner_config(report: Report) -> dict[str, Any]:
+    """Monta configuração JSON da continuação de exame de local para o runner."""
+    metadata = metadata_from_bootstrap(report.page_layout)
+    runner_config: dict[str, Any] = {
+        "examCategory": inferred_exam_category_from_bootstrap(report.page_layout),
+        "inferredExamCategory": inferred_exam_category_from_bootstrap(report.page_layout),
+        "initialBuildCompleted": is_initial_build_completed(report.page_layout),
+        "metadata": case_metadata_to_form_dict(metadata),
+    }
+    suggested_location = exam_location_from_dossier(report)
+    if suggested_location.is_present:
+        runner_config["suggestedLocation"] = scene_location_to_payload(suggested_location)
+    runner_config.update(_forensic_attendance_context_prompt_config(report))
+    return runner_config
 
 
 def pending_prompt_catalog(page_layout: dict[str, Any] | None) -> list[dict[str, str]]:

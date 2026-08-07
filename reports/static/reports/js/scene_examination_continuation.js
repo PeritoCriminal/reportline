@@ -555,10 +555,26 @@
         return waitForTypeSelection();
     }
 
+    async function runAttendanceContextPrompts(config) {
+        const pending = Array.isArray(config.pendingAttendanceContextPrompts)
+            ? config.pendingAttendanceContextPrompts
+            : [];
+        if (!pending.length || !window.ReportLineForensicBootstrap?.runAttendanceContextPromptFlow) {
+            return config;
+        }
+        const response = await window.ReportLineForensicBootstrap.runAttendanceContextPromptFlow({
+            attendanceContextFinalizeUrl: config.attendanceContextFinalizeUrl,
+            pendingAttendanceContextPrompts: pending,
+            attendanceContext: config.attendanceContext || {},
+        });
+        return Object.assign({}, config, response || {});
+    }
+
     async function collectPropertySceneData(config) {
-        activeSuggestedLocation = config?.suggestedLocation || null;
+        const preparedConfig = await runAttendanceContextPrompts(config);
+        activeSuggestedLocation = preparedConfig?.suggestedLocation || null;
         resetCharacteristicsForm();
-        applySuggestedLocation(config);
+        applySuggestedLocation(preparedConfig);
         showModal(characteristicsModal);
 
         while (true) {
@@ -592,7 +608,7 @@
                     setSceneAnalyzeMessage("Analisando orientações complementares…");
                 }
 
-                const response = await persistContinuation(config, CATEGORY_PROPERTY_SCENE, {
+                const response = await persistContinuation(preparedConfig, CATEGORY_PROPERTY_SCENE, {
                     prompt: draft.prompt,
                     location: draft.location,
                     imageIds,

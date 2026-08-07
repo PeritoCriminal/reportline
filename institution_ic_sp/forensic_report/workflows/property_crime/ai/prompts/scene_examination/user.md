@@ -12,6 +12,10 @@ Redija os trechos de exame de local com base nas informações abaixo.
 
 {{scene_prompt}}
 
+## Dados estruturados do contexto de atendimento
+
+{{attendance_context_text}}
+
 ## Trechos documentais (referência)
 
 {{document_excerpts}}

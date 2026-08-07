@@ -535,6 +535,9 @@
             if (payload.build_phase) {
                 config.buildPhase = payload.build_phase;
             }
+            if (payload.scene_continuation_config) {
+                Object.assign(config, payload.scene_continuation_config);
+            }
 
             if (config.state === STATE_COLLECTING_SCENE_CONTINUATION) {
                 break;
@@ -559,11 +562,7 @@
             progressPill.hidden = true;
         }
         const response = await window.ReportLineSceneExaminationContinuation.run({
-            sceneContinuationUrl: config.sceneContinuationUrl,
-            imageUploadUrl: config.imageUploadUrl,
-            examCategory: config.examCategory,
-            inferredExamCategory: config.inferredExamCategory,
-            metadata: config.metadata,
+            ...config,
         });
         config.state = response.state || config.state;
         config.examCategory = response.exam_category || config.examCategory;

@@ -27,6 +27,10 @@ from institution_ic_sp.forensic_report.services.forensic_bootstrap import (
     get_bootstrap_meta,
     skipped_prompts_from_bootstrap,
 )
+from institution_ic_sp.forensic_report.common.services.scene_attendance_context import (
+    scene_attendance_context_from_bootstrap,
+    scene_attendance_context_to_payload,
+)
 from institution_ic_sp.forensic_report.services.scene_examination_continuation import (
     scene_characteristics_from_bootstrap,
 )
@@ -250,6 +254,7 @@ def _build_sources_used(
     scene_prompt: str,
     image_ids: list[str],
     location: dict[str, object],
+    attendance_context: dict[str, str] | None = None,
 ) -> list[str]:
     """Lista fontes consideradas na inferência de exame de local."""
     sources: list[str] = []
@@ -261,6 +266,9 @@ def _build_sources_used(
         sources.append("images")
     if any(_location_inputs_payload(location).values()):
         sources.append("location")
+    context_values = attendance_context or {}
+    if any(str(value).strip() for value in context_values.values()):
+        sources.append("attendance_context")
     return sources
 
 
@@ -279,12 +287,16 @@ def build_property_crime_phase_payload(
     image_ids = [
         str(item) for item in characteristics.get("image_ids", []) if str(item).strip()
     ]
+    attendance_context = scene_attendance_context_to_payload(
+        scene_attendance_context_from_bootstrap(page_layout)
+    )
 
     return {
         "inputs": {
             "scene_prompt": scene_prompt,
             "image_ids": image_ids,
             "location": _location_inputs_payload(location),
+            "attendance_context": attendance_context,
         },
         "data": {
             "exam_category": normalize_exam_category(metadata.exam_category),
@@ -299,6 +311,7 @@ def build_property_crime_phase_payload(
                 scene_prompt=scene_prompt,
                 image_ids=image_ids,
                 location=location,
+                attendance_context=attendance_context,
             ),
         },
     }

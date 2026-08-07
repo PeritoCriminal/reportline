@@ -2,25 +2,35 @@
  * Prompts inline do bootstrap pericial no editor de laudos.
  *
  * Acumula respostas localmente e persiste em lote ao concluir a fila.
- * Usado antes da montagem visual do corpo (collecting_prompts) ou após
- * montagem legada (prompting).
+ * Usado antes da montagem visual do corpo (collecting_prompts), após
+ * montagem legada (prompting) ou na continuação de exame de local.
  */
 (function () {
     "use strict";
 
     const STATE_COLLECTING_PROMPTS = "collecting_prompts";
     const STATE_PROMPTING = "prompting";
+    const STATE_COLLECTING_SCENE_CONTINUATION = "collecting_scene_continuation";
     const UPPERCASE_TEXT_FIELDS = new Set([
         "report_number",
         "occurrence_report",
         "police_inquiry",
         "attendance_protocol",
     ]);
+    const INFORMANT_BRIEFING_DESCRIPTOR = {
+        field: "informant_briefing",
+        label: "Informes prestados",
+        input_type: "textarea",
+        help_text: "Resuma objetivamente os esclarecimentos recebidos, sem narrar dinâmica dos fatos.",
+        placeholder: "Ex.: informou ter constatado o imóvel fechado ao retornar da viagem.",
+    };
 
     let config = null;
     let shell = null;
     let form = null;
     let input = null;
+    let select = null;
+    let textarea = null;
     let label = null;
     let help = null;
     let title = null;
@@ -31,7 +41,7 @@
 
     let promptQueue = [];
     let queueIndex = 0;
-    let localMetadata = {};
+    let localData = {};
     let localAnswers = {};
     let localSkipped = [];
     let currentPrompt = null;
@@ -39,6 +49,7 @@
     let flowResolve = null;
     let flowReject = null;
     let listenersBound = false;
+    let activeControl = null;
 
     function getCsrfToken() {
         const match = document.cookie.match(/(?:^|;\s*)csrftoken=([^;]+)/);
@@ -57,6 +68,8 @@
         shell = document.getElementById("forensic-bootstrap-prompt-shell");
         form = document.getElementById("forensic-bootstrap-prompt-form");
         input = document.getElementById("forensic-bootstrap-prompt-input");
+        select = document.getElementById("forensic-bootstrap-prompt-select");
+        textarea = document.getElementById("forensic-bootstrap-prompt-textarea");
         label = document.getElementById("forensic-bootstrap-prompt-label");
         help = document.getElementById("forensic-bootstrap-prompt-help");
         title = document.getElementById("forensic-bootstrap-prompt-title");
@@ -66,6 +79,17 @@
         submitButton = document.getElementById("forensic-bootstrap-prompt-submit");
     }
 
+    function hideAllControls() {
+        [input, select, textarea].forEach((control) => {
+            if (!control) {
+                return;
+            }
+            control.classList.add("d-none");
+            control.classList.remove("is-invalid");
+            control.disabled = false;
+        });
+    }
+
     function showError(message) {
         if (!errorBox) {
             return;
@@ -73,15 +97,15 @@
         if (message) {
             errorBox.textContent = message;
             errorBox.hidden = false;
-            if (input) {
-                input.classList.add("is-invalid");
+            if (activeControl) {
+                activeControl.classList.add("is-invalid");
             }
             return;
         }
         errorBox.textContent = "";
         errorBox.hidden = true;
-        if (input) {
-            input.classList.remove("is-invalid");
+        if (activeControl) {
+            activeControl.classList.remove("is-invalid");
         }
     }
 
@@ -92,9 +116,11 @@
         if (submitButton) {
             submitButton.disabled = isBusy;
         }
-        if (input) {
-            input.disabled = isBusy;
-        }
+        [input, select, textarea].forEach((control) => {
+            if (control) {
+                control.disabled = isBusy;
+            }
+        });
         const overlayActive = Boolean(currentPrompt && !isBusy && !isFinalizing);
         document.body.classList.toggle("forensic-bootstrap-prompt-active", overlayActive);
     }
@@ -112,9 +138,86 @@
         progress.textContent = `${queueIndex + 1} de ${promptQueue.length} · `;
     }
 
+    function personalizeAttendancePrompt(prompt) {
+        const descriptor = Object.assign({}, prompt);
+        if (descriptor.field === "informant_provided_info" && localData.access_granted_by) {
+            descriptor.label = `${localData.access_granted_by} prestou informes?`;
+            descriptor.help_text =
+                `Indique se ${localData.access_granted_by} prestou esclarecimentos sobre o atendimento.`;
+        }
+        if (descriptor.field === "informant_briefing" && localData.access_granted_by) {
+            descriptor.label = `Informes prestados por ${localData.access_granted_by}`;
+        }
+        return descriptor;
+    }
+
+    function populateSelectChoices(choices, selectedValue) {
+        if (!select) {
+            return;
+        }
+        select.innerHTML = "";
+        const placeholder = document.createElement("option");
+        placeholder.value = "";
+        placeholder.textContent = "Selecione…";
+        select.appendChild(placeholder);
+        (choices || []).forEach((choice) => {
+            const option = document.createElement("option");
+            option.value = choice.value;
+            option.textContent = choice.label;
+            select.appendChild(option);
+        });
+        select.value = selectedValue || "";
+    }
+
+    function activateControl(prompt) {
+        hideAllControls();
+        const existingValue = (localData[prompt.field] || "").trim();
+        const inputType = prompt.input_type || "text";
+
+        if (inputType === "select") {
+            activeControl = select;
+            populateSelectChoices(prompt.choices, existingValue || prompt.default_value || "");
+            if (label) {
+                label.setAttribute("for", "forensic-bootstrap-prompt-select");
+            }
+            select.classList.remove("d-none");
+            select.focus();
+            return;
+        }
+
+        if (inputType === "textarea") {
+            activeControl = textarea;
+            textarea.value = existingValue || prompt.default_value || "";
+            textarea.placeholder = prompt.placeholder || "";
+            if (label) {
+                label.setAttribute("for", "forensic-bootstrap-prompt-textarea");
+            }
+            textarea.classList.remove("d-none");
+            textarea.focus();
+            return;
+        }
+
+        activeControl = input;
+        input.type = inputType;
+        input.value = existingValue || prompt.default_value || "";
+        input.placeholder = prompt.placeholder || "";
+        if (label) {
+            label.setAttribute("for", "forensic-bootstrap-prompt-input");
+        }
+        input.classList.remove("d-none");
+        input.focus();
+        if (input.type === "date" || input.type === "datetime-local") {
+            try {
+                input.setSelectionRange(0, 0);
+            } catch (_error) {
+                /* inputs nativos de data/hora não suportam seleção programática */
+            }
+        }
+    }
+
     function applyPromptDescriptor(prompt) {
-        currentPrompt = prompt;
-        if (!prompt) {
+        currentPrompt = prompt ? personalizeAttendancePrompt(prompt) : null;
+        if (!currentPrompt) {
             if (shell) {
                 shell.hidden = true;
             }
@@ -126,42 +229,57 @@
             shell.hidden = false;
         }
         if (title) {
-            title.textContent = "Complementar dados do laudo";
+            title.textContent = config.flowTitle || "Complementar dados do laudo";
         }
         if (label) {
-            label.textContent = prompt.label || "Campo";
+            label.textContent = currentPrompt.label || "Campo";
         }
         if (help) {
-            help.textContent = prompt.help_text || "";
+            help.textContent = currentPrompt.help_text || "";
         }
-        if (input) {
-            input.type = prompt.input_type || "text";
-            const existingValue = (localMetadata[prompt.field] || "").trim();
-            if (prompt.default_value && !existingValue) {
-                input.value = prompt.default_value;
-            } else {
-                input.value = existingValue;
-            }
-            input.placeholder = prompt.placeholder || "";
-            input.classList.remove("is-invalid");
-        }
+        activateControl(currentPrompt);
         showError("");
         updateProgress();
         setBusy(false);
-        if (input) {
-            input.focus();
-            if (input.type === "date" || input.type === "datetime-local") {
-                try {
-                    input.setSelectionRange(0, 0);
-                } catch (_error) {
-                    /* inputs nativos de data/hora não suportam seleção programática */
-                }
-            }
-        }
         document.body.classList.add("forensic-bootstrap-prompt-active");
     }
 
+    function maybeInjectInformantBriefingPrompt() {
+        if (localData.informant_provided_info !== "yes") {
+            return;
+        }
+        const alreadyQueued = promptQueue.some((item) => item.field === "informant_briefing");
+        const alreadyAnswered = Boolean(localAnswers.informant_briefing);
+        const skipped = localSkipped.includes("informant_briefing");
+        if (alreadyQueued || alreadyAnswered || skipped) {
+            return;
+        }
+        promptQueue.splice(queueIndex + 1, 0, Object.assign({}, INFORMANT_BRIEFING_DESCRIPTOR));
+    }
+
+    function maybeRemoveInformantBriefingPrompt() {
+        if (localData.informant_provided_info === "yes") {
+            return;
+        }
+        promptQueue = promptQueue.filter((item, index) => {
+            if (item.field !== "informant_briefing") {
+                return true;
+            }
+            return index <= queueIndex;
+        });
+        delete localAnswers.informant_briefing;
+        localData.informant_briefing = "";
+    }
+
     function advanceQueue() {
+        if (currentPrompt?.field === "informant_provided_info") {
+            if (localData.informant_provided_info === "yes") {
+                maybeInjectInformantBriefingPrompt();
+            } else {
+                maybeRemoveInformantBriefingPrompt();
+            }
+        }
+
         queueIndex += 1;
         if (queueIndex < promptQueue.length) {
             applyPromptDescriptor(promptQueue[queueIndex]);
@@ -197,7 +315,7 @@
         showError("");
 
         if (title) {
-            title.textContent = "Salvando dados do laudo…";
+            title.textContent = "Salvando dados…";
         }
         if (progress) {
             progress.textContent = "Aguarde";
@@ -233,7 +351,7 @@
         } catch (error) {
             isFinalizing = false;
             if (title) {
-                title.textContent = "Complementar dados do laudo";
+                title.textContent = config.flowTitle || "Complementar dados do laudo";
             }
             updateProgress();
             showError(error.message || "Falha ao concluir.");
@@ -242,13 +360,20 @@
         }
     }
 
+    function readActiveValue() {
+        if (!activeControl) {
+            return "";
+        }
+        return (activeControl.value || "").trim();
+    }
+
     function handleSubmit(event) {
         event.preventDefault();
-        if (!input || !currentPrompt || isFinalizing) {
+        if (!activeControl || !currentPrompt || isFinalizing) {
             return;
         }
 
-        const rawValue = (input.value || "").trim();
+        const rawValue = readActiveValue();
         if (!rawValue) {
             showError("Informe um valor ou use Pular.");
             return;
@@ -257,7 +382,7 @@
         setBusy(true);
         const fieldName = currentPrompt.field;
         localAnswers[fieldName] = rawValue;
-        localMetadata[fieldName] = normalizeTextField(fieldName, rawValue);
+        localData[fieldName] = normalizeTextField(fieldName, rawValue);
         advanceQueue();
     }
 
@@ -282,18 +407,25 @@
         listenersBound = true;
     }
 
+    function resolveAllowedStates(options) {
+        if (Array.isArray(options.allowedStates) && options.allowedStates.length) {
+            return new Set(options.allowedStates);
+        }
+        return new Set([STATE_COLLECTING_PROMPTS, STATE_PROMPTING]);
+    }
+
     function startPromptFlow(options) {
         config = options || {};
         bindDom();
         bindListeners();
 
-        const allowedStates = new Set([STATE_COLLECTING_PROMPTS, STATE_PROMPTING]);
+        const allowedStates = resolveAllowedStates(config);
         if (!shell || !form || !allowedStates.has(config.state)) {
             throw new Error("Prompts indisponíveis nesta etapa.");
         }
 
         promptQueue = Array.isArray(config.pendingPrompts) ? config.pendingPrompts.slice() : [];
-        localMetadata = Object.assign({}, config.metadata || {});
+        localData = Object.assign({}, config.localData || config.metadata || config.attendanceContext || {});
         queueIndex = 0;
         localAnswers = {};
         localSkipped = [];
@@ -326,6 +458,18 @@
         });
     }
 
+    function runAttendanceContextPromptFlow(options) {
+        const merged = Object.assign({}, options || {}, {
+            state: STATE_COLLECTING_SCENE_CONTINUATION,
+            allowedStates: [STATE_COLLECTING_SCENE_CONTINUATION],
+            flowTitle: "Contexto de atendimento",
+            finalizeUrl: options?.attendanceContextFinalizeUrl || options?.finalizeUrl,
+            pendingPrompts: options?.pendingAttendanceContextPrompts || options?.pendingPrompts || [],
+            localData: options?.attendanceContext || {},
+        });
+        return runPromptFlow(merged);
+    }
+
     function init(options) {
         const result = startPromptFlow(options);
         if (result) {
@@ -333,5 +477,9 @@
         }
     }
 
-    window.ReportLineForensicBootstrap = { init, runPromptFlow };
+    window.ReportLineForensicBootstrap = {
+        init,
+        runPromptFlow,
+        runAttendanceContextPromptFlow,
+    };
 })();

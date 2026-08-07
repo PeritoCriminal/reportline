@@ -20,7 +20,7 @@
                 </div>
             </div>
             <form id="forensic-bootstrap-prompt-form" novalidate>
-                <div class="mb-3">
+                <div class="mb-3" id="forensic-bootstrap-prompt-field-shell">
                     <label class="form-label"
                            id="forensic-bootstrap-prompt-label"
                            for="forensic-bootstrap-prompt-input">
@@ -30,6 +30,13 @@
                            id="forensic-bootstrap-prompt-input"
                            name="value"
                            autocomplete="off">
+                    <select class="form-select d-none"
+                            id="forensic-bootstrap-prompt-select"
+                            name="value"></select>
+                    <textarea class="form-control d-none"
+                              id="forensic-bootstrap-prompt-textarea"
+                              name="value"
+                              rows="4"></textarea>
                     <div class="invalid-feedback d-block"
                          id="forensic-bootstrap-prompt-error"
                          hidden></div>

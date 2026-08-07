@@ -51,6 +51,7 @@ from institution_ic_sp.forensic_report.services.forensic_bootstrap import (
     bootstrap_status_payload,
     compute_pending_prompts,
     forensic_bootstrap_prompt_config,
+    forensic_scene_continuation_runner_config,
     get_bootstrap_meta,
     is_initial_build_completed,
     mark_prompt_skipped,
@@ -311,6 +312,8 @@ class ForensicBootstrapBuildStepView(ForensicReportAuthorMixin, View):
             "report_title": report.title,
             "header_report_number_text": metadata.header_report_number_text,
         }
+        if final_state == STATE_COLLECTING_SCENE_CONTINUATION:
+            response["scene_continuation_config"] = forensic_scene_continuation_runner_config(report)
         return JsonResponse(response)
 
     def http_method_not_allowed(self, request, *args, **kwargs):
@@ -415,6 +418,56 @@ class ForensicBootstrapFinalizeView(ForensicReportAuthorMixin, View):
         report.refresh_from_db()
         response = bootstrap_status_payload(report)
         response["reload"] = bootstrap_state(report) == STATE_READY
+        return JsonResponse(response)
+
+    def http_method_not_allowed(self, request, *args, **kwargs):
+        return HttpResponseNotAllowed(["POST"])
+
+
+class ForensicBootstrapAttendanceContextView(ForensicReportAuthorMixin, View):
+    """Persiste respostas dos prompts de contexto de atendimento no exame de local."""
+
+    def post(self, request, pk):
+        """Aplica lote de respostas sobre circunstâncias do atendimento pericial."""
+        report = self.get_report()
+        state = bootstrap_state(report)
+        if state != STATE_COLLECTING_SCENE_CONTINUATION:
+            return JsonResponse(
+                {"errors": ["Os prompts de contexto de atendimento não estão disponíveis nesta etapa."]},
+                status=400,
+            )
+
+        try:
+            payload = json.loads(request.body.decode("utf-8") or "{}")
+        except json.JSONDecodeError:
+            return JsonResponse({"errors": ["JSON inválido."]}, status=400)
+
+        raw_answers = payload.get("answers", {})
+        raw_skipped = payload.get("skipped", [])
+        if not isinstance(raw_answers, dict):
+            return JsonResponse({"errors": ["Informe answers como objeto."]}, status=400)
+        if not isinstance(raw_skipped, list):
+            return JsonResponse({"errors": ["Informe skipped como lista."]}, status=400)
+
+        from institution_ic_sp.forensic_report.services.forensic_bootstrap import (
+            _forensic_attendance_context_prompt_config,
+        )
+        from institution_ic_sp.forensic_report.services.scene_attendance_context_finalize import (
+            finalize_attendance_context_prompts,
+        )
+
+        try:
+            finalize_attendance_context_prompts(
+                report,
+                answers=raw_answers,
+                skipped=[str(item) for item in raw_skipped],
+            )
+        except ValidationError as exc:
+            return _validation_error_response(exc)
+
+        report.refresh_from_db()
+        response = _forensic_attendance_context_prompt_config(report)
+        response["state"] = bootstrap_state(report)
         return JsonResponse(response)
 
     def http_method_not_allowed(self, request, *args, **kwargs):

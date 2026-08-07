@@ -12,9 +12,14 @@ from pathlib import Path
 from institution_ic_sp.forensic_report.common.ai.gateway import complete_json_with_images_safe
 from institution_ic_sp.forensic_report.common.ai.prompt_loader import (
     load_prompt_markdown,
+    load_style_markdown,
     render_prompt_template,
 )
 from institution_ic_sp.forensic_report.common.services.case_metadata import CaseMetadata
+from institution_ic_sp.forensic_report.common.services.scene_attendance_context import (
+    attendance_context_summary_for_prompt,
+    scene_attendance_context_from_bootstrap,
+)
 from institution_ic_sp.forensic_report.common.services.scene_location import SceneLocationData
 from institution_ic_sp.forensic_report.registry import PROPERTY_CRIME_WORKFLOW
 from reports.models import Report, ReportImage
@@ -95,10 +100,18 @@ def infer_scene_examination_content(
     Usa metadados administrativos, orientações do perito, localização e imagens
     (quando o perito tiver permissão institucional).
     """
-    system_prompt = load_prompt_markdown(
+    system_template = load_prompt_markdown(
         workflow_slug=PROPERTY_CRIME_WORKFLOW.slug,
         task="scene_examination",
         name="system",
+    )
+    attendance_context_style = load_style_markdown(
+        workflow_slug=PROPERTY_CRIME_WORKFLOW.slug,
+        name="attendance_context",
+    )
+    system_prompt = render_prompt_template(
+        system_template,
+        attendance_context_style=attendance_context_style,
     )
     user_template = load_prompt_markdown(
         workflow_slug=PROPERTY_CRIME_WORKFLOW.slug,
@@ -109,6 +122,8 @@ def infer_scene_examination_content(
     location_text = ""
     if location and location.is_present:
         location_text = location.display_text
+
+    attendance_context = scene_attendance_context_from_bootstrap(report.page_layout)
 
     user_prompt = render_prompt_template(
         user_template,
@@ -128,6 +143,7 @@ def infer_scene_examination_content(
         ),
         scene_prompt=scene_prompt.strip() or "(nenhuma)",
         location_text=location_text or "(não informada)",
+        attendance_context_text=attendance_context_summary_for_prompt(attendance_context),
         document_excerpts=document_excerpts.strip() or "(nenhum)",
     )
 

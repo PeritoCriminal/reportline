@@ -88,6 +88,12 @@ Exemplos úteis quando constarem explicitamente nos documentos:
 - ``victim_names``, ``witness_names``, ``suspect_names`` — listas textuais ou string concatenada
 - ``vehicle_plates``, ``vehicle_descriptions``
 - ``occurrence_address`` — endereço da ocorrência, distinto do local do exame
+- ``scene_location_preserved`` — ``yes``, ``no`` ou ``partially``, quando a minuta ou requisição indicar preservação do local
+- ``scene_police_authority_present`` — ``yes`` ou ``no``, quando constar presença de autoridade policial no atendimento
+- ``scene_investigation_team_present`` — ``yes`` ou ``no``, quando constar presença de policiais, GCM ou equipe de diligências
+- ``scene_access_granted_by`` — nome ou qualificação breve de quem franqueou o acesso ao imóvel ou área
+- ``scene_informant_provided_info`` — ``yes`` ou ``no``, quando constar se alguém prestou informes no local
+- ``scene_informant_briefing`` — resumo objetivo dos informes recebidos, sem narrar dinâmica dos fatos
 
 **Não** coloque pessoas, veículos, vestígios ou endereços nos campos principais — apenas em ``extensions``. Omita chaves sem respaldo documental; use ``extensions: {}`` quando não houver dados extras.
 

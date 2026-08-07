@@ -327,6 +327,14 @@ class ForensicReportDossierPhaseTwoTests(TestCase):
             "attendance_context_paragraph": "A equipe compareceu ao local.",
             "characteristics_paragraph": "Imóvel residencial térreo.",
         }
+        bootstrap["scene_attendance_context"] = {
+            "location_preserved": "yes",
+            "police_authority_present": "no",
+            "investigation_team_present": "yes",
+            "access_granted_by": "proprietário",
+            "informant_provided_info": "yes",
+            "informant_briefing": "Informou que o local permanecia fechado.",
+        }
         report.page_layout = attach_bootstrap_meta(report.page_layout, bootstrap)
         report.save(update_fields=["page_layout", "updated_at"])
 
@@ -347,6 +355,8 @@ class ForensicReportDossierPhaseTwoTests(TestCase):
         self.assertIn("scene_prompt", payload["meta"]["sources_used"])
         self.assertIn("images", payload["meta"]["sources_used"])
         self.assertIn("location", payload["meta"]["sources_used"])
+        self.assertEqual(payload["inputs"]["attendance_context"]["location_preserved"], "yes")
+        self.assertIn("attendance_context", payload["meta"]["sources_used"])
 
     @patch(SCENE_CONTENT_PATCH)
     @patch(ANALYZE_PATCH)

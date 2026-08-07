@@ -28,6 +28,26 @@ def load_prompt_markdown(*, workflow_slug: str, task: str, name: str) -> str:
     return path.read_text(encoding="utf-8")
 
 
+@lru_cache(maxsize=32)
+def load_style_markdown(*, workflow_slug: str, name: str) -> str:
+    """
+    Lê arquivo Markdown de biblioteca de estilo do workflow informado.
+
+    TODO(futuro): permitir fontes dinâmicas — laudos anteriores do próprio
+    perito ou trechos curados de laudos públicos de outros peritos — em
+    substituição ou complemento aos exemplos fictícios estáticos.
+    """
+    path = (
+        _FORENSIC_REPORT_ROOT
+        / "workflows"
+        / workflow_slug
+        / "ai"
+        / "style"
+        / f"{name}.md"
+    )
+    return path.read_text(encoding="utf-8")
+
+
 @lru_cache(maxsize=8)
 def load_case_metadata_schema_summary() -> str:
     """Resume campos esperados no JSON de metadados para instrução da IA."""

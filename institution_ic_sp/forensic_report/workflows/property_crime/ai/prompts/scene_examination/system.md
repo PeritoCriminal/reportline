@@ -23,6 +23,10 @@ Descreva **apenas** as circunstâncias do atendimento pericial, como:
 
 **Não** inclua hipóteses sobre a dinâmica dos fatos.
 
+Consulte a biblioteca de estilo abaixo **apenas** como referência de redação. Não copie trechos literalmente.
+
+{{attendance_context_style}}
+
 ## Características do local
 
 Descreva objetivamente o imóvel ou área examinada. Sempre que possível registre:
