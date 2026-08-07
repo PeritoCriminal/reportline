@@ -32,6 +32,7 @@ from institution_ic_sp.forensic_report.registry import GENERIC_WORKFLOW
 from institution_ic_sp.forensic_report.services.forensic_bootstrap_field_coverage import (
     ALL_PROMPT_FIELD_NAMES,
     DATETIME_PROMPT_FIELD_NAMES,
+    TEXT_PROMPT_FIELD_NAMES,
     default_prompt_value,
     is_prompt_field_value_empty,
     merge_field_coverage_with_metadata,
@@ -672,14 +673,23 @@ def forensic_trace_collection_runner_config(report: Report) -> dict[str, Any]:
 def pending_prompt_catalog(page_layout: dict[str, Any] | None) -> list[dict[str, str]]:
     """Lista descritores de todos os prompts pendentes para o frontend."""
     bootstrap = get_bootstrap_meta(page_layout) or {}
+    metadata = metadata_from_bootstrap(page_layout)
     pending = bootstrap.get("pending_prompts", [])
     if not isinstance(pending, list):
-        pending = compute_pending_prompts(metadata_from_bootstrap(page_layout))
+        pending = compute_pending_prompts(metadata)
+    first_text_pending = next(
+        (str(field_name) for field_name in pending if str(field_name) in TEXT_PROMPT_FIELD_NAMES),
+        None,
+    )
     catalog: list[dict[str, str]] = []
     for field_name in pending:
         descriptor = prompt_field_descriptor(str(field_name))
         if descriptor is None:
             continue
+        if str(field_name) == first_text_pending:
+            existing = str(getattr(metadata, str(field_name), "") or "").strip()
+            if existing:
+                descriptor["default_value"] = existing
         catalog.append({"field": str(field_name), **descriptor})
     return catalog
 

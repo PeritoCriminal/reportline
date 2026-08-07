@@ -8,6 +8,7 @@ from django.test import SimpleTestCase
 from institution_ic_sp.forensic_report.common.forms.case_intake_form import CaseIntakeForm
 from institution_ic_sp.forensic_report.common.services.case_metadata import (
     CaseMetadata,
+    format_report_number_display,
     normalize_case_metadata,
     normalize_text_field,
 )
@@ -101,3 +102,13 @@ class CaseMetadataCasingTests(SimpleTestCase):
         self.assertEqual(metadata.attendance_protocol, "2026/0007")
         self.assertEqual(metadata.police_inquiry, "IP 9")
         self.assertEqual(metadata.requesting_authority, "Dr. Delegado")
+
+    def test_format_report_number_display_uses_thousand_separator(self):
+        """Garante separador de milhar na exibição institucional do número do laudo."""
+        self.assertEqual(format_report_number_display("123212"), "123.212")
+        self.assertEqual(format_report_number_display("42"), "42")
+        self.assertEqual(format_report_number_display("42-A"), "42-A")
+
+        metadata = CaseMetadata(report_number="123212", report_year=2026)
+        self.assertEqual(metadata.header_report_number_text, "Laudo pericial nº 123.212/2026")
+        self.assertEqual(metadata.main_title_text, "LAUDO PERICIAL Nº 123.212/2026")

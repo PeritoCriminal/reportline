@@ -45,10 +45,14 @@ class SceneAttendanceContextTests(TestCase):
     def test_pending_prompts_include_informant_briefing_only_when_needed(self):
         """Garante prompt de informes somente quando houver resposta afirmativa."""
         without_briefing = normalize_scene_attendance_context(
-            {"informant_provided_info": "yes"}
+            {
+                "access_granted_by": "proprietário do imóvel",
+                "informant_provided_info": "yes",
+            }
         )
         with_briefing = normalize_scene_attendance_context(
             {
+                "access_granted_by": "proprietário do imóvel",
                 "informant_provided_info": "yes",
                 "informant_briefing": "Informou que o imóvel estava fechado.",
             }
@@ -62,6 +66,14 @@ class SceneAttendanceContextTests(TestCase):
             "informant_briefing",
             compute_pending_attendance_context_prompts(with_briefing),
         )
+
+    def test_pending_prompts_skip_informant_when_access_not_granted(self):
+        """Garante omissão de informes quando ninguém franqueou o acesso."""
+        context = normalize_scene_attendance_context({})
+        pending = compute_pending_attendance_context_prompts(context)
+
+        self.assertNotIn("informant_provided_info", pending)
+        self.assertNotIn("informant_briefing", pending)
 
     def test_prompt_catalog_personalizes_informant_label_with_access_name(self):
         """Garante rótulo dinâmico do prompt de informes com nome de quem franqueou acesso."""

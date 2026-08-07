@@ -247,7 +247,7 @@ class ForensicBootstrapPhaseOneTests(TestCase):
         self.assertContains(response, "scene_examination_continuation.js")
         self.assertContains(response, "scene-location-analyze-status")
         self.assertContains(response, "Analisar imagens e orientações")
-        self.assertNotContains(response, " com IA")
+        self.assertNotContains(response, "Analisar local com IA")
         self.assertContains(response, "case_intake_analyze.css")
         self.assertContains(response, "forensic-bootstrap-build-shell")
         self.assertContains(

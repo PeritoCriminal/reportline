@@ -50,6 +50,7 @@
     let flowResolve = null;
     let flowReject = null;
     let listenersBound = false;
+    let selectAutoAdvanceBound = false;
     let activeControl = null;
 
     function getCsrfToken() {
@@ -63,6 +64,48 @@
             return cleaned.toUpperCase();
         }
         return cleaned;
+    }
+
+    function isAdminPromptFlow() {
+        return config?.state === STATE_COLLECTING_PROMPTS || config?.state === STATE_PROMPTING;
+    }
+
+    function firstTextPromptField() {
+        const item = promptQueue.find((prompt) => (prompt.input_type || "text") === "text");
+        return item?.field || null;
+    }
+
+    function resolveInitialControlValue(prompt) {
+        const existingValue = (localData[prompt.field] || "").trim();
+        const defaultValue = (prompt.default_value || "").trim();
+        const inputType = prompt.input_type || "text";
+        const metadataValue = (config?.metadata?.[prompt.field] || "").trim();
+
+        if (
+            inputType === "text"
+            && isAdminPromptFlow()
+            && prompt.field === firstTextPromptField()
+        ) {
+            return existingValue || metadataValue || defaultValue;
+        }
+        return existingValue || defaultValue;
+    }
+
+    function bindSelectAutoAdvance() {
+        if (!select || selectAutoAdvanceBound) {
+            return;
+        }
+        select.addEventListener("change", () => {
+            if (!currentPrompt || currentPrompt.input_type !== "select" || isFinalizing) {
+                return;
+            }
+            const rawValue = readActiveValue();
+            if (!rawValue) {
+                return;
+            }
+            submitCurrentPromptValue(rawValue);
+        });
+        selectAutoAdvanceBound = true;
     }
 
     function bindDom() {
@@ -172,12 +215,12 @@
 
     function activateControl(prompt) {
         hideAllControls();
-        const existingValue = (localData[prompt.field] || "").trim();
+        const resolvedValue = resolveInitialControlValue(prompt);
         const inputType = prompt.input_type || "text";
 
         if (inputType === "select") {
             activeControl = select;
-            populateSelectChoices(prompt.choices, existingValue || prompt.default_value || "");
+            populateSelectChoices(prompt.choices, resolvedValue);
             if (label) {
                 label.setAttribute("for", "forensic-bootstrap-prompt-select");
             }
@@ -188,7 +231,7 @@
 
         if (inputType === "textarea") {
             activeControl = textarea;
-            textarea.value = existingValue || prompt.default_value || "";
+            textarea.value = resolvedValue;
             textarea.placeholder = prompt.placeholder || "";
             if (label) {
                 label.setAttribute("for", "forensic-bootstrap-prompt-textarea");
@@ -200,7 +243,7 @@
 
         activeControl = input;
         input.type = inputType;
-        input.value = existingValue || prompt.default_value || "";
+        input.value = resolvedValue;
         input.placeholder = prompt.placeholder || "";
         if (label) {
             label.setAttribute("for", "forensic-bootstrap-prompt-input");
@@ -245,6 +288,22 @@
         document.body.classList.add("forensic-bootstrap-prompt-active");
     }
 
+    function reconcileInformantPromptsAfterAccessDecision() {
+        if ((localData.access_granted_by || "").trim()) {
+            return;
+        }
+        promptQueue = promptQueue.filter((item, index) => {
+            if (item.field === "informant_provided_info" || item.field === "informant_briefing") {
+                return index <= queueIndex;
+            }
+            return true;
+        });
+        delete localAnswers.informant_provided_info;
+        delete localAnswers.informant_briefing;
+        localData.informant_provided_info = "";
+        localData.informant_briefing = "";
+    }
+
     function maybeInjectInformantBriefingPrompt() {
         if (localData.informant_provided_info !== "yes") {
             return;
@@ -273,6 +332,9 @@
     }
 
     function advanceQueue() {
+        if (currentPrompt?.field === "access_granted_by") {
+            reconcileInformantPromptsAfterAccessDecision();
+        }
         if (currentPrompt?.field === "informant_provided_info") {
             if (localData.informant_provided_info === "yes") {
                 maybeInjectInformantBriefingPrompt();
@@ -368,6 +430,17 @@
         return (activeControl.value || "").trim();
     }
 
+    function submitCurrentPromptValue(rawValue) {
+        if (!currentPrompt || isFinalizing) {
+            return;
+        }
+        setBusy(true);
+        const fieldName = currentPrompt.field;
+        localAnswers[fieldName] = rawValue;
+        localData[fieldName] = normalizeTextField(fieldName, rawValue);
+        advanceQueue();
+    }
+
     function handleSubmit(event) {
         event.preventDefault();
         if (!activeControl || !currentPrompt || isFinalizing) {
@@ -380,11 +453,7 @@
             return;
         }
 
-        setBusy(true);
-        const fieldName = currentPrompt.field;
-        localAnswers[fieldName] = rawValue;
-        localData[fieldName] = normalizeTextField(fieldName, rawValue);
-        advanceQueue();
+        submitCurrentPromptValue(rawValue);
     }
 
     function handleSkip() {
@@ -405,6 +474,7 @@
         if (skipButton) {
             skipButton.addEventListener("click", handleSkip);
         }
+        bindSelectAutoAdvance();
         listenersBound = true;
     }
 
@@ -426,7 +496,12 @@
         }
 
         promptQueue = Array.isArray(config.pendingPrompts) ? config.pendingPrompts.slice() : [];
-        localData = Object.assign({}, config.localData || config.metadata || config.attendanceContext || {});
+        localData = Object.assign(
+            {},
+            config.metadata || {},
+            config.localData || {},
+            config.attendanceContext || {},
+        );
         queueIndex = 0;
         localAnswers = {};
         localSkipped = [];

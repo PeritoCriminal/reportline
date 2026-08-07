@@ -103,6 +103,9 @@ def compute_pending_attendance_context_prompts(
     for field_name in ATTENDANCE_CONTEXT_FIELD_NAMES:
         if field_name in skipped_fields:
             continue
+        if field_name in ("informant_provided_info", "informant_briefing"):
+            if not context.access_granted_by.strip():
+                continue
         if field_name == "informant_briefing" and context.informant_provided_info != "yes":
             continue
         if not is_attendance_context_field_empty(context, field_name):

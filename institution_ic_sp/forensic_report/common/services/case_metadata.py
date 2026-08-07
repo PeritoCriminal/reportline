@@ -5,6 +5,7 @@ Metadados de caso inferidos ou informados no intake de laudo pericial.
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field
 from datetime import date, datetime
 
@@ -38,6 +39,22 @@ def normalize_text_field(name: str, value: str) -> str:
     if name in UPPERCASE_TEXT_FIELDS:
         return cleaned.upper()
     return cleaned
+
+
+def format_report_number_display(number: str) -> str:
+    """Formata a parte numérica do laudo com separador de milhar '.' para exibição."""
+    cleaned = number.strip()
+    if not cleaned:
+        return cleaned
+    match = re.match(r"^(\d+)(.*)$", cleaned)
+    if not match:
+        return cleaned
+    digits, suffix = match.group(1), match.group(2)
+    formatted_parts: list[str] = []
+    while digits:
+        formatted_parts.insert(0, digits[-3:])
+        digits = digits[:-3]
+    return ".".join(formatted_parts) + suffix
 
 
 def normalize_case_metadata(metadata: CaseMetadata) -> CaseMetadata:
@@ -83,7 +100,7 @@ class CaseMetadata:
     @property
     def main_title_text(self) -> str:
         """Texto do título principal no formato institucional."""
-        number = self.report_number.strip()
+        number = format_report_number_display(self.report_number.strip())
         year = self.report_year or 0
         if number and year:
             return f"LAUDO PERICIAL Nº {number}/{year}"
@@ -94,7 +111,7 @@ class CaseMetadata:
     @property
     def header_report_number_text(self) -> str:
         """Texto do número do laudo exibido abaixo do cabeçalho institucional."""
-        number = self.report_number.strip()
+        number = format_report_number_display(self.report_number.strip())
         year = self.report_year or 0
         if number and year:
             return f"Laudo pericial nº {number}/{year}"
@@ -105,7 +122,7 @@ class CaseMetadata:
     @property
     def list_title(self) -> str:
         """Título curto usado na listagem de relatórios."""
-        number = self.report_number.strip()
+        number = format_report_number_display(self.report_number.strip())
         year = self.report_year or 0
         if number and year:
             return f"Laudo pericial {number}/{year}"
