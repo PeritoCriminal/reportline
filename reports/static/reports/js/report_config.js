@@ -94,7 +94,52 @@
         });
     }
 
+    function syncStructuralCaptionBlocks() {
+        const page = document.getElementById("report-editor-page");
+        if (!page) {
+            return;
+        }
+
+        const blocks = Array.from(page.querySelectorAll(":scope > .report-editor-block"));
+        blocks.forEach((block, index) => {
+            const previous = blocks[index - 1];
+            if (
+                !previous
+                || previous.dataset.blockType !== "image"
+                || block.dataset.blockType !== "paragraph"
+            ) {
+                return;
+            }
+
+            block.dataset.isCaption = "true";
+            block.dataset.textAlign = "center";
+
+            const paragraph = block.querySelector(".report-editor-block-paragraph");
+            if (paragraph) {
+                paragraph.dataset.firstLineIndent = "false";
+            }
+
+            if (block.querySelector(".report-editor-block-caption-line")) {
+                return;
+            }
+
+            const paragraphElement = block.querySelector(".report-editor-block-paragraph");
+            if (!paragraphElement) {
+                return;
+            }
+
+            const wrap = document.createElement("div");
+            wrap.className = "report-editor-block-caption-wrap";
+            const line = document.createElement("div");
+            line.className = "report-editor-block-caption-line";
+            line.appendChild(paragraphElement);
+            wrap.appendChild(line);
+            block.appendChild(wrap);
+        });
+    }
+
     function applyCaptionNumbers(captionNumbers) {
+        syncStructuralCaptionBlocks();
         document.querySelectorAll('.report-editor-block[data-is-caption="true"]').forEach((block) => {
             const line = block.querySelector(".report-editor-block-caption-line");
             if (!line) {
@@ -285,11 +330,32 @@
         });
     }
 
+    async function refreshCaptionNumbersFromServer() {
+        const url = configUrl || window.REPORT_EDITOR_CONFIG?.configUrl;
+        if (!url) {
+            return;
+        }
+
+        const response = await fetch(url, {
+            credentials: "same-origin",
+            headers: {
+                "X-Requested-With": "XMLHttpRequest",
+            },
+        });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) {
+            return;
+        }
+        applyCaptionNumbers(data.caption_numbers);
+    }
+
     window.ReportLineReportConfig = {
         init,
         populateForm,
         applyCaptionNumbers,
         applyHeadingNumbers,
         applyConfigEffects,
+        syncStructuralCaptionBlocks,
+        refreshCaptionNumbersFromServer,
     };
 })();

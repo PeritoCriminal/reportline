@@ -203,7 +203,7 @@ class TraceObservationContinuationTests(TestCase):
         "institution_ic_sp.forensic_report.services.scene_examination_content.generate_scene_examination_content"
     )
     @patch(
-        "institution_ic_sp.forensic_report.workflows.property_crime.ai.services.trace_observation_inference.infer_trace_observation_content"
+        "institution_ic_sp.forensic_report.services.trace_observation_continuation.infer_trace_observation_content"
     )
     def test_trace_build_inserts_heading_once_and_image_nodes(self, mock_trace_infer, mock_generate):
         """Garante heading único e blocos IMAGE+legenda para vestígios registrados."""
@@ -266,6 +266,23 @@ class TraceObservationContinuationTests(TestCase):
         image_nodes = [node for node in nodes if node.block.block_type == ReportBlockType.IMAGE]
         self.assertEqual(len(image_nodes), 2)
 
+        trace_paragraphs = [
+            node.block.content.get("text")
+            for node in nodes
+            if node.block.block_type == ReportBlockType.PARAGRAPH
+            and node.block.content.get("text") in {
+                "Observa-se marca de ferramenta na fechadura.",
+                "Identifica-se fragmento de tecido no piso.",
+            }
+        ]
+        self.assertEqual(
+            trace_paragraphs,
+            [
+                "Observa-se marca de ferramenta na fechadura.",
+                "Identifica-se fragmento de tecido no piso.",
+            ],
+        )
+
     def test_trace_decision_api_skips_collection(self):
         """Garante API de decisão encerrando vestígios na primeira recusa."""
         report = create_forensic_report_shell(author=self.user, examiner=self.examiner)
@@ -294,3 +311,65 @@ class TraceObservationContinuationTests(TestCase):
         payload = response.json()
         self.assertEqual(payload["state"], STATE_COLLECTING_COLLECTED_ITEMS)
         self.assertIn("todo_message", payload)
+
+    def test_trace_decision_api_returns_caption_numbers_when_numbering_enabled(self):
+        """Garante mapa de legendas na resposta ao encerrar coleta de vestígios."""
+        report = create_forensic_report_shell(author=self.user, examiner=self.examiner)
+        report.number_captions = True
+        report.save(update_fields=["number_captions", "updated_at"])
+        from institution_ic_sp.forensic_report.services.forensic_bootstrap import attach_bootstrap_meta
+
+        report.page_layout = attach_bootstrap_meta(
+            report.page_layout,
+            {
+                "state": STATE_COLLECTING_TRACES,
+                "traces_collection_active": True,
+                "traces": [],
+                "metadata": {"exam_category": EXAM_CATEGORY_PROPERTY_SCENE},
+            },
+        )
+        report.save(update_fields=["page_layout", "updated_at"])
+
+        self.client.force_login(self.user)
+        url = reverse("reports:forensic_bootstrap_trace_decision", kwargs={"pk": report.pk})
+        response = self.client.post(
+            url,
+            data='{"add_trace": false}',
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertIn("caption_numbers", payload)
+        self.assertIsInstance(payload["caption_numbers"], dict)
+
+
+class TraceAnchorResolverTests(TestCase):
+    """Testes do ponto de inserção de vestígios na montagem incremental."""
+
+    def test_resolve_traces_insert_anchor_prefers_last_mounted_trace(self):
+        """Garante que novo vestígio entra após o último já montado, não após o local."""
+        from institution_ic_sp.forensic_report.services.forensic_report_body_incremental import (
+            _resolve_traces_insert_anchor,
+        )
+
+        node_registry = {
+            "scene_report_images": "scene-last",
+            "trace_body_0": "trace0-body",
+            "trace_report_images_0": "trace0-images",
+        }
+
+        self.assertEqual(_resolve_traces_insert_anchor(node_registry), "trace0-images")
+
+    def test_resolve_traces_insert_anchor_falls_back_to_scene(self):
+        """Garante fallback para seção de local quando ainda não há vestígio montado."""
+        from institution_ic_sp.forensic_report.services.forensic_report_body_incremental import (
+            _resolve_traces_insert_anchor,
+        )
+
+        node_registry = {
+            "scene_characteristics_body": "scene-body",
+            "scene_report_images": "scene-images",
+        }
+
+        self.assertEqual(_resolve_traces_insert_anchor(node_registry), "scene-images")

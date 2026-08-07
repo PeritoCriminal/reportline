@@ -57,13 +57,12 @@ def insert_report_image_nodes(
         )
         created_nodes.append(image_node)
 
-        if caption:
-            caption_node = insert_node(
-                ctx,
-                block_type=ReportBlockType.PARAGRAPH,
-                content={"text": caption},
-                is_caption=True,
-            )
-            created_nodes.append(caption_node)
+        caption_node = insert_node(
+            ctx,
+            block_type=ReportBlockType.PARAGRAPH,
+            content={"text": caption},
+            is_caption=True,
+        )
+        created_nodes.append(caption_node)
 
     return created_nodes

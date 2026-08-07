@@ -21,10 +21,10 @@ def build_caption_number_map(
     parent_id: UUID | None = None,
 ) -> dict[UUID, int]:
     """
-    Percorre a árvore e produz mapa nó da legenda → número da figura.
+    Percorre a árvore em profundidade-primeiro e produz mapa nó da legenda → número.
 
-    Considera somente blocos de imagem seguidos de parágrafo-legenda
-    com texto visível após sanitização inline.
+    Considera somente blocos de imagem seguidos de parágrafo-legenda imediato
+    com texto visível após sanitização inline, na ordem de leitura do documento.
     """
     if not number_captions:
         return {}
@@ -32,22 +32,18 @@ def build_caption_number_map(
     numbers: dict[UUID, int] = {}
     counter = 0
 
-    for node in nodes_by_parent.get(parent_id, []):
-        block = node.block
-        if block.block_type == ReportBlockType.IMAGE:
-            caption_node = _caption_node_after_image(node, nodes_by_parent)
-            if caption_node and _caption_has_text(caption_node):
-                counter += 1
-                numbers[caption_node.pk] = counter
+    def walk(current_parent_id: UUID | None) -> None:
+        nonlocal counter
+        for node in nodes_by_parent.get(current_parent_id, []):
+            block = node.block
+            if block.block_type == ReportBlockType.IMAGE:
+                caption_node = _caption_node_after_image(node, nodes_by_parent)
+                if caption_node and _caption_has_text(caption_node):
+                    counter += 1
+                    numbers[caption_node.pk] = counter
+            walk(node.pk)
 
-        numbers.update(
-            build_caption_number_map(
-                nodes_by_parent,
-                number_captions=True,
-                parent_id=node.pk,
-            )
-        )
-
+    walk(parent_id)
     return numbers
 
 

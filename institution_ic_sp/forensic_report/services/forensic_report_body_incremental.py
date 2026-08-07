@@ -215,8 +215,39 @@ def _resolve_scene_insert_anchor(node_registry: dict[str, str]) -> str:
     raise ValueError("Não foi possível determinar ponto de inserção da seção de local.")
 
 
+def _trace_registry_indices(node_registry: dict[str, str]) -> set[int]:
+    """Retorna índices de vestígios já montados no registro de nós."""
+    indices: set[int] = set()
+    for key in node_registry:
+        if key.startswith("trace_report_images_"):
+            suffix = key.removeprefix("trace_report_images_")
+        elif key.startswith("trace_body_"):
+            suffix = key.removeprefix("trace_body_")
+        else:
+            continue
+        if suffix.isdigit():
+            indices.add(int(suffix))
+    return indices
+
+
+def _last_mounted_trace_anchor(node_registry: dict[str, str], trace_index: int) -> str | None:
+    """Retorna o último nó montado de um vestígio (imagens preferidas ao parágrafo)."""
+    for key in (f"trace_report_images_{trace_index}", f"trace_body_{trace_index}"):
+        node_id = node_registry.get(key)
+        if node_id:
+            return node_id
+    return None
+
+
 def _resolve_traces_insert_anchor(node_registry: dict[str, str]) -> str:
     """Determina nó após o qual vestígios devem ser inseridos."""
+    trace_indices = _trace_registry_indices(node_registry)
+    if trace_indices:
+        last_index = max(trace_indices)
+        node_id = _last_mounted_trace_anchor(node_registry, last_index)
+        if node_id:
+            return node_id
+
     for key in (
         "scene_report_images",
         "scene_characteristics_body",

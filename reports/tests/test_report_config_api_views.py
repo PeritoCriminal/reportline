@@ -44,6 +44,8 @@ class ReportConfigApiViewTests(TestCase):
         self.assertTrue(data["number_headings"])
         self.assertFalse(data["number_captions"])
         self.assertTrue(data["first_line_indent"])
+        self.assertIn("caption_numbers", data)
+        self.assertIn("heading_numbers", data)
 
     def test_patch_updates_report_and_user_defaults(self):
         """Garante persistência conjunta no laudo e nas preferências do usuário."""

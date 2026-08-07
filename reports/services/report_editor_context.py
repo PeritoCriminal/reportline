@@ -314,6 +314,11 @@ def _body_entry_from_node(
     nodes_by_parent = _group_nodes_by_parent(nodes)
     is_caption = _is_caption_paragraph(node, nodes_by_parent)
     main_title_id = _main_title_node_id(nodes_by_parent)
+    text_align = block.text_align
+    first_line_indent = block.first_line_indent
+    if is_caption:
+        text_align = "center"
+        first_line_indent = False
 
     return ReportBodyEntry(
         node_id=node.pk,
@@ -325,9 +330,9 @@ def _body_entry_from_node(
         is_main_title=node.pk == main_title_id,
         is_caption=is_caption,
         caption_number=caption_map.get(node.pk, 0) if is_caption else 0,
-        text_align=block.text_align,
+        text_align=text_align,
         indent_level=block.indent_level,
-        first_line_indent=block.first_line_indent,
+        first_line_indent=first_line_indent,
         line_spacing=block.line_spacing,
     )
 

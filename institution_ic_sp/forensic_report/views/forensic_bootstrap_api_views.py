@@ -323,7 +323,7 @@ class ForensicBootstrapBuildStepView(ForensicReportAuthorMixin, View):
             "report_title": report.title,
             "header_report_number_text": metadata.header_report_number_text,
         }
-        if report.number_captions and created_nodes:
+        if report.number_captions:
             response["caption_numbers"] = build_caption_numbers_payload(report)
         if final_state == STATE_COLLECTING_SCENE_CONTINUATION:
             response["scene_continuation_config"] = forensic_scene_continuation_runner_config(report)
@@ -624,6 +624,8 @@ class ForensicBootstrapTraceDecisionView(ForensicReportAuthorMixin, View):
             "todo_message": COLLECTED_ITEMS_TODO_MESSAGE,
             **forensic_trace_collection_runner_config(report),
         }
+        if report.number_captions:
+            response["caption_numbers"] = build_caption_numbers_payload(report)
         return JsonResponse(response)
 
     def http_method_not_allowed(self, request, *args, **kwargs):

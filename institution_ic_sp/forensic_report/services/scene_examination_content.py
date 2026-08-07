@@ -26,6 +26,7 @@ from institution_ic_sp.forensic_report.workflows.property_crime.ai.services.scen
     infer_scene_examination_content,
 )
 from reports.models import Report
+from reports.services.report_caption_text import normalize_caption_text
 from reports.services.report_image_attachments import normalize_report_image_attachments
 
 
@@ -43,7 +44,7 @@ def scene_examination_content_from_bootstrap(page_layout: dict | None) -> dict[s
         if not isinstance(item, dict):
             continue
         image_id = str(item.get("image_id", "")).strip()
-        caption = str(item.get("caption", "")).strip()
+        caption = normalize_caption_text(str(item.get("caption", "")).strip())
         if image_id:
             normalized_images.append({"image_id": image_id, "caption": caption})
     return {

@@ -480,6 +480,12 @@
         window.ReportLineReportConfig.applyCaptionNumbers(payload.caption_numbers);
     }
 
+    async function refreshAllCaptionNumbers() {
+        if (window.ReportLineReportConfig?.refreshCaptionNumbersFromServer) {
+            await window.ReportLineReportConfig.refreshCaptionNumbersFromServer();
+        }
+    }
+
     function updateHeaderReportNumber(text) {
         const headerNumberCell = document.querySelector(
             '[data-report-page-header-extra-text][data-extra-row-index="1"]'
@@ -609,6 +615,7 @@
         while (config.state === STATE_COLLECTING_TRACES) {
             const decision = await traceFlow.askDecision({ ...config });
             config.state = decision.state || config.state;
+            applyCaptionNumbers(decision);
             if (decision.state && decision.state !== STATE_COLLECTING_TRACES) {
                 Object.assign(config, decision);
                 break;
@@ -629,6 +636,8 @@
                 await runIncrementalBuild(true);
             }
         }
+
+        await refreshAllCaptionNumbers();
     }
 
     async function runPromptCollection(promptConfig) {
