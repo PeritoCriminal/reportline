@@ -29,9 +29,9 @@ def load_prompt_markdown(*, workflow_slug: str, task: str, name: str) -> str:
 
 
 @lru_cache(maxsize=32)
-def load_style_markdown(*, workflow_slug: str, name: str) -> str:
+def load_writing_style_markdown(*, workflow_slug: str, name: str) -> str:
     """
-    Lê arquivo Markdown de biblioteca de estilo do workflow informado.
+    Lê arquivo Markdown de biblioteca de estilo textual do workflow informado.
 
     TODO(futuro): permitir fontes dinâmicas — laudos anteriores do próprio
     perito ou trechos curados de laudos públicos de outros peritos — em
@@ -42,10 +42,15 @@ def load_style_markdown(*, workflow_slug: str, name: str) -> str:
         / "workflows"
         / workflow_slug
         / "ai"
-        / "style"
+        / "writing_style"
         / f"{name}.md"
     )
     return path.read_text(encoding="utf-8")
+
+
+def load_style_markdown(*, workflow_slug: str, name: str) -> str:
+    """Alias legado de :func:`load_writing_style_markdown`."""
+    return load_writing_style_markdown(workflow_slug=workflow_slug, name=name)
 
 
 @lru_cache(maxsize=8)

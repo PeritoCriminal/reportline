@@ -41,6 +41,10 @@ Descreva objetivamente o imóvel ou área examinada. Sempre que possível regist
 
 Descreva apenas características relevantes para compreensão dos vestígios. Evite detalhamento excessivo sem utilidade pericial.
 
+Consulte a biblioteca de estilo abaixo **apenas** como referência de redação. Não copie trechos literalmente.
+
+{{characteristics_style}}
+
 ## Fontes
 
 Priorize, nesta ordem:

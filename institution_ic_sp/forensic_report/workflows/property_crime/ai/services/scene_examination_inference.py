@@ -12,7 +12,7 @@ from pathlib import Path
 from institution_ic_sp.forensic_report.common.ai.gateway import complete_json_with_images_safe
 from institution_ic_sp.forensic_report.common.ai.prompt_loader import (
     load_prompt_markdown,
-    load_style_markdown,
+    load_writing_style_markdown,
     render_prompt_template,
 )
 from institution_ic_sp.forensic_report.common.services.case_metadata import CaseMetadata
@@ -105,13 +105,18 @@ def infer_scene_examination_content(
         task="scene_examination",
         name="system",
     )
-    attendance_context_style = load_style_markdown(
+    attendance_context_style = load_writing_style_markdown(
         workflow_slug=PROPERTY_CRIME_WORKFLOW.slug,
         name="attendance_context",
+    )
+    characteristics_style = load_writing_style_markdown(
+        workflow_slug=PROPERTY_CRIME_WORKFLOW.slug,
+        name="characteristics",
     )
     system_prompt = render_prompt_template(
         system_template,
         attendance_context_style=attendance_context_style,
+        characteristics_style=characteristics_style,
     )
     user_template = load_prompt_markdown(
         workflow_slug=PROPERTY_CRIME_WORKFLOW.slug,
