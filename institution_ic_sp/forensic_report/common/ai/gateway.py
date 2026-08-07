@@ -1,6 +1,10 @@
 # reportline/institution_ic_sp/forensic_report/common/ai/gateway.py
 """
-Porta de saída única para IA externa — sempre com sanitização local de PII.
+Porta de saída única para IA externa.
+
+A sanitização de PII aplica-se **somente** a texto extraído de documentos enviados
+pelo usuário. Caixas de texto de prompts, orientações e legendas propostas são
+preservadas integralmente.
 """
 
 from __future__ import annotations
@@ -28,7 +32,7 @@ def _sanitize_parts(
     parts: list[str],
     audit_context: dict[str, Any] | None,
 ) -> list[str]:
-    """Sanitiza partes textuais, audita e levanta erro se bloqueado."""
+    """Sanitiza trechos documentais, audita e levanta erro se bloqueado."""
     results = [sanitize_forensic_text_for_external_ai(part) for part in parts]
     record_ai_sanitization_audit(context=audit_context, results=results)
 
@@ -39,6 +43,22 @@ def _sanitize_parts(
     return [item.sanitized_text for item in results]
 
 
+def sanitize_uploaded_document_text(
+    text: str,
+    *,
+    audit_context: dict[str, Any] | None = None,
+) -> str:
+    """
+    Sanitiza texto extraído de documentos anexados pelo usuário.
+
+    Caixas de prompt e orientações do perito **não** devem passar por esta função.
+    """
+    cleaned = text.strip()
+    if not cleaned:
+        return text
+    return _sanitize_parts(parts=[cleaned], audit_context=audit_context)[0]
+
+
 def complete_json_chat_safe(
     *,
     system: str,
@@ -46,18 +66,17 @@ def complete_json_chat_safe(
     audit_context: dict[str, Any] | None = None,
 ) -> dict[str, Any] | None:
     """
-    Sanitiza prompts, audita e só então chama a OpenAI.
+    Chama a OpenAI com prompts montados localmente.
 
-    Retorna ``None`` quando a IA não estiver configurada ou a chamada falhar.
+    O conteúdo de ``system`` e ``user`` é enviado sem sanitização adicional — a
+    higienização de PII deve ocorrer apenas nos trechos documentais antes da
+    montagem do prompt (``sanitize_uploaded_document_text``).
     """
+    del audit_context  # reservado para compatibilidade de assinatura
     if not is_ai_configured():
         return None
 
-    system_safe, user_safe = _sanitize_parts(
-        parts=[system, user],
-        audit_context=audit_context,
-    )
-    return complete_json_chat(system=system_safe, user=user_safe)
+    return complete_json_chat(system=system, user=user)
 
 
 def complete_json_with_images_safe(
@@ -69,10 +88,11 @@ def complete_json_with_images_safe(
     audit_context: dict[str, Any] | None = None,
 ) -> dict[str, Any] | None:
     """
-    Sanitiza texto e chama OpenAI com imagens opcionais.
+    Chama OpenAI com imagens opcionais.
 
-    Imagens só são enviadas quando ``allow_external_images`` for verdadeiro
-    (habilitação por perfil do perito).
+    O texto do prompt é preservado; somente trechos documentais devem ser
+    sanitizados previamente. Imagens só são enviadas quando
+    ``allow_external_images`` for verdadeiro (habilitação por perfil do perito).
     """
     if not is_ai_configured():
         return None
@@ -85,11 +105,6 @@ def complete_json_with_images_safe(
         )
         urls = []
 
-    system_safe, user_safe = _sanitize_parts(
-        parts=[system, user_text],
-        audit_context=audit_context,
-    )
-
     try:
         from openai import OpenAI
     except ImportError:
@@ -100,7 +115,7 @@ def complete_json_with_images_safe(
 
     model = getattr(settings, "FORENSIC_AI_MODEL", "gpt-4o-mini")
     client = OpenAI(api_key=settings.OPENAI_API_KEY)
-    user_content: list[dict[str, Any]] = [{"type": "text", "text": user_safe}]
+    user_content: list[dict[str, Any]] = [{"type": "text", "text": user_text}]
     for data_url in urls:
         user_content.append({"type": "image_url", "image_url": {"url": data_url}})
 
@@ -108,7 +123,7 @@ def complete_json_with_images_safe(
         response = client.chat.completions.create(
             model=model,
             messages=[
-                {"role": "system", "content": system_safe},
+                {"role": "system", "content": system},
                 {"role": "user", "content": user_content},
             ],
             response_format={"type": "json_object"},

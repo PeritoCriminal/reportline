@@ -10,7 +10,10 @@ import logging
 import mimetypes
 from pathlib import Path
 
-from institution_ic_sp.forensic_report.common.ai.gateway import complete_json_with_images_safe
+from institution_ic_sp.forensic_report.common.ai.gateway import (
+    complete_json_with_images_safe,
+    sanitize_uploaded_document_text,
+)
 from institution_ic_sp.forensic_report.common.ai.prompt_loader import (
     load_prompt_markdown,
     load_writing_style_markdown,
@@ -201,6 +204,13 @@ def infer_scene_examination_content(
 
     attendance_context = scene_attendance_context_from_bootstrap(report.page_layout)
 
+    document_reference = document_excerpts.strip()
+    if document_reference and document_reference != "(nenhum)":
+        document_reference = sanitize_uploaded_document_text(
+            document_reference,
+            audit_context=audit_context,
+        )
+
     user_prompt = render_prompt_template(
         user_template,
         metadata_json=json.dumps(
@@ -220,7 +230,7 @@ def infer_scene_examination_content(
         scene_prompt=scene_prompt.strip() or "(nenhuma)",
         location_text=location_text or "(não informada)",
         attendance_context_text=attendance_context_summary_for_prompt(attendance_context),
-        document_excerpts=document_excerpts.strip() or "(nenhum)",
+        document_excerpts=document_reference or "(nenhum)",
         scene_images_json=_scene_images_json_for_prompt(attachments),
     )
 

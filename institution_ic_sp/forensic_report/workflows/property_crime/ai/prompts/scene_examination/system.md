@@ -28,12 +28,27 @@ Regras obrigatórias para ``report_images``:
 - **Não** utilizar *vestígio*, *evidência*, *ponto de impacto*, *marca de…* nem
   termos que remetam à dinâmica criminal ou a danos causados pelo evento.
 - Tratar elementos visíveis apenas como características construtivas e arquitetônicas.
-- Generalizar ou omitir nomes de ruas, numerações e placas visíveis (ex.: *via pública*
-  em vez de logradouro identificável), respeitando a sanitização de dados sensíveis.
 - Consultar a biblioteca de estilo abaixo para exemplos de legendas nesta seção.
+- Redigir legendas com **fluidez e clareza explicativa**, expandindo quando útil a
+  proposta do perito sem perder objetividade.
+- Corrigir **ortografia** e **capitalização** conforme o padrão da língua portuguesa
+  (nomes de pessoas e logradouros incluídos).
 
 O parágrafo ``characteristics_paragraph`` **não** segue estas regras de tempo verbal
 das legendas; mantém pretérito imperfeito/perfeito conforme a biblioteca de estilo.
+
+## Ortografia e nomes próprios
+
+Em **todos** os trechos produzidos (parágrafos e legendas):
+
+- Corrigir erros de grafia conforme o português padrão.
+- Nomes de pessoas e vias públicas: capitalização normativa da língua portuguesa
+  (ex.: *jose da silva* → *José da Silva*; *Maria Das Dores* → *Maria das Dores*;
+  *rua das acacias* → *Rua das Acácias*).
+- Preposições e artigos dentro de nomes próprios em minúsculas quando aplicável
+  (*da*, *de*, *do*, *das*, *dos*), salvo início de frase ou legenda.
+- **Preservar** nomes e logradouros informados pelo perito ou identificáveis nas
+  fontes — ajustar grafia e capitalização, não substituir por termos genéricos.
 
 ## Contexto de atendimento
 

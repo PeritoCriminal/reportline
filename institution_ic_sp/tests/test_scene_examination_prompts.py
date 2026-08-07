@@ -92,6 +92,7 @@ class SceneExaminationPromptTests(TestCase):
         self.assertIn("proposed_caption", user)
         self.assertIn("presente do indicativo", user.lower())
         self.assertIn("vestígio", user.lower())
+        self.assertIn("José da Silva", user)
 
     def test_system_prompt_references_characteristics_style_placeholder(self):
         """Garante que o system prompt reserve espaço para a biblioteca de características."""
@@ -117,6 +118,8 @@ class SceneExaminationPromptTests(TestCase):
         self.assertIn("vestígio", system.lower())
         self.assertIn("análise de vestígios", system.lower())
         self.assertIn("estruturais", system.lower())
+        self.assertIn("Ortografia e nomes próprios", system)
+        self.assertIn("José da Silva", system)
 
     def test_characteristics_style_library_contains_image_caption_guidelines(self):
         """Garante diretrizes de legendas de imagens na biblioteca de características."""
@@ -129,7 +132,8 @@ class SceneExaminationPromptTests(TestCase):
         self.assertIn("presente do indicativo", style.lower())
         self.assertIn("mostrando o portão", style.lower())
         self.assertIn("vestígio", style.lower())
-        self.assertIn("Anonimização", style)
+        self.assertIn("Fluidez e ortografia", style)
+        self.assertIn("José da Silva", style)
 
     def test_characteristics_style_library_contains_examples(self):
         """Garante exemplos fictícios na biblioteca de estilo de características do local."""

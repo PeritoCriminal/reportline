@@ -109,6 +109,15 @@ Exemplos úteis quando constarem explicitamente nos documentos:
 - Inferir ``exam_category`` quando a natureza da ocorrência ou o objetivo do exame indicarem furto, roubo, dano patrimonial, invasão a residência, acidente de trânsito ou acidente de trabalho.
 - Para **data e hora da requisição** (``requisition_at``): buscar **somente** em documentos do tipo Requisição ou Minuta, em geral pouco acima da assinatura da autoridade requisitante — **salvo se as informações complementares do perito indicarem outro valor**. Se a data constar sem hora, use ``T00:00``.
 
+## Ortografia e nomes próprios
+
+Quando nomes de pessoas, autoridades ou logradouros constarem nos documentos ou nas
+informações complementares do perito, preserve a identificação e aplique capitalização
+normativa do português (ex.: *jose da silva* → *José da Silva*; *Maria Das Dores* →
+*Maria das Dores*; preposições *da*, *de*, *do*, *das*, *dos* em minúsculas dentro
+do nome, salvo início de campo). Corrija erros de grafia evidentes sem alterar o
+referente identificado.
+
 ## O que não fazer
 
 - Deduzir, completar ou inferir informações ausentes (salvo orientação explícita do perito, metadados de imagem conforme regras acima, ou ``exam_category`` conforme seção dedicada).

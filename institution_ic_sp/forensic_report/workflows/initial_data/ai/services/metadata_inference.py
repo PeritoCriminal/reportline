@@ -7,7 +7,10 @@ from __future__ import annotations
 
 from django.core.files.uploadedfile import UploadedFile
 
-from institution_ic_sp.forensic_report.common.ai.gateway import complete_json_chat_safe
+from institution_ic_sp.forensic_report.common.ai.gateway import (
+    complete_json_chat_safe,
+    sanitize_uploaded_document_text,
+)
 from institution_ic_sp.forensic_report.common.ai.document_text import extract_text_from_uploads
 from institution_ic_sp.forensic_report.common.ai.prompt_loader import (
     load_case_metadata_schema_summary,
@@ -33,6 +36,11 @@ def infer_case_metadata(
     document_excerpts = extract_text_from_uploads(uploaded_files)
     if not document_excerpts:
         return CaseMetadata()
+
+    document_excerpts = sanitize_uploaded_document_text(
+        document_excerpts,
+        audit_context=audit_context,
+    )
 
     system_prompt = load_prompt_markdown(
         workflow_slug=INITIAL_DATA_WORKFLOW.slug,
@@ -76,6 +84,11 @@ def infer_case_metadata_ai_payload(
     document_excerpts = extract_text_from_uploads(uploaded_files)
     if not document_excerpts:
         return None
+
+    document_excerpts = sanitize_uploaded_document_text(
+        document_excerpts,
+        audit_context=audit_context,
+    )
 
     system_prompt = load_prompt_markdown(
         workflow_slug=INITIAL_DATA_WORKFLOW.slug,

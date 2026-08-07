@@ -130,6 +130,15 @@ Exemplos institucionais:
 - Vista frontal do imóvel, mostrando o fechamento voltado para a Rua [Nome da Rua].
 - Vista interna do ambiente, mostrando o revestimento cerâmico e a estrutura do teto.
 
+### Fluidez e ortografia
+
+- Expandir a legenda proposta quando necessário para maior clareza explicativa,
+  mantendo objetividade e o presente do indicativo.
+- Corrigir erros de grafia conforme o português padrão.
+- Nomes de pessoas e logradouros citados: capitalização normativa (*José da Silva*,
+  *Maria das Dores*, *Rua das Acácias*), preservando a identificação informada
+  pelo perito ou visível na imagem.
+
 ### Termos proibidos nas legendas desta etapa
 
 **Não** utilizar, nesta seção, expressões como:
@@ -142,13 +151,6 @@ Exemplos institucionais:
 
 Tratar os elementos visíveis **exclusivamente** como características construtivas e
 arquitetônicas.
-
-### Anonimização
-
-Nomes de ruas, numerações prediais, placas ou identificadores visíveis nas imagens ou
-nas legendas propostas devem ser **generalizados ou omitidos** na redação final quando
-necessário (ex.: *voltado para a via pública*, *fechamento frontal*), em linha com a
-sanitização de dados antes de processamento externo.
 
 ---
 
@@ -258,4 +260,5 @@ Ao elaborar um novo texto:
 
 Para **legendas de imagens** desta seção, aplicar a subseção *Legendas de imagens
 (Características do Local)*: presente do indicativo, foco construtivo/arquitetônico,
-sem vocabulário de vestígios, com anonimização de logradouros quando necessário.
+fluidez explicativa, ortografia e capitalização normativa de nomes — sem vocabulário
+de vestígios.

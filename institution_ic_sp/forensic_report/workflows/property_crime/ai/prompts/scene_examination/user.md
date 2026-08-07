@@ -28,9 +28,10 @@ Para cada imagem abaixo, ``show_in_report`` indica se deve entrar no laudo e
 
 **Contexto:** estas imagens documentam características **estruturais e construtivas**
 do imóvel — **não** vestígios ou evidências do evento. Ao compor ``report_images``,
-use **presente do indicativo** nas legendas e evite termos de análise de vestígios
-(*vestígio*, *evidência*, *ponto de impacto*, *marca de…*). Generalize logradouros
-e identificadores visíveis quando aparecerem na proposta ou na cena.
+use **presente do indicativo**, redija com fluidez explicativa, corrija ortografia
+e aplique capitalização normativa a nomes de pessoas e logradouros (*José da Silva*,
+*Rua das Flores*). Evite termos de análise de vestígios (*vestígio*, *evidência*,
+*ponto de impacto*, *marca de…*).
 
 {{scene_images_json}}
 
