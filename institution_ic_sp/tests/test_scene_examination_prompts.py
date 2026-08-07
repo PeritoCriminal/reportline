@@ -79,6 +79,20 @@ class SceneExaminationPromptTests(TestCase):
         self.assertIn("{{attendance_context_text}}", user)
         self.assertIn("Dados estruturados do contexto de atendimento", user)
 
+    def test_user_prompt_includes_scene_images_placeholder(self):
+        """Garante placeholder para metadados das imagens enviadas pelo perito."""
+        user = load_prompt_markdown(
+            workflow_slug=PROPERTY_CRIME_WORKFLOW.slug,
+            task="scene_examination",
+            name="user",
+        )
+
+        self.assertIn("{{scene_images_json}}", user)
+        self.assertIn("show_in_report", user)
+        self.assertIn("proposed_caption", user)
+        self.assertIn("presente do indicativo", user.lower())
+        self.assertIn("vestígio", user.lower())
+
     def test_system_prompt_references_characteristics_style_placeholder(self):
         """Garante que o system prompt reserve espaço para a biblioteca de características."""
         system = load_prompt_markdown(
@@ -89,6 +103,33 @@ class SceneExaminationPromptTests(TestCase):
 
         self.assertIn("{{characteristics_style}}", system)
         self.assertIn("Características do local", system)
+
+    def test_system_prompt_includes_image_caption_rules(self):
+        """Garante regras de legendas estruturais em presente do indicativo."""
+        system = load_prompt_markdown(
+            workflow_slug=PROPERTY_CRIME_WORKFLOW.slug,
+            task="scene_examination",
+            name="system",
+        )
+
+        self.assertIn("report_images", system)
+        self.assertIn("presente do indicativo", system.lower())
+        self.assertIn("vestígio", system.lower())
+        self.assertIn("análise de vestígios", system.lower())
+        self.assertIn("estruturais", system.lower())
+
+    def test_characteristics_style_library_contains_image_caption_guidelines(self):
+        """Garante diretrizes de legendas de imagens na biblioteca de características."""
+        style = load_writing_style_markdown(
+            workflow_slug=PROPERTY_CRIME_WORKFLOW.slug,
+            name="characteristics",
+        )
+
+        self.assertIn("Legendas de imagens", style)
+        self.assertIn("presente do indicativo", style.lower())
+        self.assertIn("mostrando o portão", style.lower())
+        self.assertIn("vestígio", style.lower())
+        self.assertIn("Anonimização", style)
 
     def test_characteristics_style_library_contains_examples(self):
         """Garante exemplos fictícios na biblioteca de estilo de características do local."""

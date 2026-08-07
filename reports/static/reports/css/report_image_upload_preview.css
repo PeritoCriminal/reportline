@@ -1,0 +1,53 @@
+/* reportline/reports/static/reports/css/report_image_upload_preview.css */
+/* Padrão de projeto: miniatura + exibir no laudo + legenda proposta. */
+
+.report-image-upload-preview-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.report-image-upload-preview-item {
+    display: flex;
+    gap: 0.75rem;
+    align-items: flex-start;
+    border: 1px solid var(--bs-border-color);
+    border-radius: 0.5rem;
+    padding: 0.5rem;
+    background: var(--bs-body-bg);
+}
+
+.report-image-upload-preview-thumb-wrap {
+    position: relative;
+    flex: 0 0 96px;
+}
+
+.report-image-upload-preview-thumb {
+    display: block;
+    width: 96px;
+    height: 96px;
+    object-fit: cover;
+    border-radius: 0.375rem;
+}
+
+.report-image-upload-preview-remove {
+    position: absolute;
+    top: 0.25rem;
+    right: 0.25rem;
+    padding: 0.15rem 0.35rem;
+    line-height: 1;
+}
+
+.report-image-upload-preview-meta {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.report-image-upload-preview-caption-label {
+    font-size: 0.875rem;
+    margin-bottom: 0.25rem;
+}
+
+.report-image-upload-preview-caption-input {
+    font-size: 0.875rem;
+}

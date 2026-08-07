@@ -91,6 +91,67 @@ Dar preferência a construções como:
 
 ---
 
+## Legendas de imagens (Características do Local)
+
+Esta subseção aplica-se **exclusivamente** às legendas das imagens anexadas na etapa
+**Características do Local**. Não se confunde com o parágrafo textual da seção nem
+com etapas posteriores de **análise de vestígios** (nas quais o pretérito perfeito
+costuma registrar constatações periciais).
+
+### Natureza das imagens
+
+As imagens desta etapa **não** retratam vestígios, evidências ou marcas do evento.
+Elas documentam aspectos **existentes, estruturais e construtivos** do imóvel ou da
+propriedade: fachada, fechamentos, acessos, compartimentos, revestimentos e demais
+elementos arquitetônicos observáveis.
+
+### Tempo verbal nas legendas
+
+Nas legendas, adotar predominantemente o **presente do indicativo**, pois descrevem
+condição física e constitucional capturada na imagem (permanente ou duradoura).
+
+Verbos e construções preferenciais: *mostrando*, *apresentando*, *composto por*,
+*voltado para*, *delimitado por*, *provido de*.
+
+O parágrafo de **Características do local** (texto corrido) continua regido pelas
+regras de pretérito imperfeito e pretérito perfeito descritas acima — **não** aplique
+presente do indicativo ao parágrafo por causa desta subseção.
+
+### Padrão de redação das legendas
+
+Redação descritiva pericial direta, iniciando preferencialmente por *Vista frontal…*,
+*Vista interna…*, *Vista lateral…* ou equivalente, seguida de particípio ou locução
+no presente.
+
+Exemplos institucionais:
+
+- Vista frontal do imóvel, mostrando o portão para acesso de veículos.
+- Vista frontal da propriedade, mostrando o muro de alvenaria elevado até a altura do pé-direito.
+- Vista frontal do imóvel, mostrando o fechamento voltado para a Rua [Nome da Rua].
+- Vista interna do ambiente, mostrando o revestimento cerâmico e a estrutura do teto.
+
+### Termos proibidos nas legendas desta etapa
+
+**Não** utilizar, nesta seção, expressões como:
+
+- vestígio, vestígios;
+- evidência, evidências;
+- ponto de impacto;
+- marca de…;
+- sinal de arrombamento, danos causados pelo evento ou equivalentes que remetam à dinâmica criminal.
+
+Tratar os elementos visíveis **exclusivamente** como características construtivas e
+arquitetônicas.
+
+### Anonimização
+
+Nomes de ruas, numerações prediais, placas ou identificadores visíveis nas imagens ou
+nas legendas propostas devem ser **generalizados ou omitidos** na redação final quando
+necessário (ex.: *voltado para a via pública*, *fechamento frontal*), em linha com a
+sanitização de dados antes de processamento externo.
+
+---
+
 ## Exemplos
 
 ### Exemplo 01
@@ -185,7 +246,7 @@ O imóvel consistia em residência térrea cercada por muro de alvenaria, aprese
 
 ## Observação para a IA
 
-Os exemplos acima representam apenas padrões de redação.
+Os exemplos acima representam apenas padrões de redação do **parágrafo** de características.
 
 Ao elaborar um novo texto:
 
@@ -194,3 +255,7 @@ Ao elaborar um novo texto:
 - não copie trechos integralmente;
 - não invente ambientes, materiais ou circunstâncias;
 - mantenha o mesmo nível de objetividade, concisão e formalidade observado nos exemplos.
+
+Para **legendas de imagens** desta seção, aplicar a subseção *Legendas de imagens
+(Características do Local)*: presente do indicativo, foco construtivo/arquitetônico,
+sem vocabulário de vestígios, com anonimização de logradouros quando necessário.

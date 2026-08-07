@@ -32,6 +32,7 @@ from institution_ic_sp.forensic_report.services.forensic_report_shell import cre
 from institution_ic_sp.forensic_report.services.scene_examination_continuation import (
     save_scene_examination_continuation,
 )
+from reports.services.report_image_attachments import ReportImageAttachment
 from institution_ic_sp.models import ForensicTeam
 from profiles.models import ForensicExaminerSP, ForensicJobTitle, GenderCalling
 
@@ -263,11 +264,60 @@ class SceneExaminationContinuationTests(TestCase):
         )
         self.assertEqual(bootstrap["scene_characteristics"]["image_ids"], ["img-1", "img-2"])
         self.assertEqual(
+            bootstrap["scene_characteristics"]["images"],
+            [
+                {"image_id": "img-1", "show_in_report": True, "proposed_caption": ""},
+                {"image_id": "img-2", "show_in_report": True, "proposed_caption": ""},
+            ],
+        )
+        self.assertEqual(
             bootstrap["scene_characteristics"]["location"]["address"],
             "Rua das Flores, 100",
         )
         self.assertIn("scene_examination_content", bootstrap)
         self.assertEqual(bootstrap_state(report), STATE_BUILDING)
+
+    @patch(
+        "institution_ic_sp.forensic_report.services.scene_examination_content.generate_scene_examination_content"
+    )
+    def test_scene_continuation_persists_image_attachments_metadata(self, mock_generate):
+        """Garante persistência de exibição no laudo e legenda proposta por imagem."""
+        mock_generate.return_value = {
+            "characteristics_heading": "Características do Local",
+            "attendance_context_paragraph": "",
+            "characteristics_paragraph": "",
+            "report_images": [],
+        }
+        report = create_forensic_report_shell(
+            author=self.user,
+            examiner=self.examiner,
+        )
+        save_bootstrap_after_analyze(report, self._complete_metadata(), field_coverage={})
+        self._mark_initial_build_completed(report)
+
+        save_scene_examination_continuation(
+            report,
+            exam_category=EXAM_CATEGORY_PROPERTY_SCENE,
+            prompt="Ambientes internos.",
+            images=[
+                ReportImageAttachment(
+                    image_id="img-show",
+                    show_in_report=True,
+                    proposed_caption="Sala de estar",
+                ),
+                ReportImageAttachment(
+                    image_id="img-hide",
+                    show_in_report=False,
+                    proposed_caption="Uso interno",
+                ),
+            ],
+        )
+        report.refresh_from_db()
+
+        images = report.page_layout["reportline_meta"]["bootstrap"]["scene_characteristics"]["images"]
+        self.assertEqual(images[0]["proposed_caption"], "Sala de estar")
+        self.assertTrue(images[0]["show_in_report"])
+        self.assertFalse(images[1]["show_in_report"])
 
     def test_scene_continuation_deferred_module_advances_without_characteristics(self):
         """Garante avanço com TODO implícito para módulos ainda não desenvolvidos."""

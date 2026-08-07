@@ -87,6 +87,7 @@ SCENE_BUILD_STEP_IDS: tuple[str, ...] = (
     "scene_context_body",
     "scene_characteristics_heading",
     "scene_characteristics_body",
+    "scene_report_images",
 )
 
 BUILD_STEP_IDS: tuple[str, ...] = INITIAL_BUILD_STEP_IDS + SCENE_BUILD_STEP_IDS
@@ -108,6 +109,7 @@ INTERACTIVE_BUILD_STEP_IDS: frozenset[str] = frozenset(
         "scene_context_body",
         "scene_characteristics_heading",
         "scene_characteristics_body",
+        "scene_report_images",
     }
 )
 
@@ -143,6 +145,7 @@ BUILD_STEP_LABELS: dict[str, str] = {
     "scene_context_body": "Descrevendo contexto de atendimento…",
     "scene_characteristics_heading": "Abrindo características do local…",
     "scene_characteristics_body": "Descrevendo características do local…",
+    "scene_report_images": "Inserindo imagens do local…",
     "body_spacer": "Organizando fechamento…",
     "closing_phrase": "Inserindo encerramento…",
     "closing_notice": "Registrando arquivamento digital…",
@@ -222,6 +225,8 @@ def step_should_run(
             return bool(content.get("characteristics_paragraph"))
         if step_id == "scene_characteristics_body":
             return bool(content.get("characteristics_paragraph"))
+        if step_id == "scene_report_images":
+            return bool(content.get("report_images"))
         return False
     return True
 
@@ -320,6 +325,7 @@ def _insert_scene_report_node(
     title_level: int = 0,
     text_align: str | None = None,
     first_line_indent: bool | None = None,
+    is_caption: bool = False,
 ) -> ReportNode:
     """Insere bloco da seção de local após o nó âncora atual."""
     node = insert_sibling_after(
@@ -329,6 +335,7 @@ def _insert_scene_report_node(
         content=content,
         title_level=title_level,
         first_line_indent=first_line_indent,
+        is_caption=is_caption,
     )
     if text_align is not None:
         block = node.block
@@ -419,6 +426,19 @@ def _run_scene_build_step(step_id: str, ctx: SceneBuildContext) -> list[ReportNo
         )
         ctx.node_registry["scene_characteristics_body"] = str(node.pk)
         return [node]
+
+    if step_id == "scene_report_images":
+        report_images = scene_content.get("report_images", [])
+        if not isinstance(report_images, list) or not report_images:
+            return []
+        from institution_ic_sp.forensic_report.services.scene_report_image_nodes import (
+            insert_scene_report_image_nodes,
+        )
+
+        nodes = insert_scene_report_image_nodes(ctx, report_images)
+        if nodes:
+            ctx.node_registry["scene_report_images"] = str(nodes[-1].pk)
+        return nodes
 
     raise ValueError(f"Passo de montagem de local desconhecido: {step_id}")
 

@@ -10,6 +10,30 @@ Responda **somente** com JSON válido contendo:
 - ``characteristics_heading``: um entre ``Características do Local``, ``Características da Propriedade`` ou ``Características do Imóvel``, conforme o tipo de imóvel ou área descrita.
 - ``attendance_context_paragraph``: parágrafo sobre **Contexto de atendimento**.
 - ``characteristics_paragraph``: parágrafo sobre **Características do local/propriedade/imóvel**.
+- ``report_images``: lista opcional de objetos ``{ "image_id": "...", "caption": "..." }`` **somente** para imagens com ``show_in_report: true`` na seção de imagens do usuário. Ajuste ou componha a legenda com base na proposta do perito e no conteúdo visual.
+
+## Legendas de imagens (Características do Local)
+
+As imagens classificadas nesta etapa **não são vestígios nem evidências do evento**.
+Retratam aspectos **estruturais e construtivos** do imóvel ou da propriedade. **Separe
+claramente** esta etapa de futuras etapas de **análise de vestígios**, nas quais o
+pretérito perfeito costuma registrar constatações periciais.
+
+Regras obrigatórias para ``report_images``:
+
+- Redigir legendas predominantemente no **presente do indicativo** (ex.: *mostrando*,
+  *apresentando*, *composto por*, *voltado para*), pois descrevem condição física
+  capturada na imagem.
+- Seguir padrão descritivo direto (ex.: *Vista frontal do imóvel, mostrando…*).
+- **Não** utilizar *vestígio*, *evidência*, *ponto de impacto*, *marca de…* nem
+  termos que remetam à dinâmica criminal ou a danos causados pelo evento.
+- Tratar elementos visíveis apenas como características construtivas e arquitetônicas.
+- Generalizar ou omitir nomes de ruas, numerações e placas visíveis (ex.: *via pública*
+  em vez de logradouro identificável), respeitando a sanitização de dados sensíveis.
+- Consultar a biblioteca de estilo abaixo para exemplos de legendas nesta seção.
+
+O parágrafo ``characteristics_paragraph`` **não** segue estas regras de tempo verbal
+das legendas; mantém pretérito imperfeito/perfeito conforme a biblioteca de estilo.
 
 ## Contexto de atendimento
 

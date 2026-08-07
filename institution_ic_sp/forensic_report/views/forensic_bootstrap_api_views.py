@@ -504,10 +504,18 @@ class ForensicBootstrapSceneContinuationView(ForensicReportAuthorMixin, View):
         exam_category = raw_category
 
         prompt = str(payload.get("prompt", "")).strip()
+        raw_images = payload.get("images")
         raw_image_ids = payload.get("image_ids", [])
-        if not isinstance(raw_image_ids, list):
+        if raw_image_ids is not None and not isinstance(raw_image_ids, list):
             return JsonResponse({"errors": ["Informe image_ids como lista."]}, status=400)
-        image_ids = [str(item) for item in raw_image_ids if str(item).strip()]
+        if raw_images is not None and not isinstance(raw_images, list):
+            return JsonResponse({"errors": ["Informe images como lista."]}, status=400)
+
+        from reports.services.report_image_attachments import normalize_report_image_attachments
+
+        legacy_image_ids = [str(item) for item in (raw_image_ids or []) if str(item).strip()]
+        attachments = normalize_report_image_attachments(raw_images, legacy_image_ids=legacy_image_ids)
+        image_ids = [item.image_id for item in attachments]
 
         raw_location = payload.get("location", {})
         location = normalize_scene_location(raw_location if isinstance(raw_location, dict) else {})
@@ -537,7 +545,7 @@ class ForensicBootstrapSceneContinuationView(ForensicReportAuthorMixin, View):
                 report,
                 exam_category=exam_category,
                 prompt=prompt,
-                image_ids=image_ids,
+                images=attachments,
                 location=resolved_location,
                 allow_external_images=self.examiner_profile.can_send_images_to_external_ai,
                 audit_context={

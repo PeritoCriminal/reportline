@@ -58,6 +58,8 @@
     let statusMessageIndex = 0;
     let activeSuggestedLocation = null;
 
+    const imagePreview = window.ReportLineImageUploadPreview;
+
     function getCsrfToken() {
         const match = document.cookie.match(/(?:^|;\s*)csrftoken=([^;]+)/);
         return match ? decodeURIComponent(match[1]) : "";
@@ -153,9 +155,10 @@
             }
             control.disabled = disabled;
         });
-        previewGrid?.querySelectorAll(".scene-location-preview-remove").forEach((button) => {
+        previewGrid?.querySelectorAll(".report-image-upload-preview-remove").forEach((button) => {
             button.disabled = disabled;
         });
+        imagePreview?.setGridDisabled(previewGrid, disabled);
     }
 
     function beginSceneAnalysis() {
@@ -246,12 +249,7 @@
     }
 
     function revokePendingPreviewUrls() {
-        pendingFiles.forEach((file) => {
-            if (file.previewUrl) {
-                URL.revokeObjectURL(file.previewUrl);
-                delete file.previewUrl;
-            }
-        });
+        imagePreview?.revokePreviewUrls(pendingFiles);
     }
 
     function applySuggestedLocation(config) {
@@ -343,40 +341,19 @@
     }
 
     function renderPreviewGrid() {
-        if (!previewGrid) {
+        if (!imagePreview || !previewGrid) {
             return;
         }
-        previewGrid.innerHTML = "";
-        if (!pendingFiles.length) {
-            previewGrid.hidden = true;
-            return;
-        }
-        previewGrid.hidden = false;
-        pendingFiles.forEach((file, index) => {
-            const item = document.createElement("div");
-            item.className = "scene-location-preview-item";
-            const image = document.createElement("img");
-            image.alt = file.name;
-            if (!file.previewUrl) {
-                file.previewUrl = URL.createObjectURL(file);
-            }
-            image.src = file.previewUrl;
-            const removeButton = document.createElement("button");
-            removeButton.type = "button";
-            removeButton.className = "btn btn-sm btn-outline-danger scene-location-preview-remove";
-            removeButton.setAttribute("aria-label", `Remover ${file.name}`);
-            removeButton.innerHTML = '<i class="bi bi-x-lg" aria-hidden="true"></i>';
-            removeButton.addEventListener("click", () => {
+        imagePreview.renderPreviewGrid(previewGrid, pendingFiles, {
+            disabled: isSubmitting,
+            onRemove: (index) => {
                 const removed = pendingFiles.splice(index, 1)[0];
                 if (removed?.previewUrl) {
                     URL.revokeObjectURL(removed.previewUrl);
                     delete removed.previewUrl;
                 }
                 renderPreviewGrid();
-            });
-            item.appendChild(image);
-            item.appendChild(removeButton);
-            previewGrid.appendChild(item);
+            },
         });
     }
 
@@ -387,7 +364,9 @@
             return;
         }
         setError("");
-        pendingFiles = pendingFiles.concat(incoming);
+        pendingFiles = pendingFiles.concat(
+            incoming.map((file) => imagePreview.createPendingItem(file))
+        );
         renderPreviewGrid();
     }
 
@@ -593,12 +572,14 @@
                 const uploads = draft.pendingUploads;
                 if (uploads.length) {
                     for (let index = 0; index < uploads.length; index += 1) {
+                        const pendingItem = uploads[index];
                         const label =
                             uploads.length === 1
                                 ? "Enviando imagem do local…"
                                 : `Enviando imagem ${index + 1} de ${uploads.length}…`;
                         setSceneAnalyzeMessage(label);
-                        const imageId = await uploadImage(config.imageUploadUrl, uploads[index]);
+                        const imageId = await uploadImage(config.imageUploadUrl, pendingItem.file);
+                        pendingItem.imageId = imageId;
                         imageIds.push(imageId);
                     }
                 }
@@ -613,6 +594,7 @@
                     prompt: draft.prompt,
                     location: draft.location,
                     imageIds,
+                    pendingUploads: uploads,
                 });
                 succeeded = true;
                 return response;
@@ -632,8 +614,15 @@
         const payload = {
             exam_category: examCategory,
             prompt: sceneData?.prompt || "",
-            image_ids: sceneData?.imageIds || [],
         };
+        const pendingUploads = sceneData?.pendingUploads || [];
+        if (pendingUploads.length && imagePreview) {
+            payload.images = imagePreview.buildImagesPayload(pendingUploads);
+        } else if (sceneData?.imageIds?.length) {
+            payload.image_ids = sceneData.imageIds;
+        } else {
+            payload.image_ids = [];
+        }
         if (sceneData?.location && hasLocationInput(sceneData.location)) {
             payload.location = sceneData.location;
         }

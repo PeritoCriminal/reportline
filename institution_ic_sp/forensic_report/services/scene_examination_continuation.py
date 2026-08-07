@@ -29,6 +29,12 @@ from institution_ic_sp.forensic_report.services.forensic_bootstrap import (
     skipped_prompts_from_bootstrap,
 )
 from reports.models import Report
+from reports.services.report_image_attachments import (
+    ReportImageAttachment,
+    normalize_report_image_attachments,
+    report_image_attachment_ids,
+    report_image_attachments_to_payload,
+)
 
 
 def is_scene_continuation_completed(page_layout: dict | None) -> bool:
@@ -38,20 +44,28 @@ def is_scene_continuation_completed(page_layout: dict | None) -> bool:
 
 
 def scene_characteristics_from_bootstrap(page_layout: dict | None) -> dict[str, object]:
-    """Retorna prompt e IDs de imagens coletados na continuação de local."""
+    """Retorna prompt, imagens e localização coletados na continuação de local."""
     bootstrap = get_bootstrap_meta(page_layout) or {}
     raw = bootstrap.get("scene_characteristics", {})
     if not isinstance(raw, dict):
-        return {"prompt": "", "image_ids": []}
-    image_ids = raw.get("image_ids", [])
-    if not isinstance(image_ids, list):
-        image_ids = []
-    prompt = raw.get("prompt", "")
+        return {"prompt": "", "image_ids": [], "images": []}
+
+    raw_images = raw.get("images")
+    legacy_image_ids = raw.get("image_ids", [])
+    if not isinstance(legacy_image_ids, list):
+        legacy_image_ids = []
+    attachments = normalize_report_image_attachments(
+        raw_images,
+        legacy_image_ids=[str(item) for item in legacy_image_ids],
+    )
+
+    prompt = str(raw.get("prompt", "")).strip()
     location_raw = raw.get("location", {})
     location = normalize_scene_location(location_raw if isinstance(location_raw, dict) else {})
     return {
-        "prompt": str(prompt).strip(),
-        "image_ids": [str(item) for item in image_ids],
+        "prompt": prompt,
+        "image_ids": report_image_attachment_ids(attachments),
+        "images": report_image_attachments_to_payload(attachments),
         "location": {
             "kind": location.kind,
             "address": location.address,
@@ -69,6 +83,7 @@ def save_scene_examination_continuation(
     exam_category: str,
     prompt: str = "",
     image_ids: list[str] | None = None,
+    images: list[ReportImageAttachment] | None = None,
     location: SceneLocationData | None = None,
     allow_external_images: bool = False,
     audit_context: dict | None = None,
@@ -93,9 +108,13 @@ def save_scene_examination_continuation(
     bootstrap["scene_continuation_completed"] = True
 
     if normalized_category == EXAM_CATEGORY_PROPERTY_SCENE:
+        attachments = list(images or [])
+        if not attachments and image_ids:
+            attachments = normalize_report_image_attachments(None, legacy_image_ids=image_ids)
         scene_payload: dict[str, object] = {
             "prompt": prompt.strip(),
-            "image_ids": list(image_ids or []),
+            "image_ids": report_image_attachment_ids(attachments),
+            "images": report_image_attachments_to_payload(attachments),
         }
         if resolved_location.is_present:
             scene_payload["location"] = {

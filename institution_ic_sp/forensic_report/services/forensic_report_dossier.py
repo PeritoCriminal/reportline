@@ -288,14 +288,21 @@ def build_property_crime_phase_payload(
     image_ids = [
         str(item) for item in characteristics.get("image_ids", []) if str(item).strip()
     ]
+    scene_images = characteristics.get("images", [])
+    if not isinstance(scene_images, list):
+        scene_images = []
     attendance_context = scene_attendance_context_to_payload(
         scene_attendance_context_from_bootstrap(page_layout)
     )
+    report_images = content.get("report_images", [])
+    if not isinstance(report_images, list):
+        report_images = []
 
     return {
         "inputs": {
             "scene_prompt": scene_prompt,
             "image_ids": image_ids,
+            "images": scene_images,
             "location": _location_inputs_payload(location),
             "attendance_context": attendance_context,
         },
@@ -304,6 +311,7 @@ def build_property_crime_phase_payload(
             "characteristics_heading": content.get("characteristics_heading", ""),
             "attendance_context_paragraph": content.get("attendance_context_paragraph", ""),
             "characteristics_paragraph": content.get("characteristics_paragraph", ""),
+            "report_images": report_images,
         },
         "meta": {
             "confirmed_at": timezone.now().isoformat(),
