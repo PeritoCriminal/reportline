@@ -12,10 +12,9 @@ https://docs.djangoproject.com/en/6.0/ref/settings/
 """
 
 from pathlib import Path
-
 import os
-
 from dotenv import load_dotenv
+
 load_dotenv()
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -26,33 +25,38 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/6.0/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-5c&))li-$t3oy01p4e)4a@6b*%ti-5-rtri0rxze6i-$e=-p@g'
+SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', 'django-insecure-5c&))li-$t3oy01p4e)4a@6b*%ti-5-rtri0rxze6i-$e=-p@g')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-
-# -----------------------------------------------------
-# Alterações abaixo foram realizadas por Capristo para possibiltar
-# deploy do arquivo usando DEBUG como variável nos .env local e remoto.
-# A linha abaixo (DEBUG = True) foi simplesmente comentada.
-#
-# DEBUG = True
-#
-# Define DEBUG usando variável de ambiente ou padrão True
 DEBUG = os.getenv('DJANGO_DEBUG', 'True') == 'True'
-#
+
+# Instruções para o Django confiar nos cabeçalhos de Host e Proto vindos do Nginx/Cloudflare
+USE_X_FORWARDED_HOST = True
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+
 # Lê FORCE_SCRIPT_NAME apenas se estiver definido no ambiente (Produção)
 FORCE_SCRIPT_NAME = os.getenv('FORCE_SCRIPT_NAME', None)
-#
-# Ajuste no STATIC_URL para respeitar o prefixo se existir
+
+# Configura o ALLOWED_HOSTS a partir da variável de ambiente
+_allowed_hosts_env = os.getenv('ALLOWED_HOSTS', '127.0.0.1,localhost,localhost:8000')
+ALLOWED_HOSTS = [host.strip() for host in _allowed_hosts_env.split(',') if host.strip()]
+
+# Origens confiáveis para validação do token CSRF via HTTPS
+_csrf_origins_env = os.getenv('CSRF_TRUSTED_ORIGINS', 'https://pith.com.br,https://www.pith.com.br')
+CSRF_TRUSTED_ORIGINS = [origin.strip() for origin in _csrf_origins_env.split(',') if origin.strip()]
+
+# Segurança de Cookies em ambiente de Produção
+if not DEBUG:
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+
+# Ajuste no STATIC_URL e MEDIA_URL para respeitar o prefixo do subcaminho se existir
 if FORCE_SCRIPT_NAME:
     STATIC_URL = f'{FORCE_SCRIPT_NAME}/static/'
+    MEDIA_URL = f'{FORCE_SCRIPT_NAME}/media/'
 else:
     STATIC_URL = '/static/'
-#
-# Fim das alterações manuais
-# ----------------------------------------------------------
-
-ALLOWED_HOSTS = []
+    MEDIA_URL = '/media/'
 
 
 # Application definition
@@ -159,8 +163,8 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/6.0/howto/static-files/
 
-STATIC_URL = '/static/'
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
+MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
 AUTH_USER_MODEL = 'accounts.CustomUser'
 
@@ -205,6 +209,7 @@ AUTHENTICATION_BACKENDS = [
 ]
 
 ACCOUNT_EMAIL_VERIFICATION = 'none'
+ACCOUNT_DEFAULT_HTTP_PROTOCOL = 'https' if not DEBUG else 'http'
 SOCIALACCOUNT_AUTO_SIGNUP = True
 SOCIALACCOUNT_QUERY_EMAIL = True
 SOCIALACCOUNT_LOGIN_ON_GET = True
@@ -221,9 +226,6 @@ SOCIALACCOUNT_PROVIDERS = {
         'AUTH_PARAMS': {'access_type': 'online'},
     },
 }
-
-MEDIA_URL = '/media/'
-MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
 STATICFILES_DIRS = [
     # pasta static global se for criada
