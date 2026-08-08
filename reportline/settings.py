@@ -29,7 +29,28 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = 'django-insecure-5c&))li-$t3oy01p4e)4a@6b*%ti-5-rtri0rxze6i-$e=-p@g'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+
+# -----------------------------------------------------
+# Alterações abaixo foram realizadas por Capristo para possibiltar
+# deploy do arquivo usando DEBUG como variável nos .env local e remoto.
+# A linha abaixo (DEBUG = True) foi simplesmente comentada.
+#
+# DEBUG = True
+#
+# Define DEBUG usando variável de ambiente ou padrão True
+DEBUG = os.getenv('DJANGO_DEBUG', 'True') == 'True'
+#
+# Lê FORCE_SCRIPT_NAME apenas se estiver definido no ambiente (Produção)
+FORCE_SCRIPT_NAME = os.getenv('FORCE_SCRIPT_NAME', None)
+#
+# Ajuste no STATIC_URL para respeitar o prefixo se existir
+if FORCE_SCRIPT_NAME:
+    STATIC_URL = f'{FORCE_SCRIPT_NAME}/static/'
+else:
+    STATIC_URL = '/static/'
+#
+# Fim das alterações manuais
+# ----------------------------------------------------------
 
 ALLOWED_HOSTS = []
 

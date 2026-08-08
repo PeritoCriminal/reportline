@@ -11,6 +11,8 @@ from reports.models import ReportBlockType, ReportImage, ReportNode
 from reports.services.report_caption_text import normalize_caption_text
 from reports.services.report_image_upload import build_image_block_content
 
+EMPTY_IMAGE_CAPTION_PLACEHOLDER = "—"
+
 
 class ReportNodeInserter(Protocol):
     """Protocolo para inserção de nó irmão após âncora mutável."""
@@ -43,6 +45,8 @@ def insert_report_image_nodes(
     for entry in report_images:
         image_id = str(entry.get("image_id", "")).strip()
         caption = normalize_caption_text(str(entry.get("caption", "")).strip())
+        if not caption:
+            caption = EMPTY_IMAGE_CAPTION_PLACEHOLDER
         if not image_id:
             continue
         try:

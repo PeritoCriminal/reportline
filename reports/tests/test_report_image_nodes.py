@@ -48,8 +48,8 @@ class ReportImageNodesTests(TestCase):
             position=Decimal("1"),
         )
 
-    def test_insert_always_creates_caption_even_when_empty(self):
-        """Garante par IMAGE + legenda vazia para estilo nativo consistente."""
+    def test_insert_uses_em_dash_placeholder_when_caption_empty(self):
+        """Garante travessão mínimo na legenda vazia para numeração Figura N."""
         image = self._store_test_image(color="red", name="a.jpg")
         anchor = self._make_anchor()
 
@@ -75,13 +75,17 @@ class ReportImageNodesTests(TestCase):
             insert_node=inserter,
         )
 
-        nodes = list(self.report.nodes.select_related("block").order_by("position"))
+        nodes = list(self.report.nodes.select_related("block").order_by("position", "created_at"))
         image_index = next(i for i, node in enumerate(nodes) if node.block.block_type == ReportBlockType.IMAGE)
         caption_node = nodes[image_index + 1]
         self.assertEqual(caption_node.block.block_type, ReportBlockType.PARAGRAPH)
-        self.assertEqual(caption_node.block.content.get("text"), "")
+        self.assertEqual(caption_node.block.content.get("text"), "—")
         self.assertEqual(caption_node.block.text_align, "center")
         self.assertFalse(caption_node.block.first_line_indent)
+
+        nodes_by_parent = _group_nodes_by_parent(nodes)
+        numbers = build_caption_number_map(nodes_by_parent, number_captions=True)
+        self.assertEqual(numbers[caption_node.pk], 1)
 
     def test_insert_preserves_upload_order_for_caption_numbering(self):
         """Garante numeração Figura N na ordem de inserção das imagens."""
