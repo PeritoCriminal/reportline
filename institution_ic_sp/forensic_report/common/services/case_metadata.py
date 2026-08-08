@@ -27,17 +27,133 @@ UPPERCASE_TEXT_FIELDS = frozenset(
     }
 )
 
+# Campos de nomes próprios / unidades com capitalização normativa do português.
+PROPER_NAME_TEXT_FIELDS = frozenset(
+    {
+        "requesting_authority",
+        "police_district",
+        "examiner",
+        "photography",
+        "scanning_3d",
+        "sketch",
+    }
+)
+
+# Preposições, artigos e conjunções que permanecem em minúsculas no meio do nome.
+PORTUGUESE_NAME_PARTICLES = frozenset(
+    {
+        "a",
+        "as",
+        "à",
+        "às",
+        "ao",
+        "aos",
+        "o",
+        "os",
+        "de",
+        "da",
+        "do",
+        "das",
+        "dos",
+        "e",
+        "em",
+        "na",
+        "no",
+        "nas",
+        "nos",
+        "para",
+        "por",
+        "com",
+        "sem",
+        "sob",
+        "sobre",
+        "entre",
+    }
+)
+
+
+def _capitalize_token(token: str) -> str:
+    """Capitaliza a primeira letra alfabética e deixa o restante em minúsculas."""
+    chars = list(token)
+    found_letter = False
+    for index, char in enumerate(chars):
+        if not char.isalpha():
+            continue
+        chars[index] = char.upper() if not found_letter else char.lower()
+        found_letter = True
+    return "".join(chars)
+
+
+def _format_portuguese_name_word(word: str, *, is_first: bool, force_title: bool) -> str:
+    """Aplica capitalização normativa a um token (suporta hífens)."""
+    if "-" in word:
+        parts = word.split("-")
+        return "-".join(
+            _format_portuguese_name_word(
+                part,
+                is_first=is_first and index == 0,
+                force_title=force_title,
+            )
+            for index, part in enumerate(parts)
+        )
+
+    lowered = word.lower()
+    if not is_first and lowered in PORTUGUESE_NAME_PARTICLES:
+        return lowered
+
+    letters = [char for char in word if char.isalpha()]
+    if (
+        not force_title
+        and letters
+        and all(char.isupper() for char in letters)
+        and 2 <= len(letters) <= 5
+    ):
+        # Preserve siglas em entradas mistas (ex.: "1º DP", "DEIC").
+        return word
+
+    return _capitalize_token(word)
+
+
+def format_portuguese_proper_name(value: str) -> str:
+    """
+    Capitalização normativa de nomes próprios em português.
+
+    Primeira letra de cada palavra em maiúscula; preposições/artigos/conjunções
+    em minúsculas no meio do nome. Entradas inteiramente em maiúsculas são
+    reescritas; siglas curtas são preservadas quando isoladas ou em entradas mistas.
+    """
+    cleaned = value.strip()
+    if not cleaned:
+        return cleaned
+
+    letters = [char for char in cleaned if char.isalpha()]
+    # Sigla isolada (sem espaços): manter caixa original.
+    if " " not in cleaned and letters and all(char.isupper() for char in letters):
+        if 2 <= len(letters) <= 5:
+            return cleaned
+
+    force_title = bool(letters) and all(char.isupper() for char in letters)
+
+    words = cleaned.split()
+    return " ".join(
+        _format_portuguese_name_word(word, is_first=index == 0, force_title=force_title)
+        for index, word in enumerate(words)
+    )
+
 
 def normalize_text_field(name: str, value: str) -> str:
     """
     Normaliza campo textual conforme regras de caixa do intake.
 
-    Identificadores administrativos ficam em maiúsculas; nomes e textos
-    livres permanecem na caixa informada pelo perito.
+    Identificadores administrativos ficam em maiúsculas; nomes próprios
+    recebem capitalização normativa do português; demais textos livres
+    permanecem na caixa informada pelo perito.
     """
     cleaned = value.strip()
     if name in UPPERCASE_TEXT_FIELDS:
         return cleaned.upper()
+    if name in PROPER_NAME_TEXT_FIELDS:
+        return format_portuguese_proper_name(cleaned)
     return cleaned
 
 

@@ -151,6 +151,45 @@ def apply_user_page_layout_to_report(
     return report
 
 
+def _logo_cell_has_image(cell: dict[str, Any] | None) -> bool:
+    """Indica se a célula de logo referencia uma imagem persistida."""
+    if not isinstance(cell, dict) or cell.get("type") != "logo":
+        return False
+    return bool(cell.get("image_id") and cell.get("file"))
+
+
+def _merge_band_preserving_fresh_logos(
+    user_band: dict[str, Any],
+    fresh_band: dict[str, Any] | None,
+) -> dict[str, Any]:
+    """
+    Mantém preferências do usuário, preservando emblemas do layout fresco.
+
+    Preferências antigas frequentemente guardam células de logo vazias; sem
+    esta preservação, cada laudo novo perderia os emblemas institucionais
+    recém-copiados.
+    """
+    merged_band = deepcopy(user_band)
+    if not isinstance(fresh_band, dict):
+        return merged_band
+
+    fresh_cells = fresh_band.get("cells", [])
+    merged_cells = [dict(cell) for cell in merged_band.get("cells", [])]
+
+    for index, cell in enumerate(merged_cells):
+        if _logo_cell_has_image(cell):
+            continue
+        if index >= len(fresh_cells):
+            continue
+        fresh_cell = fresh_cells[index]
+        if not _logo_cell_has_image(fresh_cell):
+            continue
+        merged_cells[index] = deepcopy(fresh_cell)
+
+    merged_band["cells"] = merged_cells
+    return merged_band
+
+
 def merge_institutional_layout_with_user_preferences(
     report: Report,
     user: AbstractBaseUser,
@@ -161,6 +200,7 @@ def merge_institutional_layout_with_user_preferences(
 
     Preserva ``reportline_meta`` (incluindo snapshot oficial) do layout
     institucional fresco, permitindo restauração sem afetar relatórios pessoais.
+    Emblemas do layout fresco prevalecem quando as preferências os omitem.
     """
     config = get_or_create_user_config(user)
     if not config.institutional_page_layout:
@@ -172,8 +212,14 @@ def merge_institutional_layout_with_user_preferences(
 
     user_bands = clone_page_layout_for_report(normalized, report)
     merged = deepcopy(fresh_layout)
-    merged["header"] = user_bands["header"]
-    merged["footer"] = user_bands["footer"]
+    merged["header"] = _merge_band_preserving_fresh_logos(
+        user_bands["header"],
+        fresh_layout.get("header"),
+    )
+    merged["footer"] = _merge_band_preserving_fresh_logos(
+        user_bands["footer"],
+        fresh_layout.get("footer"),
+    )
     return merged
 
 

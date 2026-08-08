@@ -111,12 +111,19 @@ Exemplos úteis quando constarem explicitamente nos documentos:
 
 ## Ortografia e nomes próprios
 
-Quando nomes de pessoas, autoridades ou logradouros constarem nos documentos ou nas
-informações complementares do perito, preserve a identificação e aplique capitalização
-normativa do português (ex.: *jose da silva* → *José da Silva*; *Maria Das Dores* →
-*Maria das Dores*; preposições *da*, *de*, *do*, *das*, *dos* em minúsculas dentro
-do nome, salvo início de campo). Corrija erros de grafia evidentes sem alterar o
-referente identificado.
+**Obrigatório** para todo campo de nome próprio neste JSON — em especial
+``requesting_authority``, ``police_district``, ``examiner``, ``photography``,
+``scanning_3d`` e ``sketch`` — independentemente da caixa original nos documentos:
+
+1. Primeira letra de cada palavra em maiúscula.
+2. Preposições, artigos e conjunções em **minúsculas** no meio do nome
+   (*de*, *da*, *do*, *das*, *dos*, *e*, *a*, *o*, *as*, *os*, etc.), salvo se forem
+   a primeira palavra do campo.
+3. Preserve a identificação do referente; corrija ortografia e acentuação evidentes.
+
+Exemplos: *jose da silva* → *José da Silva*; *MARIA DAS DORES* → *Maria das Dores*;
+*1º distrito integrado DE polícia* → *1º Distrito Integrado de Polícia*.
+Siglas institucionais curtas podem permanecer em maiúsculas (*DP*, *DEIC*).
 
 ## O que não fazer
 

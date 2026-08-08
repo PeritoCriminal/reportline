@@ -45,6 +45,8 @@ class MetadataExtractionPromptTests(TestCase):
         self.assertIn("{{supplementary_prompt}}", user)
         self.assertIn("prioridade máxima", user.lower())
         self.assertIn("prevalecem sobre todos os documentos", user.lower())
+        self.assertIn("capitalização normativa", user.lower())
+        self.assertIn("José da Silva", user)
 
     def test_schema_summary_includes_field_priority_hints(self):
         """Garante que o resumo do schema oriente prioridade documental nos campos-chave."""
@@ -93,3 +95,7 @@ class MetadataExtractionPromptTests(TestCase):
         self.assertIn("Laudo Pericial", system)
         self.assertIn("scene_location_preserved", system)
         self.assertIn("scene_access_granted_by", system)
+        self.assertIn("Ortografia e nomes próprios", system)
+        self.assertIn("José da Silva", system)
+        self.assertIn("requesting_authority", system)
+        self.assertIn("preposições, artigos e conjunções", system.lower())

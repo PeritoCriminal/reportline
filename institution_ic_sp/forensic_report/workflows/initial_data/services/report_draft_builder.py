@@ -27,6 +27,7 @@ from institution_ic_sp.forensic_report.services.forensic_report_body_builder imp
 )
 from institution_ic_sp.forensic_report.services.institution_page_layout import (
     build_institution_page_layout,
+    rehydrate_institutional_header_logos,
 )
 from institution_ic_sp.models import Institution
 from profiles.models import ForensicExaminerSP
@@ -71,6 +72,11 @@ def build_generic_forensic_report_draft(
         report,
         author,
         fresh_layout,
+    )
+    page_layout = rehydrate_institutional_header_logos(
+        report,
+        page_layout,
+        institution=institution,
     )
     report.page_layout = page_layout
     report.save(update_fields=["page_layout", "updated_at"])

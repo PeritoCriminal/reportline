@@ -21,6 +21,7 @@ from institution_ic_sp.forensic_report.services.forensic_bootstrap import (
 )
 from institution_ic_sp.forensic_report.services.institution_page_layout import (
     build_institution_page_layout,
+    rehydrate_institutional_header_logos,
 )
 from institution_ic_sp.models import Institution
 from profiles.models import ForensicExaminerSP
@@ -71,6 +72,11 @@ def create_forensic_report_shell(
         report,
         author,
         fresh_layout,
+    )
+    page_layout = rehydrate_institutional_header_logos(
+        report,
+        page_layout,
+        institution=institution,
     )
     bootstrap = empty_bootstrap_payload(supplementary_prompt=supplementary_prompt)
     bootstrap["metadata"]["examiner"] = metadata.examiner

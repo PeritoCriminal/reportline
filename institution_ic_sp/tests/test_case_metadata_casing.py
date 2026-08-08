@@ -8,6 +8,7 @@ from django.test import SimpleTestCase
 from institution_ic_sp.forensic_report.common.forms.case_intake_form import CaseIntakeForm
 from institution_ic_sp.forensic_report.common.services.case_metadata import (
     CaseMetadata,
+    format_portuguese_proper_name,
     format_report_number_display,
     normalize_case_metadata,
     normalize_text_field,
@@ -33,34 +34,58 @@ class CaseMetadataCasingTests(SimpleTestCase):
         self.assertEqual(metadata.occurrence_report, "BO-123")
         self.assertEqual(metadata.police_inquiry, "IP 456")
 
-    def test_name_fields_keep_original_casing(self):
-        """Garante caixa normal em campos de nomes e textos livres."""
+    def test_name_fields_receive_portuguese_proper_casing(self):
+        """Garante capitalização normativa em campos de nomes próprios."""
         metadata = normalize_case_metadata(
             CaseMetadata(
-                requesting_authority="Dr. João Silva",
-                police_district="1º Distrito Integrado de Polícia",
-                examiner="Dra. Maria Souza",
-                photography="Carlos Fotógrafo",
-                scanning_3d="Técnico 3D",
-                sketch="Desenhista Croqui",
+                requesting_authority="DR. JOÃO DA SILVA",
+                police_district="1º DISTRITO INTEGRADO DE POLÍCIA",
+                examiner="dra. maria das dores",
+                photography="carlos fotógrafo",
+                scanning_3d="técnico 3d",
+                sketch="desenhista croqui",
                 exam_objective="Examinar vestígios.",
             )
         )
 
-        self.assertEqual(metadata.requesting_authority, "Dr. João Silva")
+        self.assertEqual(metadata.requesting_authority, "Dr. João da Silva")
         self.assertEqual(metadata.police_district, "1º Distrito Integrado de Polícia")
-        self.assertEqual(metadata.examiner, "Dra. Maria Souza")
+        self.assertEqual(metadata.examiner, "Dra. Maria das Dores")
         self.assertEqual(metadata.photography, "Carlos Fotógrafo")
         self.assertEqual(metadata.scanning_3d, "Técnico 3D")
         self.assertEqual(metadata.sketch, "Desenhista Croqui")
         self.assertEqual(metadata.exam_objective, "Examinar vestígios.")
 
-    def test_normalize_text_field_only_for_identifiers(self):
+    def test_format_portuguese_proper_name_keeps_particles_lowercase(self):
+        """Garante preposições/artigos em minúsculas no meio do nome."""
+        self.assertEqual(
+            format_portuguese_proper_name("jose da silva"),
+            "Jose da Silva",
+        )
+        self.assertEqual(
+            format_portuguese_proper_name("Maria Das Dores"),
+            "Maria das Dores",
+        )
+        self.assertEqual(
+            format_portuguese_proper_name("Ana-Paula de Souza e Costa"),
+            "Ana-Paula de Souza e Costa",
+        )
+
+    def test_format_portuguese_proper_name_preserves_mixed_acronyms(self):
+        """Garante preservação de siglas curtas em entradas mistas."""
+        self.assertEqual(format_portuguese_proper_name("1º DP"), "1º DP")
+        self.assertEqual(format_portuguese_proper_name("DEIC"), "DEIC")
+
+    def test_normalize_text_field_applies_field_rules(self):
         """Garante que a função pontual respeita o nome do campo."""
         self.assertEqual(normalize_text_field("occurrence_report", "bo-1"), "BO-1")
         self.assertEqual(
-            normalize_text_field("requesting_authority", "Dr. Delegado"),
-            "Dr. Delegado",
+            normalize_text_field("requesting_authority", "jose da silva"),
+            "Jose da Silva",
+        )
+        self.assertEqual(
+            normalize_text_field("exam_objective", "examinar vestígios."),
+            "examinar vestígios.",
         )
 
     def test_intake_form_applies_uppercase_widget_only_to_identifiers(self):

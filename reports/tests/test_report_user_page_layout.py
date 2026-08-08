@@ -138,6 +138,47 @@ class ReportUserPageLayoutTests(TestCase):
             "Cabeçalho oficial",
         )
 
+    def test_merge_institutional_layout_preserves_fresh_logos_when_prefs_empty(self):
+        """Garante que preferências sem emblemas não apaguem logos do layout fresco."""
+        user_config = get_or_create_user_config(self.author)
+        user_config.institutional_page_layout = apply_footer_template(
+            apply_header_template({}, HEADER_TEMPLATE_LOGO_LEFT_TEXT_RIGHT),
+            FOOTER_TEMPLATE_TEXT_ONLY,
+        )
+        user_config.institutional_page_layout["header"]["cells"][1]["text"] = "Cabeçalho salvo"
+        user_config.save()
+
+        report = Report.objects.create(author=self.author, title="Laudo pericial")
+        source_image = store_report_image(report, self._build_image_file())
+        fresh_layout = apply_header_template({}, HEADER_TEMPLATE_LOGO_LEFT_TEXT_RIGHT)
+        fresh_layout.update(forensic_report_meta(workflow="generic"))
+        fresh_layout = update_logo_cell_from_image(
+            fresh_layout,
+            cell_index=0,
+            image_payload={
+                "file": source_image.image.name,
+                "image_id": str(source_image.pk),
+                "width": 120,
+                "height": 60,
+                "alt": "Logo SP",
+            },
+        )
+        fresh_layout["header"]["cells"][1]["text"] = "Cabeçalho oficial"
+        fresh_layout["reportline_meta"]["institutional_page_layout_snapshot"] = {
+            "header": fresh_layout["header"],
+            "footer": fresh_layout["footer"],
+        }
+
+        merged = merge_institutional_layout_with_user_preferences(
+            report,
+            self.author,
+            fresh_layout,
+        )
+
+        self.assertEqual(merged["header"]["cells"][1]["text"], "Cabeçalho salvo")
+        self.assertEqual(merged["header"]["cells"][0]["image_id"], str(source_image.pk))
+        self.assertEqual(merged["header"]["cells"][0]["file"], source_image.image.name)
+
     def test_clone_page_layout_for_report_duplicates_logo_images(self):
         """Garante clonagem de imagens de logo ao aplicar layout em laudo novo."""
         source_report = Report.objects.create(author=self.author, title="Origem")

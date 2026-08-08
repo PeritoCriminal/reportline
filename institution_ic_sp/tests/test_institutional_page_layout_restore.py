@@ -184,3 +184,44 @@ class InstitutionalPageLayoutRestoreTests(TestCase):
             image = ReportImage.objects.get(pk=image_id)
             self.assertEqual(image.report_id, report.pk)
             self.assertTrue(image.image.name)
+
+    def test_create_forensic_report_shell_keeps_logos_despite_empty_user_prefs(self):
+        """Garante emblemas no laudo novo mesmo com preferências institucionais sem logos."""
+        from institution_ic_sp.forensic_report.services.forensic_report_shell import (
+            create_forensic_report_shell,
+        )
+        from reports.services.report_page_layout import (
+            FOOTER_TEMPLATE_TEXT_ONLY,
+            HEADER_TEMPLATE_LOGO_TEXT_LOGO,
+            apply_footer_template,
+            apply_header_template,
+        )
+        from reports.services.report_user_config import get_or_create_user_config
+
+        self.institution.sp_logo.save("sp.png", self._build_image_file("sp.png"), save=True)
+        self.institution.sptc_logo.save("sptc.png", self._build_image_file("sptc.png"), save=True)
+
+        user_config = get_or_create_user_config(self.author)
+        user_config.institutional_page_layout = apply_footer_template(
+            apply_header_template({}, HEADER_TEMPLATE_LOGO_TEXT_LOGO),
+            FOOTER_TEMPLATE_TEXT_ONLY,
+        )
+        user_config.institutional_page_layout["header"]["cells"][1]["text"] = "Texto preferido"
+        user_config.save()
+
+        report = create_forensic_report_shell(author=self.author, examiner=self.examiner)
+
+        logo_ids = [
+            cell.get("image_id")
+            for cell in report.page_layout["header"]["cells"]
+            if cell.get("type") == "logo" and cell.get("image_id")
+        ]
+        self.assertEqual(len(logo_ids), 2)
+        self.assertEqual(
+            report.page_layout["header"]["cells"][1]["text"],
+            "Texto preferido",
+        )
+        for image_id in logo_ids:
+            image = ReportImage.objects.get(pk=image_id)
+            self.assertEqual(image.report_id, report.pk)
+            self.assertTrue(image.image.name)
