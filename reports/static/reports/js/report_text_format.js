@@ -41,6 +41,7 @@
     ]);
 
     let formatToolbarGroup = null;
+    let formatOptionsToggle = null;
     let lastFormatContext = null;
 
     function getInlineText() {
@@ -672,6 +673,29 @@
         return Promise.resolve();
     }
 
+    function closeFormatDropdown() {
+        if (!formatOptionsToggle || !window.bootstrap) {
+            return;
+        }
+        window.bootstrap.Dropdown.getOrCreateInstance(formatOptionsToggle).hide();
+    }
+
+    function restoreSelectionAfterDropdownClose() {
+        const context = resolveTableMultiFormatContext()
+            || resolveFormattableContext()
+            || resolveFormattableContextFromSelection();
+        const editable = context && context.editable;
+        if (!editable) {
+            closeFormatDropdown();
+            return;
+        }
+        const offsets = captureSelectionOffsets(editable);
+        closeFormatDropdown();
+        if (!restoreSelectionOffsets(editable, offsets) && editable.focus) {
+            editable.focus({ preventScroll: true });
+        }
+    }
+
     function bindFormatButtons() {
         if (formatToolbarGroup) {
             formatToolbarGroup.addEventListener("mousedown", (event) => {
@@ -691,7 +715,11 @@
                 if (button.disabled) {
                     return;
                 }
-                applyFormat(button.dataset.reportTextFormat).catch(console.error);
+                applyFormat(button.dataset.reportTextFormat)
+                    .then(() => {
+                        restoreSelectionAfterDropdownClose();
+                    })
+                    .catch(console.error);
             });
         });
     }
@@ -756,6 +784,7 @@
 
     function init() {
         formatToolbarGroup = document.querySelector(".report-editor-toolbar-format-group");
+        formatOptionsToggle = document.querySelector("[data-report-text-format-toggle]");
         const page = document.getElementById("report-editor-page");
         if (!formatToolbarGroup || !page) {
             return;

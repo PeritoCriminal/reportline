@@ -3142,6 +3142,29 @@
         justify: "Justificar",
     };
 
+    function closeNearestToolbarDropdown(fromElement) {
+        if (!fromElement || !fromElement.closest || !window.bootstrap) {
+            return;
+        }
+        const group = fromElement.closest(".btn-group");
+        const toggle = group && group.querySelector('[data-bs-toggle="dropdown"]');
+        if (!toggle || toggle.getAttribute("aria-expanded") !== "true") {
+            return;
+        }
+        window.bootstrap.Dropdown.getOrCreateInstance(toggle).hide();
+    }
+
+    function restoreSelectionAfterToolbarDropdown(fromElement, editable, offsets) {
+        closeNearestToolbarDropdown(fromElement);
+        if (editable && offsets) {
+            restoreEditableSelection(editable, offsets);
+            return;
+        }
+        if (editable && editable.focus) {
+            editable.focus({ preventScroll: true });
+        }
+    }
+
     function updateAlignmentToolbar(activeAlign) {
         const alignGroup = document.querySelector(".report-editor-toolbar-align-group");
         const resolvedAlign = activeAlign || "justify";
@@ -3933,7 +3956,18 @@
         toolbar.addEventListener("click", (event) => {
             const alignButton = event.target.closest("[data-report-text-align]");
             if (alignButton) {
-                setTextAlign(alignButton.dataset.reportTextAlign).catch(console.error);
+                const alignmentContext = resolveTableMultiAlignContext() || resolveAlignmentContext();
+                const alignmentEditable = getAlignmentEditable(alignmentContext);
+                const selectionOffsets = captureEditableSelection(alignmentEditable);
+                setTextAlign(alignButton.dataset.reportTextAlign)
+                    .then(() => {
+                        restoreSelectionAfterToolbarDropdown(
+                            alignButton,
+                            alignmentEditable,
+                            selectionOffsets
+                        );
+                    })
+                    .catch(console.error);
                 return;
             }
 
@@ -3949,6 +3983,7 @@
                 : 0;
             const context = resolveInsertContext();
             if (!context || !context.block) {
+                closeNearestToolbarDropdown(button);
                 return;
             }
 
@@ -3958,20 +3993,29 @@
                 insertOptions.titleLevel = titleLevel;
             }
 
+            const closeAfter = (promise) => {
+                Promise.resolve(promise)
+                    .then(() => {
+                        closeNearestToolbarDropdown(button);
+                    })
+                    .catch(console.error);
+            };
+
             if (
                 LIST_TYPES.has(sourceType)
                 && isListItemEditable(context.editable)
             ) {
                 if (blockType === sourceType) {
                     placeCaretAtEnd(context.editable);
+                    closeNearestToolbarDropdown(button);
                     return;
                 }
-                insertBlockFromListCursor(
+                closeAfter(insertBlockFromListCursor(
                     context.block,
                     context.editable,
                     blockType,
                     insertOptions
-                ).catch(console.error);
+                ));
                 return;
             }
 
@@ -3979,21 +4023,21 @@
                 IN_PLACE_CONVERTIBLE_TYPES.has(blockType)
                 && IN_PLACE_CONVERTIBLE_TYPES.has(sourceType)
             ) {
-                convertBlockInPlace(
+                closeAfter(convertBlockInPlace(
                     context.block,
                     context.editable,
                     blockType,
                     insertOptions
-                ).catch(console.error);
+                ));
                 return;
             }
 
-            insertBlockAtCaret(
+            closeAfter(insertBlockAtCaret(
                 context.block,
                 context.editable,
                 blockType,
                 insertOptions
-            ).catch(console.error);
+            ));
         });
 
         refreshAlignmentToolbarState();
