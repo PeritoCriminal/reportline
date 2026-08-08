@@ -422,6 +422,79 @@
         return !(container.textContent || "").length;
     }
 
+    function getSelectionOffsets(element) {
+        const selection = window.getSelection();
+        if (!selection || selection.rangeCount === 0 || !element) {
+            return null;
+        }
+
+        const range = selection.getRangeAt(0);
+        if (!element.contains(range.commonAncestorContainer)) {
+            return null;
+        }
+
+        const startRange = range.cloneRange();
+        startRange.selectNodeContents(element);
+        startRange.setEnd(range.startContainer, range.startOffset);
+
+        const endRange = range.cloneRange();
+        endRange.selectNodeContents(element);
+        endRange.setEnd(range.endContainer, range.endOffset);
+
+        return {
+            start: startRange.toString().length,
+            end: endRange.toString().length,
+        };
+    }
+
+    function setSelectionOffsets(element, offsets) {
+        if (!element || !offsets) {
+            return false;
+        }
+
+        element.focus({ preventScroll: true });
+        const selection = window.getSelection();
+        if (!selection) {
+            return false;
+        }
+
+        const startTarget = Math.max(0, Math.min(offsets.start, offsets.end));
+        const endTarget = Math.max(0, Math.max(offsets.start, offsets.end));
+        const range = document.createRange();
+        let currentOffset = 0;
+        let startSet = false;
+        let endSet = false;
+
+        const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
+        let textNode = walker.nextNode();
+
+        while (textNode) {
+            const length = textNode.textContent.length;
+            if (!startSet && currentOffset + length >= startTarget) {
+                range.setStart(textNode, startTarget - currentOffset);
+                startSet = true;
+            }
+            if (!endSet && currentOffset + length >= endTarget) {
+                range.setEnd(textNode, endTarget - currentOffset);
+                endSet = true;
+                break;
+            }
+            currentOffset += length;
+            textNode = walker.nextNode();
+        }
+
+        if (!startSet) {
+            range.selectNodeContents(element);
+            range.collapse(false);
+        } else if (!endSet) {
+            range.setEnd(range.startContainer, range.startOffset);
+        }
+
+        selection.removeAllRanges();
+        selection.addRange(range);
+        return true;
+    }
+
     window.ReportLineInlineText = {
         sanitize,
         sanitizeHeader,
@@ -438,6 +511,8 @@
         getLastLinePlainTextFromHtml,
         removeLastLineFromHtml,
         isEmptyHtml,
+        getSelectionOffsets,
+        setSelectionOffsets,
         normalizeLinkUrl,
     };
 })();

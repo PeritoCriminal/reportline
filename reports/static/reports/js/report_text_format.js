@@ -47,6 +47,22 @@
         return window.ReportLineInlineText || null;
     }
 
+    function captureSelectionOffsets(editable) {
+        const inlineText = getInlineText();
+        if (!inlineText || !inlineText.getSelectionOffsets) {
+            return null;
+        }
+        return inlineText.getSelectionOffsets(editable);
+    }
+
+    function restoreSelectionOffsets(editable, offsets) {
+        const inlineText = getInlineText();
+        if (!inlineText || !inlineText.setSelectionOffsets || !offsets) {
+            return false;
+        }
+        return inlineText.setSelectionOffsets(editable, offsets);
+    }
+
     function resolveFormattableContextFromSelection() {
         const selection = window.getSelection();
         if (!selection || selection.rangeCount === 0) {
@@ -274,10 +290,20 @@
             fragment.appendChild(span);
         }
 
+        const insertedNodes = Array.from(fragment.childNodes);
         range.insertNode(fragment);
-        range.collapse(false);
-        selection.removeAllRanges();
-        selection.addRange(range);
+
+        if (insertedNodes.length > 0) {
+            const restored = document.createRange();
+            restored.setStartBefore(insertedNodes[0]);
+            restored.setEndAfter(insertedNodes[insertedNodes.length - 1]);
+            selection.removeAllRanges();
+            selection.addRange(restored);
+        } else {
+            range.collapse(false);
+            selection.removeAllRanges();
+            selection.addRange(range);
+        }
         return true;
     }
 
@@ -331,6 +357,7 @@
             return Promise.resolve();
         }
 
+        const selectionOffsets = captureSelectionOffsets(context.editable);
         restoreSelection(context);
 
         if (!applyFontSizeToEditable(context.editable, format)) {
@@ -344,6 +371,10 @@
             } else {
                 context.editable.innerHTML = inlineText.sanitize(context.editable.innerHTML);
             }
+        }
+
+        if (!restoreSelectionOffsets(context.editable, selectionOffsets)) {
+            restoreSelection(context);
         }
 
         if (context.headerText && window.ReportLinePageHeader && window.ReportLinePageHeader.scheduleHeaderSave) {
@@ -607,6 +638,7 @@
             return Promise.resolve();
         }
 
+        const selectionOffsets = captureSelectionOffsets(context.editable);
         restoreSelection(context);
 
         try {
@@ -624,6 +656,10 @@
             }
         }
 
+        if (!restoreSelectionOffsets(context.editable, selectionOffsets)) {
+            restoreSelection(context);
+        }
+
         if (context.headerText && window.ReportLinePageHeader && window.ReportLinePageHeader.scheduleHeaderSave) {
             window.ReportLinePageHeader.scheduleHeaderSave();
         } else if (context.footerText && window.ReportLinePageFooter && window.ReportLinePageFooter.scheduleFooterSave) {
@@ -637,6 +673,12 @@
     }
 
     function bindFormatButtons() {
+        if (formatToolbarGroup) {
+            formatToolbarGroup.addEventListener("mousedown", (event) => {
+                event.preventDefault();
+            });
+        }
+
         document.querySelectorAll("[data-report-text-format]").forEach((button) => {
             button.addEventListener("mousedown", (event) => {
                 event.preventDefault();

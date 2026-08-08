@@ -2910,6 +2910,71 @@
         target.style.textAlign = align;
     }
 
+    function getAlignmentEditable(context) {
+        if (!context) {
+            return null;
+        }
+
+        if (
+            context.kind === "table-cell"
+            || context.kind === "page-header-text"
+            || context.kind === "page-footer-text"
+        ) {
+            return context.target || null;
+        }
+
+        if (context.kind === "block" && context.block) {
+            const selection = window.getSelection();
+            if (selection && selection.rangeCount > 0) {
+                const anchor = selection.anchorNode;
+                const element = anchor && (
+                    anchor.nodeType === Node.ELEMENT_NODE
+                        ? anchor
+                        : anchor.parentElement
+                );
+                const editable = element && element.closest
+                    ? element.closest(".report-editor-block-editable")
+                    : null;
+                if (editable && context.block.contains(editable)) {
+                    return editable;
+                }
+            }
+
+            const active = document.activeElement;
+            if (
+                active
+                && active.closest
+                && context.block.contains(active)
+                && active.matches(".report-editor-block-editable")
+            ) {
+                return active;
+            }
+
+            return context.block.querySelector(".report-editor-block-editable");
+        }
+
+        return null;
+    }
+
+    function captureEditableSelection(editable) {
+        const helpers = getInlineTextHelpers();
+        if (!helpers || !helpers.getSelectionOffsets || !editable) {
+            return null;
+        }
+        return helpers.getSelectionOffsets(editable);
+    }
+
+    function restoreEditableSelection(editable, offsets) {
+        const helpers = getInlineTextHelpers();
+        if (!helpers || !helpers.setSelectionOffsets || !editable || !offsets) {
+            if (editable && editable.focus) {
+                editable.focus({ preventScroll: true });
+            }
+            return false;
+        }
+        return helpers.setSelectionOffsets(editable, offsets);
+    }
+
     function resolveBandTextTarget() {
         if (window.ReportLinePageHeader && window.ReportLinePageHeader.isEditing()) {
             const field = window.ReportLinePageHeader.getActiveHeaderTextField
@@ -3185,6 +3250,9 @@
             return;
         }
 
+        const alignmentEditable = getAlignmentEditable(context);
+        const selectionOffsets = captureEditableSelection(alignmentEditable);
+
         if (context.kind === "page-header-text") {
             if (
                 window.ReportLinePageHeader
@@ -3194,6 +3262,7 @@
                 window.ReportLinePageHeader.applyHeaderTextAlign(context.target, headerAlign);
                 updateAlignmentToolbar(headerAlign);
             }
+            restoreEditableSelection(alignmentEditable, selectionOffsets);
             return;
         }
 
@@ -3206,6 +3275,7 @@
                 window.ReportLinePageFooter.applyFooterTextAlign(context.target, footerAlign);
                 updateAlignmentToolbar(footerAlign);
             }
+            restoreEditableSelection(alignmentEditable, selectionOffsets);
             return;
         }
 
@@ -3232,6 +3302,7 @@
                 tableFocus
             );
             updateAlignmentToolbar(align);
+            restoreEditableSelection(alignmentEditable, selectionOffsets);
             return;
         }
 
@@ -3262,6 +3333,7 @@
         });
         recordTextAlignHistory(context.block, beforeAlign, align);
         updateAlignmentToolbar(align);
+        restoreEditableSelection(alignmentEditable, selectionOffsets);
     }
 
     function applyImageBlockAlignVisual(imageBlock, align) {
@@ -3845,9 +3917,9 @@
         toolbar.addEventListener("mousedown", (event) => {
             if (
                 event.target.closest("[data-insert-block-type]")
-                || event.target.closest("[data-report-text-align]")
+                || event.target.closest(".report-editor-toolbar-align-group")
+                || event.target.closest(".report-editor-toolbar-format-group")
                 || event.target.closest("[data-report-image-align]")
-                || event.target.closest("[data-report-text-format]")
                 || event.target.closest("[data-report-text-link]")
                 || event.target.closest("[data-report-paragraph-indent]")
                 || event.target.closest("[data-report-paragraph-first-line-indent]")
