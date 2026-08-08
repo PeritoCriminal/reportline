@@ -45,10 +45,17 @@ ALLOWED_HOSTS = [host.strip() for host in _allowed_hosts_env.split(',') if host.
 _csrf_origins_env = os.getenv('CSRF_TRUSTED_ORIGINS', 'https://pith.com.br,https://www.pith.com.br')
 CSRF_TRUSTED_ORIGINS = [origin.strip() for origin in _csrf_origins_env.split(',') if origin.strip()]
 
+# Se FORCE_SCRIPT_NAME estiver ativo (/rln), amarra os cookies a esse subcaminho
+if FORCE_SCRIPT_NAME:
+    SESSION_COOKIE_PATH = FORCE_SCRIPT_NAME
+    CSRF_COOKIE_PATH = FORCE_SCRIPT_NAME
+
 # Segurança de Cookies em ambiente de Produção
 if not DEBUG:
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SECURE = True
+    SESSION_COOKIE_HTTPONLY = True
+    SESSION_COOKIE_SAMESITE = 'Lax'
 
 # Ajuste no STATIC_URL e MEDIA_URL para respeitar o prefixo do subcaminho se existir
 if FORCE_SCRIPT_NAME:
